@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-  /* Pastel theme colors */
+  --background: #1e1b4b; /* Deep Navy */
+  --foreground: #f8fafc; /* Light Gray/White */
+  /* Pastel theme colors - not heavily used in dark mode but kept for compatibility */
   --pastel-pink: #ffb6c1;
   --pastel-purple: #e0b0ff;
 }
@@ -15,23 +15,23 @@
   --font-mono: var(--font-barlow);
 }
 
-/* Force light mode globally, override dark mode media query */
+/* Force dark mode styling */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #ffffff;
-    --foreground: #171717;
+    --background: #1e1b4b;
+    --foreground: #f8fafc;
   }
 }
 
 body {
-  /* Dynamic vibrant gradient background based on the user's image */
-  background: linear-gradient(160deg, #ffffff 0%, #ffe4e6 40%, #fbcfe8 70%, #f472b6 100%);
+  /* Dark Cyan/Blue Gradient */
+  background: linear-gradient(145deg, #0f172a 0%, #1e1b4b 30%, #0891b2 70%, #06b6d4 100%);
   background-attachment: fixed;
   color: var(--foreground);
   min-height: 100vh;
 }
 
-/* Custom scrollbar for a cleaner look */
+/* Custom scrollbar for dark mode */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -40,9 +40,9 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.4);
 }

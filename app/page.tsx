@@ -14,7 +14,7 @@ export default async function Home() {
   const isLoggedIn = !!user;
 
   return (
-    <main className="min-h-screen bg-[#404eed] font-sans selection:bg-pink-500 selection:text-white">
+    <main className="min-h-screen bg-[#404eed] font-sans selection:bg-cyan-500 selection:text-white">
       <Navbar isLoggedIn={isLoggedIn} />
       <HeroSection isLoggedIn={isLoggedIn} />
       {/* 

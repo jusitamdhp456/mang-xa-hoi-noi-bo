@@ -34,10 +34,10 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
     <div className="flex-1 flex h-full bg-transparent">
       {/* Main Content */}
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-white/20">
-         <div className="h-16 border-b border-white/50 flex items-center px-6 font-bold text-lg text-zinc-800 shadow-sm shrink-0 bg-white/30 backdrop-blur-md">
-            <span className="text-pink-400 mr-3 text-2xl drop-shadow-sm">{channel?.type === 'voice' ? '🔊' : '#'}</span>
+         <div className="h-16 border-b border-white/10 flex items-center px-6 font-bold text-lg text-white shadow-sm shrink-0 bg-white/5 backdrop-blur-md">
+            <span className="text-cyan-400 mr-3 text-2xl drop-shadow-sm">{channel?.type === 'voice' ? '🔊' : '#'}</span>
             <span className="truncate">{channel?.name || channelId}</span>
-            {channel?.topic && <span className="ml-4 pl-4 border-l border-white/60 text-sm text-zinc-600 font-medium hidden md:block truncate">{channel.topic}</span>}
+            {channel?.topic && <span className="ml-4 pl-4 border-l border-white/20 text-sm text-white/70 font-medium hidden md:block truncate">{channel.topic}</span>}
             
             <div className="ml-auto">
                <NotificationBell />
