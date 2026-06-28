@@ -21,22 +21,22 @@ export async function createWorkspace(formData: FormData) {
     username: user.email?.split('@')[0] + '-' + Math.floor(Math.random() * 10000)
   }, { onConflict: 'id', ignoreDuplicates: true })
 
-  const { data: workspace, error } = await supabase
+  const workspaceId = crypto.randomUUID()
+  const { error } = await supabase
     .from('workspaces')
     .insert({
+      id: workspaceId,
       name,
       slug,
       owner_id: user.id
     })
-    .select()
-    .single()
 
-  if (error || !workspace) {
+  if (error) {
     return { error: `Lỗi Supabase: ${error?.message || 'Không có dữ liệu trả về'}` }
   }
 
   const { error: memberError } = await supabase.from('workspace_members').insert({
-    workspace_id: workspace.id,
+    workspace_id: workspaceId,
     user_id: user.id,
     role: 'owner'
   })
@@ -45,5 +45,5 @@ export async function createWorkspace(formData: FormData) {
     return { error: 'Lỗi khi thêm thành viên' }
   }
 
-  return { workspaceId: workspace.id }
+  return { workspaceId }
 }
