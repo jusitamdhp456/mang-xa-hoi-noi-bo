@@ -13,7 +13,7 @@ export async function createCategory(workspaceId: string, formData: FormData) {
 
   if (error) {
     console.error('Error creating category:', error)
-    return { error: 'Không thể tạo danh mục' }
+    return { error: `Không thể tạo danh mục: ${error.message} (${error.code})` }
   }
 
   revalidatePath(`/workspace/${workspaceId}`)
