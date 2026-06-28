@@ -25,7 +25,7 @@ export async function createWorkspace(formData: FormData) {
     .single()
 
   if (error || !workspace) {
-    return { error: 'Không thể tạo không gian làm việc' }
+    return { error: `Lỗi Supabase: ${error?.message || 'Không có dữ liệu trả về'}` }
   }
 
   const { error: memberError } = await supabase.from('workspace_members').insert({
