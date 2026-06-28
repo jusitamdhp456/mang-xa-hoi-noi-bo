@@ -1,6 +1,7 @@
 import React from 'react';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import Link from 'next/link';
+import { UserSettingsModal } from '@/components/auth/UserSettingsModal';
 
 export default async function AppLayout({
   children,
@@ -13,12 +14,21 @@ export default async function AppLayout({
   
   // Fetch workspaces mà user này tham gia
   let userWorkspaces: { workspaces: { id: string, name: string } | null }[] = [];
+  let profile = null;
+
   if (user) {
     const { data } = await supabase
       .from('workspace_members')
       .select('workspaces(id, name)')
       .eq('user_id', user.id);
     if (data) userWorkspaces = data as unknown as { workspaces: { id: string, name: string } | null }[];
+
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+    profile = profileData;
   }
 
   return (
@@ -45,13 +55,16 @@ export default async function AppLayout({
            );
          })}
          
-         <div className="w-8 h-[2px] bg-white/50 my-1 rounded-full"></div>
+         <div className="w-8 h-[2px] bg-white/50 my-1 rounded-full flex-shrink-0"></div>
          
-         <Link href="/onboarding">
+         <Link href="/onboarding" className="flex-shrink-0">
            <div className="w-12 h-12 bg-white/30 border border-white/40 text-zinc-600 rounded-full flex items-center justify-center text-2xl cursor-pointer hover:bg-white hover:text-black hover:scale-105 transition-all duration-200 shadow-sm" title="Thêm Không gian làm việc">
               +
            </div>
          </Link>
+
+         {/* Nút Avatar Cá Nhân nằm dưới cùng */}
+         <UserSettingsModal user={user} profile={profile} />
       </div>
       
       {/* Main Content */}

@@ -47,3 +47,35 @@ export async function createWorkspace(formData: FormData) {
 
   return { workspaceId }
 }
+
+export async function updateWorkspaceIcon(workspaceId: string, iconUrl: string) {
+  const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: 'Unauthorized' }
+  }
+
+  // Cần kiểm tra quyền sở hữu hoặc admin ở đây, nhưng tạm thời cho phép owner
+  const { data: member } = await supabase
+    .from('workspace_members')
+    .select('role')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!member || (member.role !== 'owner' && member.role !== 'admin')) {
+    return { error: 'Không có quyền cập nhật logo' }
+  }
+
+  const { error } = await supabase
+    .from('workspaces')
+    .update({ icon_key: iconUrl })
+    .eq('id', workspaceId)
+
+  if (error) {
+    return { error: 'Lỗi cập nhật logo workspace' }
+  }
+
+  return { success: true }
+}
