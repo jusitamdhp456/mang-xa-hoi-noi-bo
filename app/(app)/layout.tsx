@@ -1,7 +1,7 @@
 import React from 'react';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import Link from 'next/link';
-import { UserSettingsModal } from '@/components/auth/UserSettingsModal';
+import { VoiceSettingsProvider } from '@/components/providers/VoiceSettingsProvider';
 
 export default async function AppLayout({
   children,
@@ -14,7 +14,6 @@ export default async function AppLayout({
   
   // Fetch workspaces mà user này tham gia
   let userWorkspaces: { workspaces: { id: string, name: string } | null }[] = [];
-  let profile = null;
 
   if (user) {
     const { data } = await supabase
@@ -22,13 +21,6 @@ export default async function AppLayout({
       .select('workspaces(id, name)')
       .eq('user_id', user.id);
     if (data) userWorkspaces = data as unknown as { workspaces: { id: string, name: string } | null }[];
-
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
-    profile = profileData;
   }
 
   return (
@@ -62,14 +54,13 @@ export default async function AppLayout({
               +
            </div>
          </Link>
-
-         {/* Nút Avatar Cá Nhân nằm dưới cùng */}
-         <UserSettingsModal user={user} profile={profile} />
       </div>
       
       {/* Main Content (Dark) */}
       <div className="flex-1 flex overflow-hidden rounded-3xl shadow-xl bg-black/20 backdrop-blur-xl border border-white/10 z-10 text-white">
-        {children}
+        <VoiceSettingsProvider>
+          {children}
+        </VoiceSettingsProvider>
       </div>
     </div>
   );

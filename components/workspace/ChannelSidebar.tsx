@@ -1,9 +1,18 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { CreateChannelModal } from './CreateChannelModal'
+import { UserPanel } from './UserPanel'
 
 export default async function ChannelSidebar({ workspaceId }: { workspaceId: string }) {
   const supabase = await createSupabaseServerClient()
+
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const { data: profile } = user ? await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single() : { data: null };
 
   const { data: workspace } = await supabase
     .from('workspaces')
@@ -61,10 +70,13 @@ export default async function ChannelSidebar({ workspaceId }: { workspaceId: str
           )
         })}
         
-        <div className="mt-6 pt-4 border-t border-white/10">
+        <div className="mt-6 pt-4 border-t border-white/10 mb-4">
            <CreateChannelModal workspaceId={workspaceId} isCategory={true} />
         </div>
       </div>
+      
+      {/* User Panel */}
+      <UserPanel user={user} profile={profile} />
     </div>
   )
 }
