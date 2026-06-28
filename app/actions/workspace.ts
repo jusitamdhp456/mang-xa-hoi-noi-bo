@@ -14,6 +14,13 @@ export async function createWorkspace(formData: FormData) {
     return { error: 'Bạn cần đăng nhập để thực hiện' }
   }
 
+  // Đảm bảo profile luôn tồn tại trước khi tạo workspace (tránh lỗi foreign key constraint nếu user đăng ký từ trước)
+  await supabase.from('profiles').upsert({
+    id: user.id,
+    display_name: user.email?.split('@')[0] || 'User',
+    username: user.email?.split('@')[0] + '-' + Math.floor(Math.random() * 10000)
+  }, { onConflict: 'id', ignoreDuplicates: true })
+
   const { data: workspace, error } = await supabase
     .from('workspaces')
     .insert({
