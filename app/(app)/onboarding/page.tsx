@@ -1,6 +1,7 @@
 import { createWorkspace } from '@/app/actions/workspace'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import { redirect } from 'next/navigation';
+import { OnboardingForm } from '@/components/workspace/OnboardingForm';
 
 export default async function OnboardingPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const { error } = await searchParams;
@@ -24,21 +25,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
 
         {error && <div className="p-3 bg-red-100 text-red-700 text-sm rounded">{error}</div>}
 
-        <form action={createWorkspace} className="flex flex-col gap-4 mt-6">
-          <div>
-             <label className="block text-sm font-medium text-gray-700 mb-1">Tên Không gian làm việc</label>
-             <input 
-               type="text" 
-               name="name"
-               placeholder="Vd: Công ty TNHH ABC" 
-               required
-               className="rounded border p-2 w-full"
-             />
-          </div>
-          <button type="submit" className="rounded bg-indigo-600 p-2 text-white hover:bg-indigo-700 font-medium transition-colors">
-            Tạo Workspace
-          </button>
-        </form>
+        <OnboardingForm />
       </div>
     </div>
   );

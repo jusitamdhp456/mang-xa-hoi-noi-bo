@@ -9,9 +9,9 @@ export async function createWorkspace(formData: FormData) {
 
   const supabase = await createSupabaseServerClient()
   
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return redirect('/login')
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (!user || authError) {
+    return { error: 'Bạn cần đăng nhập để thực hiện' }
   }
 
   const { data: workspace, error } = await supabase
@@ -25,14 +25,18 @@ export async function createWorkspace(formData: FormData) {
     .single()
 
   if (error || !workspace) {
-    return redirect('/onboarding?error=Không thể tạo không gian làm việc')
+    return { error: 'Không thể tạo không gian làm việc' }
   }
 
-  await supabase.from('workspace_members').insert({
+  const { error: memberError } = await supabase.from('workspace_members').insert({
     workspace_id: workspace.id,
     user_id: user.id,
     role: 'owner'
   })
 
-  return redirect(`/workspace/${workspace.id}`)
+  if (memberError) {
+    return { error: 'Lỗi khi thêm thành viên' }
+  }
+
+  return { workspaceId: workspace.id }
 }
