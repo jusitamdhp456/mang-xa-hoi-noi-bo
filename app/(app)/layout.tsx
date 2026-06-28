@@ -26,14 +26,15 @@ export default async function AppLayout({
     <div className="flex h-screen overflow-hidden p-2 sm:p-4 gap-2">
       {/* Sidebar Server - Glassmorphism */}
       <div className="w-[72px] bg-white/40 backdrop-blur-xl border border-white/50 shadow-lg rounded-3xl flex-shrink-0 flex flex-col items-center py-4 gap-3 overflow-y-auto hide-scrollbar z-10">
-         {userWorkspaces.map((item) => {
-           const ws = item.workspaces;
-           if (!ws) return null;
+         {userWorkspaces.map((item, index) => {
+           let ws = item.workspaces;
+           if (Array.isArray(ws)) ws = ws[0];
+           if (!ws || !ws.name) return null;
            // Lấy ký tự đầu tiên làm avatar
            const initial = ws.name.charAt(0).toUpperCase();
            
            return (
-             <Link key={ws.id} href={`/workspace/${ws.id}`}>
+             <Link key={ws.id || index} href={`/workspace/${ws.id}`}>
                <div 
                  className="w-12 h-12 bg-white/60 backdrop-blur-md shadow-sm border border-white/60 rounded-full flex items-center justify-center text-zinc-800 font-bold cursor-pointer hover:bg-white hover:shadow-md hover:scale-105 transition-all duration-200"
                  title={ws.name}
