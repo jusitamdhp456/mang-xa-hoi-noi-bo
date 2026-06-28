@@ -1,5 +1,6 @@
 import { signup } from '@/app/actions/auth'
 import Link from 'next/link'
+import { SubmitButton } from '@/components/auth/SubmitButton'
 
 export default async function RegisterPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const { error } = await searchParams;
@@ -42,9 +43,9 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
             minLength={6}
             className="rounded-2xl border border-white bg-white/50 backdrop-blur-sm p-4 outline-none focus:bg-white focus:ring-2 focus:ring-pink-300 transition-all font-medium text-zinc-700 shadow-sm"
           />
-          <button type="submit" className="rounded-full bg-zinc-900 py-4 text-white hover:bg-pink-500 font-bold text-lg transition-colors shadow-lg hover:shadow-pink-500/30 transform hover:-translate-y-0.5 mt-2">
+          <SubmitButton className="rounded-full bg-zinc-900 py-4 text-white hover:bg-pink-500 font-bold text-lg transition-colors shadow-lg hover:shadow-pink-500/30 transform hover:-translate-y-0.5 mt-2">
             Đăng ký tham gia →
-          </button>
+          </SubmitButton>
         </form>
 
         <div className="text-center text-sm font-medium text-zinc-500 mt-6">
