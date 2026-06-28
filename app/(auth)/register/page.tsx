@@ -5,29 +5,34 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
   const { error } = await searchParams;
 
   return (
-    <div className="flex h-screen items-center justify-center bg-gray-50">
-      <div className="w-full max-w-md space-y-8 rounded-lg bg-white p-6 shadow-md">
-        <h2 className="text-center text-2xl font-bold text-gray-900">Đăng ký tài khoản</h2>
-        <p className="text-center text-sm text-gray-600">
-          Tạo tài khoản để tham gia mạng xã hội nội bộ
-        </p>
+    <div className="flex h-screen items-center justify-center bg-transparent">
+      <div className="w-full max-w-md space-y-8 rounded-3xl bg-white/60 backdrop-blur-xl p-8 shadow-2xl border border-white/60">
+        <div className="text-center">
+           <div className="w-20 h-20 bg-gradient-to-br from-pink-300 to-purple-400 rounded-full mx-auto mb-4 flex items-center justify-center shadow-md border-4 border-white">
+              <span className="text-4xl">✨</span>
+           </div>
+           <h2 className="text-3xl font-extrabold text-zinc-800">Tạo tài khoản mới</h2>
+           <p className="text-sm text-zinc-500 mt-2 font-medium">
+             Tham gia cộng đồng Mạng xã hội nội bộ
+           </p>
+        </div>
 
-        {error && <div className="p-3 bg-red-100 text-red-700 text-sm rounded">{error}</div>}
+        {error && <div className="p-3 bg-red-100/80 backdrop-blur-sm text-red-700 font-bold text-sm rounded-xl border border-red-200 shadow-sm">{error}</div>}
 
-        <form action={signup} className="flex flex-col gap-4">
+        <form action={signup} className="flex flex-col gap-5 mt-8">
           <input 
             type="text" 
             name="displayName"
             placeholder="Họ và tên hiển thị" 
             required
-            className="rounded border p-2"
+            className="rounded-2xl border border-white bg-white/50 backdrop-blur-sm p-4 outline-none focus:bg-white focus:ring-2 focus:ring-pink-300 transition-all font-medium text-zinc-700 shadow-sm"
           />
           <input 
             type="email" 
             name="email"
             placeholder="Địa chỉ email" 
             required
-            className="rounded border p-2"
+            className="rounded-2xl border border-white bg-white/50 backdrop-blur-sm p-4 outline-none focus:bg-white focus:ring-2 focus:ring-pink-300 transition-all font-medium text-zinc-700 shadow-sm"
           />
           <input 
             type="password" 
@@ -35,15 +40,15 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
             placeholder="Mật khẩu (ít nhất 6 ký tự)" 
             required
             minLength={6}
-            className="rounded border p-2"
+            className="rounded-2xl border border-white bg-white/50 backdrop-blur-sm p-4 outline-none focus:bg-white focus:ring-2 focus:ring-pink-300 transition-all font-medium text-zinc-700 shadow-sm"
           />
-          <button type="submit" className="rounded bg-green-600 p-2 text-white hover:bg-green-700">
-            Tạo tài khoản
+          <button type="submit" className="rounded-full bg-zinc-900 py-4 text-white hover:bg-pink-500 font-bold text-lg transition-colors shadow-lg hover:shadow-pink-500/30 transform hover:-translate-y-0.5 mt-2">
+            Đăng ký tham gia →
           </button>
         </form>
 
-        <div className="text-center text-sm text-gray-500 mt-4">
-          Đã có tài khoản? <Link href="/login" className="text-blue-600 hover:underline">Đăng nhập</Link>
+        <div className="text-center text-sm font-medium text-zinc-500 mt-6">
+          Đã có tài khoản? <Link href="/login" className="text-pink-600 font-bold hover:underline">Đăng nhập</Link>
         </div>
       </div>
     </div>
