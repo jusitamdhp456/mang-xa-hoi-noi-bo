@@ -3,6 +3,9 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* Pastel theme colors */
+  --pastel-pink: #ffb6c1;
+  --pastel-purple: #e0b0ff;
 }
 
 @theme inline {
@@ -12,15 +15,35 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Force light mode globally, override dark mode media query */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #ffffff;
+    --foreground: #171717;
   }
 }
 
 body {
-  background: var(--background);
+  /* Dynamic vibrant gradient background based on the user's image */
+  background: linear-gradient(160deg, #ffffff 0%, #ffe4e6 40%, #fbcfe8 70%, #f472b6 100%);
+  background-attachment: fixed;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+}
+
+/* Custom scrollbar for a cleaner look */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
 }

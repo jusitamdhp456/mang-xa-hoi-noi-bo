@@ -86,19 +86,19 @@ export function MessageInput({
   }
 
   return (
-    <div className="p-4 bg-white shrink-0">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+    <div className="p-6 bg-transparent shrink-0">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         {selectedFile && (
-          <div className="flex items-center gap-2 bg-indigo-50 p-2 rounded w-max border border-indigo-100">
-             <span className="text-xs font-medium text-indigo-700 truncate max-w-xs">{selectedFile.name}</span>
-             <button type="button" onClick={() => setSelectedFile(null)} className="text-indigo-500 hover:text-indigo-800 text-xs font-bold">×</button>
+          <div className="flex items-center gap-2 bg-pink-100 p-2 rounded-xl w-max border border-pink-200 shadow-sm ml-4">
+             <span className="text-xs font-bold text-pink-700 truncate max-w-xs">{selectedFile.name}</span>
+             <button type="button" onClick={() => setSelectedFile(null)} className="text-pink-500 hover:text-pink-800 text-xs font-bold bg-white rounded-full w-5 h-5 flex items-center justify-center shadow-sm">×</button>
           </div>
         )}
-        <div className="bg-gray-100 rounded-lg p-3 flex items-center shadow-inner">
+        <div className="bg-zinc-900 rounded-full py-3 px-5 flex items-center shadow-lg transform transition-transform hover:scale-[1.01] duration-200">
            <button 
              type="button" 
              onClick={() => fileInputRef.current?.click()}
-             className="text-gray-400 hover:text-gray-600 mr-3 shrink-0 flex items-center justify-center w-6 h-6 bg-gray-200 rounded-full"
+             className="text-zinc-900 hover:text-white mr-4 shrink-0 flex items-center justify-center w-8 h-8 bg-white hover:bg-pink-500 rounded-full transition-colors shadow-sm font-bold text-lg"
              title="Đính kèm file"
            >
              +
@@ -117,8 +117,8 @@ export function MessageInput({
               onChange={(e) => setContent(e.target.value)}
               onKeyDown={handleKeyDown}
               disabled={isSending}
-              placeholder={`Nhắn tin vào ${channelType === 'voice' ? '🔊' : '#'} ${channelName}`} 
-              className="bg-transparent w-full outline-none text-sm text-gray-800 disabled:opacity-50"
+              placeholder={`Nhắn tin vào ${channelType === 'voice' ? '🔊' : '#'} ${channelName}...`} 
+              className="bg-transparent w-full outline-none text-base text-zinc-50 disabled:opacity-50 placeholder-zinc-400 font-medium"
            />
         </div>
       </form>
