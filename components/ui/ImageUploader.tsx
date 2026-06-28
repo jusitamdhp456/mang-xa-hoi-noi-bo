@@ -117,7 +117,7 @@ export function ImageUploader({ onUploadSuccess, folder = 'messages', className 
                  <div className="h-2 w-full bg-white/30 rounded-full overflow-hidden">
                    <div 
                      className="h-full bg-pink-500 rounded-full transition-all duration-300"
-                     style={{ width: \`\${progress}%\` }}
+                     style={{ width: `${progress}%` }}
                    />
                  </div>
                </div>
