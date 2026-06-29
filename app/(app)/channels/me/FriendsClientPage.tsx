@@ -1646,7 +1646,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
             ) : (
               /* Normal text chat interface */
               <>
-                <div className="h-16 border-b border-white/10 flex items-center px-4 sm:px-6 justify-between flex-shrink-0 bg-white/5 backdrop-blur-md">
+                <div className="h-16 border-b border-white/10 flex items-center px-4 sm:px-6 justify-between flex-shrink-0 bg-white/5 backdrop-blur-md relative z-30">
                   <div className="flex items-center gap-2 sm:gap-3">
                     <button 
                       onClick={() => setMobileShowSidebar(true)}
