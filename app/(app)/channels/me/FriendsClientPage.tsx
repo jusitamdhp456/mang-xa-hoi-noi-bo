@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserPanel } from '@/components/workspace/UserPanel';
 import { User, MessageSquare, Plus, Search, HelpCircle, Compass, Gamepad2, Phone, Video, Send, Check } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
