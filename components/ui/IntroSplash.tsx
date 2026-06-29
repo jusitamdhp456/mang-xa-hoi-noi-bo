@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 // Cheerful little fanfare, synthesized so it needs no audio asset.
 function ringMelody(ctx: AudioContext) {
@@ -22,60 +22,58 @@ function ringMelody(ctx: AudioContext) {
   });
 }
 
-function playIntroSound() {
-  try {
+export function IntroSplash() {
+  const [phase, setPhase] = useState<'show' | 'hiding' | 'gone'>('show');
+  const [needsTap, setNeedsTap] = useState(false);
+  const ctxRef = useRef<AudioContext | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const playedRef = useRef(false);
+
+  useEffect(() => {
     const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const ctx = AC ? new AC() : null;
-
-    // Real intro audio file (plays alongside the synthesized chime).
+    ctxRef.current = AC ? new AC() : null;
     const audio = new Audio('/alovua.mp3');
-    audio.volume = 0.9;
+    audio.volume = 0.95;
+    audio.preload = 'auto';
+    audioRef.current = audio;
 
-    const fire = () => {
+    // Play both the mp3 and the synth chime. Returns the audio play promise.
+    const play = () => {
+      if (playedRef.current) return Promise.resolve();
+      playedRef.current = true;
+      const ctx = ctxRef.current;
       if (ctx) {
         ctx.resume().catch(() => {});
-        ringMelody(ctx);
+        try { ringMelody(ctx); } catch { /* ignore */ }
       }
       audio.currentTime = 0;
-      audio.play().catch(() => {});
+      return audio.play();
     };
 
-    if (!ctx) {
-      fire();
-      return;
-    }
+    const onGesture = () => {
+      playedRef.current = false; // allow the gesture to actually start playback
+      play().then(() => setNeedsTap(false)).catch(() => {});
+      window.removeEventListener('pointerdown', onGesture);
+      window.removeEventListener('keydown', onGesture);
+      window.removeEventListener('touchstart', onGesture);
+    };
 
-    if (ctx.state === 'suspended') {
-      // Autoplay is blocked until a gesture — play on the first interaction.
-      const onGesture = () => {
-        fire();
-        window.removeEventListener('pointerdown', onGesture);
-        window.removeEventListener('keydown', onGesture);
-        window.removeEventListener('touchstart', onGesture);
-      };
+    // Try to autoplay; if the browser blocks it, wait for the first interaction.
+    play().catch(() => {
+      setNeedsTap(true);
       window.addEventListener('pointerdown', onGesture, { once: true });
       window.addEventListener('keydown', onGesture, { once: true });
       window.addEventListener('touchstart', onGesture, { once: true });
-      // Still try immediately in case the policy allows it.
-      fire();
-    } else {
-      fire();
-    }
-  } catch {
-    /* ignore */
-  }
-}
+    });
 
-export function IntroSplash() {
-  const [phase, setPhase] = useState<'show' | 'hiding' | 'gone'>('show');
-
-  useEffect(() => {
-    playIntroSound();
     const t1 = setTimeout(() => setPhase('hiding'), 2500);
     const t2 = setTimeout(() => setPhase('gone'), 3000);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
+      window.removeEventListener('pointerdown', onGesture);
+      window.removeEventListener('keydown', onGesture);
+      window.removeEventListener('touchstart', onGesture);
     };
   }, []);
 
@@ -83,8 +81,7 @@ export function IntroSplash() {
 
   return (
     <div
-      onClick={() => setPhase('gone')}
-      className={`fixed inset-0 z-[9999] flex items-center justify-center bg-gradient-to-br from-[#1e1b4b] via-[#312e81] to-[#0f172a] transition-opacity duration-500 ${
+      className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center gap-6 bg-gradient-to-br from-[#1e1b4b] via-[#312e81] to-[#0f172a] transition-opacity duration-500 ${
         phase === 'hiding' ? 'opacity-0' : 'opacity-100'
       }`}
     >
@@ -97,6 +94,12 @@ export function IntroSplash() {
           className="relative w-64 h-64 sm:w-80 sm:h-80 object-contain drop-shadow-2xl animate-logo-bounce"
         />
       </div>
+
+      {needsTap && (
+        <div className="text-white/90 text-sm font-bold tracking-wide animate-pulse select-none">
+          🔊 Chạm để bật âm thanh
+        </div>
+      )}
     </div>
   );
 }
