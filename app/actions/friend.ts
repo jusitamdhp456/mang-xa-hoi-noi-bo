@@ -308,7 +308,7 @@ export async function getFriendRequests() {
 }
 
 // Send a direct message in a DM thread
-export async function sendDirectMessage(threadId: string, content: string) {
+export async function sendDirectMessage(threadId: string, content: string, type: 'text' | 'image' | 'file' | 'voice' = 'text') {
   const supabaseUserClient = await createSupabaseServerClient();
   const { data: { user } } = await supabaseUserClient.auth.getUser();
 
@@ -328,7 +328,7 @@ export async function sendDirectMessage(threadId: string, content: string) {
       thread_id: threadId,
       sender_id: user.id,
       content: content.trim(),
-      type: 'text'
+      type: type
     });
 
   if (error) {

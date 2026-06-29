@@ -228,6 +228,27 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
   const [incomingCallInvite, setIncomingCallInvite] = useState<any | null>(null);
   const [mobileShowSidebar, setMobileShowSidebar] = useState(true);
 
+  // File upload states
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const file = items[i].getAsFile();
+        if (file) {
+          e.preventDefault();
+          setSelectedFile(file);
+          break;
+        }
+      }
+    }
+  };
+
   // Toggle chat-active class on html node based on sidebar visibility
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -604,32 +625,73 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentMessageInput.trim() || !selectedChatId) return;
+    if ((!currentMessageInput.trim() && !selectedFile) || !selectedChatId || isUploading) return;
 
     const content = currentMessageInput.trim();
+    const currentFile = selectedFile;
+    
     setCurrentMessageInput('');
+    setSelectedFile(null);
 
-    // 1. Play sending sound
+    // Play sending sound
     playSendSound();
 
-    const tempMessageId = `msg-temp-${Date.now()}`;
-    const messagePayload = {
-      id: tempMessageId,
-      thread_id: selectedChatId,
-      sender_id: user.id,
-      content: content,
-      type: 'text',
-      created_at: new Date().toISOString()
-    };
-
-    // 2. Render locally immediately
-    setDbMessages(prev => [...prev, messagePayload]);
+    let finalContent = content;
+    let msgType = 'text';
 
     try {
-      // 3. Save in database
-      await sendDirectMessage(selectedChatId, content);
+      if (currentFile) {
+        setIsUploading(true);
+        const presignRes = await fetch('/api/upload/presigned', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileName: currentFile.name,
+            fileType: currentFile.type,
+            threadId: selectedChatId
+          })
+        });
+        
+        if (!presignRes.ok) throw new Error('Không thể tạo liên kết tải lên');
+        
+        const { uploadUrl, objectKey } = await presignRes.json();
+        
+        const uploadRes = await fetch(uploadUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': currentFile.type },
+          body: currentFile
+        });
+        
+        if (!uploadRes.ok) throw new Error('Tải tệp tin lên thất bại');
+        
+        const attachmentPayload = {
+          objectKey,
+          fileName: currentFile.name,
+          mimeType: currentFile.type || 'application/octet-stream',
+          sizeBytes: currentFile.size
+        };
 
-      // 4. Broadcast to the thread channel room-dm
+        finalContent = JSON.stringify(attachmentPayload);
+        msgType = currentFile.type.startsWith('image/') ? 'image' : 'file';
+      }
+
+      const tempMessageId = `msg-temp-${Date.now()}`;
+      const messagePayload = {
+        id: tempMessageId,
+        thread_id: selectedChatId,
+        sender_id: user.id,
+        content: finalContent,
+        type: msgType,
+        created_at: new Date().toISOString()
+      };
+
+      // Render locally immediately
+      setDbMessages(prev => [...prev, messagePayload]);
+
+      // Save in database
+      await sendDirectMessage(selectedChatId, finalContent, msgType as any);
+
+      // Broadcast to the thread channel room-dm
       const supabase = createSupabaseBrowserClient();
       await supabase
         .channel(`room-dm-${selectedChatId}`)
@@ -638,8 +700,14 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
           event: 'new_message',
           payload: messagePayload
         });
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to send DM:', err);
+      alert(err.message || 'Gửi tin nhắn hoặc tệp tin thất bại');
+      setCurrentMessageInput(content);
+      setSelectedFile(currentFile);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -1445,7 +1513,27 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
 
         {/* VIEW 3: DIRECT CHAT PANEL */}
         {activeView === 'chat' && activeChatPartner && (
-          <div className="flex-1 flex flex-col h-full bg-transparent overflow-hidden">
+          <div 
+            className="flex-1 flex flex-col h-full bg-transparent overflow-hidden relative"
+            onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
+            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
+            onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(false); }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsDragOver(false);
+              if (e.dataTransfer.files?.[0]) {
+                setSelectedFile(e.dataTransfer.files[0]);
+              }
+            }}
+          >
+            {isDragOver && (
+              <div className="absolute inset-0 bg-indigo-950/80 border-4 border-dashed border-indigo-500 rounded-3xl flex flex-col items-center justify-center z-50 pointer-events-none animate-fade-in-up">
+                <span className="text-4xl mb-3">📥</span>
+                <p className="text-base font-bold text-white">Thả tệp tin hoặc ảnh vào đây</p>
+                <p className="text-xs text-zinc-300 mt-1">Hệ thống sẽ đính kèm tệp vào tin nhắn của bạn</p>
+              </div>
+            )}
             {isCalling ? (
               /* FULL VIEW Calling Screen */
               <div className="flex-1 flex flex-col h-full bg-[#121214] overflow-hidden p-6 relative animate-scale-in">
@@ -1572,7 +1660,56 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                                   : 'bg-zinc-800/90 border-white/5 text-zinc-200 rounded-bl-none'
                               }`}
                             >
-                              {msg.content}
+                              {msg.type === 'image' ? (
+                                (() => {
+                                  try {
+                                    const attachment = JSON.parse(msg.content);
+                                    return (
+                                      <a 
+                                        href={`/api/media/${attachment.objectKey}`} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer" 
+                                        className="inline-block relative group/img mt-1 overflow-hidden rounded-xl border border-white/10"
+                                      >
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img 
+                                          src={`/api/media/${attachment.objectKey}`} 
+                                          alt={attachment.fileName} 
+                                          className="max-w-xs sm:max-w-sm max-h-60 object-contain hover:scale-[1.02] transition-transform duration-200" 
+                                        />
+                                      </a>
+                                    );
+                                  } catch (e) {
+                                    return <span>{msg.content}</span>;
+                                  }
+                                })()
+                              ) : msg.type === 'file' ? (
+                                (() => {
+                                  try {
+                                    const attachment = JSON.parse(msg.content);
+                                    return (
+                                      <div className="flex items-center gap-3 bg-black/25 p-3 rounded-xl border border-white/5 max-w-sm mt-1">
+                                        <span className="text-2xl shrink-0">📎</span>
+                                        <div className="min-w-0 flex-1">
+                                          <p className="text-xs font-bold text-zinc-200 truncate">{attachment.fileName}</p>
+                                          <p className="text-[10px] text-zinc-400 mt-0.5">{(attachment.sizeBytes / 1024).toFixed(1)} KB</p>
+                                        </div>
+                                        <a 
+                                          href={`/api/media/${attachment.objectKey}`} 
+                                          download={attachment.fileName}
+                                          className="p-1.5 bg-white/5 hover:bg-white/15 rounded-lg text-xs font-bold text-white transition-all select-none shrink-0"
+                                        >
+                                          Tải xuống
+                                        </a>
+                                      </div>
+                                    );
+                                  } catch (e) {
+                                    return <span>{msg.content}</span>;
+                                  }
+                                })()
+                              ) : (
+                                msg.content
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1582,14 +1719,67 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                   </div>
                 </div>
 
-                <form onSubmit={handleSendMessage} className="p-4 bg-transparent border-t border-white/10 flex gap-2 flex-shrink-0">
-                  <input 
-                    type="text" 
-                    placeholder={`Nhắn tin cho @${activeChatPartner?.display_name || 'user'}`}
-                    value={currentMessageInput}
-                    onChange={e => setCurrentMessageInput(e.target.value)}
-                    className="w-full bg-[#383a40]/60 border border-white/5 text-xs text-white rounded-xl p-3 outline-none placeholder:text-zinc-500 focus:border-indigo-500 focus:bg-[#383a40]/90 transition-all font-medium"
-                  />
+                <form onSubmit={handleSendMessage} className="p-4 bg-transparent border-t border-white/10 flex flex-col gap-3 flex-shrink-0">
+                  {/* File Upload Preview */}
+                  {selectedFile && (
+                    <div className="flex items-center gap-3 bg-[#2b2d31] p-3 rounded-2xl border border-white/5 shadow-md w-max max-w-sm ml-2 animate-scale-in">
+                      <div className="text-2xl">
+                        {selectedFile.type.startsWith('image/') ? '🖼️' : '📁'}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-zinc-200 truncate max-w-[200px]">{selectedFile.name}</p>
+                        <p className="text-[10px] text-zinc-400 mt-0.5">{(selectedFile.size / 1024).toFixed(1)} KB</p>
+                      </div>
+                      <button 
+                        type="button" 
+                        onClick={() => setSelectedFile(null)} 
+                        className="text-zinc-400 hover:text-white transition-colors text-base font-bold bg-white/5 hover:bg-white/10 rounded-full w-6 h-6 flex items-center justify-center cursor-pointer shadow-sm"
+                        title="Hủy tệp tin"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Uploading progress indicator */}
+                  {isUploading && (
+                    <div className="flex items-center gap-2 text-zinc-400 text-xs px-2 animate-pulse font-medium">
+                      <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-ping"></span>
+                      <span>Đang tải tệp tin lên hệ thống...</span>
+                    </div>
+                  )}
+
+                  <div className="bg-[#383a40]/60 border border-white/5 rounded-2xl py-3 px-4 flex items-center shadow-lg focus-within:border-indigo-500 focus-within:bg-[#383a40]/80 transition-all">
+                    {/* Add attachment button */}
+                    <button 
+                      type="button" 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="text-zinc-400 hover:text-white mr-3 shrink-0 flex items-center justify-center w-7 h-7 bg-white/5 hover:bg-white/10 rounded-full transition-colors cursor-pointer text-base font-bold animate-pulse-subtle"
+                      title="Đính kèm tệp tin / hình ảnh"
+                      disabled={isUploading}
+                    >
+                      +
+                    </button>
+                    
+                    <input 
+                      type="file" 
+                      className="hidden" 
+                      ref={fileInputRef}
+                      onChange={(e) => {
+                        if (e.target.files?.[0]) setSelectedFile(e.target.files[0]);
+                      }}
+                    />
+
+                    <input 
+                      type="text" 
+                      placeholder={isUploading ? "Vui lòng đợi..." : `Nhắn tin cho @${activeChatPartner?.display_name || 'user'}`}
+                      value={currentMessageInput}
+                      onChange={e => setCurrentMessageInput(e.target.value)}
+                      onPaste={handlePaste}
+                      disabled={isUploading}
+                      className="bg-transparent w-full outline-none text-xs text-white disabled:opacity-50 placeholder:text-zinc-500 font-medium"
+                    />
+                  </div>
                 </form>
               </>
             )}
