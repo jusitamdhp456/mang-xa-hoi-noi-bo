@@ -670,7 +670,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                     <form onSubmit={handleAddFriendSubmit} className="flex bg-black/30 p-3 rounded-xl border border-white/10 items-center justify-between focus-within:border-green-400 transition-colors">
                       <input 
                         type="text"
-                        placeholder="Nhập tên người dùng hoặc ID..."
+                        placeholder="Nhập tên người dùng hoặc ID để kết bạn..."
                         value={addFriendInput}
                         onChange={e => setAddFriendInput(e.target.value)}
                         className="bg-transparent text-sm text-zinc-100 flex-1 outline-none pr-4 placeholder-zinc-500"
@@ -684,7 +684,97 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                     </form>
 
                     {addFriendStatus && (
-                      <p className="text-xs text-green-400 font-semibold">{addFriendStatus}</p>
+                      <p className="text-xs text-green-400 font-semibold animate-fade-in">{addFriendStatus}</p>
+                    )}
+
+                    {/* Live Search Results */}
+                    {addFriendInput.trim() && (
+                      <div className="space-y-2.5 mt-4 animate-scale-in">
+                        <h4 className="text-[10px] text-zinc-500 uppercase font-black tracking-wider leading-none">
+                          Kết quả tìm kiếm ({
+                            otherProfiles.filter(p => 
+                              p.username?.toLowerCase().includes(addFriendInput.trim().toLowerCase()) ||
+                              p.display_name?.toLowerCase().includes(addFriendInput.trim().toLowerCase()) ||
+                              p.id === addFriendInput.trim()
+                            ).length
+                          })
+                        </h4>
+                        
+                        <div className="space-y-1.5">
+                          {otherProfiles.filter(p => 
+                            p.username?.toLowerCase().includes(addFriendInput.trim().toLowerCase()) ||
+                            p.display_name?.toLowerCase().includes(addFriendInput.trim().toLowerCase()) ||
+                            p.id === addFriendInput.trim()
+                          ).slice(0, 5).map(p => {
+                            const isAlreadyFriend = friendIds.includes(p.id);
+                            const avatar = p.avatar_key ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${p.avatar_key}` : null;
+                            const name = p.display_name || p.username || 'User';
+
+                            const handleAddClick = () => {
+                              const updatedFriends = [...friendIds, p.id];
+                              setFriendIds(updatedFriends);
+                              localStorage.setItem('friends_ids_v3', JSON.stringify(updatedFriends));
+                              setAddFriendStatus(`Thành công! Đã kết bạn với "${name}". Giờ hai bạn đã có thể nhắn tin trực tiếp và đàm thoại!`);
+                              setTimeout(() => setAddFriendStatus(''), 6000);
+                            };
+
+                            return (
+                              <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-all">
+                                <div className="flex items-center gap-3">
+                                  <div className="relative">
+                                    {avatar ? (
+                                      // eslint-disable-next-line @next/next/no-img-element
+                                      <img src={avatar} alt="Avatar" className="w-9 h-9 rounded-full object-cover" />
+                                    ) : (
+                                      <div className="w-9 h-9 rounded-full bg-indigo-900 flex items-center justify-center text-white text-xs font-bold uppercase">
+                                        {name.charAt(0)}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <p className="text-white text-xs font-bold leading-tight">{name}</p>
+                                    <p className="text-[10px] text-zinc-500 mt-0.5">@{p.username || 'user'}</p>
+                                  </div>
+                                </div>
+
+                                <div className="flex gap-2 items-center">
+                                  {isAlreadyFriend ? (
+                                    <>
+                                      <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2.5 py-1.5 rounded-lg border border-emerald-500/10">
+                                        Bạn bè ✔
+                                      </span>
+                                      <button
+                                        onClick={() => {
+                                          setSelectedChatId(p.id);
+                                          setActiveView('chat');
+                                        }}
+                                        className="px-3 py-1.5 bg-indigo-650 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black transition-colors cursor-pointer"
+                                      >
+                                        Nhắn tin
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <button
+                                      onClick={handleAddClick}
+                                      className="px-4 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-[10px] font-black transition-colors cursor-pointer"
+                                    >
+                                      Kết bạn
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+
+                          {otherProfiles.filter(p => 
+                            p.username?.toLowerCase().includes(addFriendInput.trim().toLowerCase()) ||
+                            p.display_name?.toLowerCase().includes(addFriendInput.trim().toLowerCase()) ||
+                            p.id === addFriendInput.trim()
+                          ).length === 0 && (
+                            <p className="text-xs text-zinc-500 italic py-2">Không tìm thấy người dùng có Tên/ID: "{addFriendInput}"</p>
+                          )}
+                        </div>
+                      </div>
                     )}
                   </div>
                 )}
