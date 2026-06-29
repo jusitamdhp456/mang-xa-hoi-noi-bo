@@ -16,7 +16,7 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
   let initialMessages = []
   const { data: msgs } = await supabase
     .from('messages')
-    .select('*, profiles(display_name, avatar_key), message_attachments(*)')
+    .select('*, profiles(display_name, avatar_key), message_attachments(*), message_reactions(emoji, user_id)')
     .eq('channel_id', channelId)
     .order('created_at', { ascending: true })
     .limit(50)
@@ -66,22 +66,24 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
               </div>
               {/* Lower Part: Text Chat area */}
               <div className="flex-1 flex flex-col overflow-hidden bg-black/10">
-                <ChatArea 
-                  channelId={channelId} 
-                  channelName={channel?.name || ''} 
-                  channelType={channel?.type || 'voice'} 
+                <ChatArea
+                  channelId={channelId}
+                  channelName={channel?.name || ''}
+                  channelType={channel?.type || 'voice'}
                   workspaceId={workspaceId}
-                  initialMessages={initialMessages} 
+                  initialMessages={initialMessages}
+                  currentUserId={user?.id || null}
                 />
               </div>
             </div>
           ) : (
-            <ChatArea 
-              channelId={channelId} 
-              channelName={channel?.name || ''} 
-              channelType={channel?.type || 'text'} 
+            <ChatArea
+              channelId={channelId}
+              channelName={channel?.name || ''}
+              channelType={channel?.type || 'text'}
               workspaceId={workspaceId}
-              initialMessages={initialMessages} 
+              initialMessages={initialMessages}
+              currentUserId={user?.id || null}
             />
           )}
       </div>

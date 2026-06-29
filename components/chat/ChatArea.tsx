@@ -1,7 +1,9 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
+import { toggleReaction } from '@/app/actions/reaction'
 import { MessageItem } from './MessageItem'
 import { MessageInput } from './MessageInput'
 
@@ -14,6 +16,11 @@ export type AttachmentRow = {
   size_bytes: number;
 };
 
+export type ReactionRow = {
+  emoji: string;
+  user_id: string;
+};
+
 export type MessageRow = {
   id: string;
   content: string;
@@ -24,25 +31,71 @@ export type MessageRow = {
     avatar_key: string | null;
   };
   message_attachments?: AttachmentRow[];
+  message_reactions?: ReactionRow[];
 };
 
 export function ChatArea({ 
-  channelId, 
+  channelId,
   channelName,
   channelType,
   workspaceId,
-  initialMessages 
-}: { 
-  channelId: string, 
+  initialMessages,
+  currentUserId = null
+}: {
+  channelId: string,
   channelName: string,
   channelType: string,
   workspaceId: string,
-  initialMessages: MessageRow[] 
+  initialMessages: MessageRow[],
+  currentUserId?: string | null
 }) {
   const [messages, setMessages] = useState<MessageRow[]>(initialMessages)
   const [activeLightboxImg, setActiveLightboxImg] = useState<string | null>(null)
   const supabase = createSupabaseBrowserClient()
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const channelRef = useRef<RealtimeChannel | null>(null)
+
+  // Re-fetch the reactions for a single message and merge into state.
+  const refreshReactions = useCallback(async (messageId: string) => {
+    const { data } = await supabase
+      .from('message_reactions')
+      .select('emoji, user_id')
+      .eq('message_id', messageId)
+    setMessages((prev) =>
+      prev.map((m) => (m.id === messageId ? { ...m, message_reactions: data || [] } : m))
+    )
+  }, [supabase])
+
+  // Toggle a reaction: optimistic local update, persist, then notify others.
+  const handleToggleReaction = useCallback(async (messageId: string, emoji: string) => {
+    if (!currentUserId) return
+    setMessages((prev) =>
+      prev.map((m) => {
+        if (m.id !== messageId) return m
+        const list = m.message_reactions || []
+        const mine = list.some((r) => r.user_id === currentUserId && r.emoji === emoji)
+        return {
+          ...m,
+          message_reactions: mine
+            ? list.filter((r) => !(r.user_id === currentUserId && r.emoji === emoji))
+            : [...list, { emoji, user_id: currentUserId }],
+        }
+      })
+    )
+
+    const res = await toggleReaction(messageId, emoji)
+    if (res?.error) {
+      // Reconcile with the server on failure.
+      await refreshReactions(messageId)
+      return
+    }
+    // Tell other clients to refresh this message's reactions.
+    channelRef.current?.send({
+      type: 'broadcast',
+      event: 'reaction',
+      payload: { messageId },
+    })
+  }, [currentUserId, refreshReactions])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -85,12 +138,23 @@ export function ChatArea({
           setMessages((prev) => [...prev, enrichedMessage])
         }
       )
+      .on(
+        'broadcast',
+        { event: 'reaction' },
+        (payload) => {
+          const messageId = payload?.payload?.messageId
+          if (messageId) refreshReactions(messageId)
+        }
+      )
       .subscribe()
 
+    channelRef.current = channel
+
     return () => {
+      channelRef.current = null
       supabase.removeChannel(channel)
     }
-  }, [channelId, supabase])
+  }, [channelId, supabase, refreshReactions])
 
   return (
     <>
@@ -106,7 +170,13 @@ export function ChatArea({
             </div>
           ) : (
             messages.map((msg) => (
-              <MessageItem key={msg.id} message={msg} onImageClick={setActiveLightboxImg} />
+              <MessageItem
+                key={msg.id}
+                message={msg}
+                onImageClick={setActiveLightboxImg}
+                currentUserId={currentUserId}
+                onToggleReaction={handleToggleReaction}
+              />
             ))
           )}
           <div ref={messagesEndRef} />
