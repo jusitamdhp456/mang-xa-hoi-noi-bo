@@ -112,15 +112,14 @@ export function WorkspaceDashboard({
           </div>
 
           <div className="flex items-center gap-3 self-start md:self-auto">
-            <CreateChannelModal 
-              workspaceId={workspaceId} 
-              categories={categories} 
-              triggerType="button" 
+            <CreateChannelModal
+              workspaceId={workspaceId}
+              categories={categories}
+              triggerType="button"
             />
-            <CreateChannelModal 
-              workspaceId={workspaceId} 
-              isCategory={true} 
-              triggerType="header" 
+            <CreateChannelModal
+              workspaceId={workspaceId}
+              isCategory={true}
             />
           </div>
         </div>

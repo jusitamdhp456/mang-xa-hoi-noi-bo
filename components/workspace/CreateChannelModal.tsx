@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { createChannel, createCategory } from '@/app/actions/channel'
 import { Plus, X, Hash, Volume2, Lock, FolderPlus } from 'lucide-react'
 
@@ -67,6 +68,10 @@ export function CreateChannelModal({
   const [isOpen, setIsOpen] = useState(false)
   const [error, setError] = useState('')
   const [isPending, startTransition] = useTransition()
+  const [mounted, setMounted] = useState(false)
+
+  // Ensure portal target (document.body) is only used on the client
+  useEffect(() => setMounted(true), [])
   
   // Local state for type and privacy selection to handle custom button styling
   const [channelType, setChannelType] = useState<'text' | 'voice'>(defaultType || 'text')
@@ -183,7 +188,7 @@ export function CreateChannelModal({
     <>
       {triggerButton}
 
-      {isOpen && (
+      {isOpen && mounted && createPortal(
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-[#1e1b4b]/95 border border-white/10 backdrop-blur-2xl rounded-2xl w-[350px] overflow-hidden shadow-2xl animate-scale-in text-white">
             {/* Header */}
@@ -332,7 +337,8 @@ export function CreateChannelModal({
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
