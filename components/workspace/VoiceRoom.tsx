@@ -92,8 +92,15 @@ export function VoiceRoom({
     setWorkspaceId, 
     customName, 
     setCustomName,
-    setSpeakingUserIds
+    setSpeakingUserIds,
+    activeParticipants,
+    currentUser,
+    speakingUserIds
   } = useVoiceSettings();
+
+  const myUserId = currentUser?.id || userId;
+  const otherParticipants = activeParticipants.filter(p => p.user_id !== myUserId && p.voice_channel_id === channelId);
+  const matchedPartnerId = otherParticipants[0]?.user_id || '';
 
   // Sync connection state with presence tracking provider
   useEffect(() => {
@@ -134,11 +141,11 @@ export function VoiceRoom({
         setUseP2P(true);
       }
     })();
-  }, [channelId, username, customName, disconnected, useP2P]);
+  }, [channelId, username, customName, disconnected]);
 
   // P2P WebRTC connection setup
   useEffect(() => {
-    if (!useP2P || !userId || !partnerId) return;
+    if (!useP2P || !myUserId || !matchedPartnerId) return;
 
     const supabase = createSupabaseBrowserClient();
     const signalChannel = supabase.channel(`call-sig-${channelId}`);
@@ -189,7 +196,7 @@ export function VoiceRoom({
             signalChannel.send({
               type: 'broadcast',
               event: 'ice-candidate',
-              payload: { candidate: event.candidate, senderId: userId }
+              payload: { candidate: event.candidate, senderId: myUserId }
             });
           }
         };
@@ -197,31 +204,23 @@ export function VoiceRoom({
         // Handshake: peer_ready synchronization logic
         signalChannel
           .on('broadcast', { event: 'peer_ready' }, async (payload) => {
-            if (payload.payload.senderId === userId || !peerConnection) return;
+            if (payload.payload.senderId === myUserId || !peerConnection) return;
             
-            const isOfferCreator = userId < partnerId;
-            if (isOfferCreator) {
-              // Creator creates offer
-              const offer = peerConnection.remoteDescription ? null : await peerConnection.createOffer();
-              if (offer) {
-                await peerConnection.setLocalDescription(offer);
-                signalChannel.send({
-                  type: 'broadcast',
-                  event: 'sdp-offer',
-                  payload: { offer, senderId: userId }
-                });
-              }
-            } else {
-              // Receiver re-broadcasts peer_ready to acknowledge creator in case of race conditions
+            // Create offer if we are the initiator (e.g. alphabetical comparison to resolve role conflict)
+            const isInitiator = myUserId < matchedPartnerId;
+            if (isInitiator) {
+              const offer = await peerConnection.createOffer();
+              await peerConnection.setLocalDescription(offer);
+              
               signalChannel.send({
                 type: 'broadcast',
-                event: 'peer_ready',
-                payload: { senderId: userId }
+                event: 'sdp-offer',
+                payload: { offer, senderId: myUserId }
               });
             }
           })
           .on('broadcast', { event: 'sdp-offer' }, async (payload) => {
-            if (payload.payload.senderId === userId || !peerConnection) return;
+            if (payload.payload.senderId === myUserId || !peerConnection) return;
             await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.payload.offer));
             
             // Process queued ICE candidates
@@ -240,11 +239,11 @@ export function VoiceRoom({
             signalChannel.send({
               type: 'broadcast',
               event: 'sdp-answer',
-              payload: { answer, senderId: userId }
+              payload: { answer, senderId: myUserId }
             });
           })
           .on('broadcast', { event: 'sdp-answer' }, async (payload) => {
-            if (payload.payload.senderId === userId || !peerConnection) return;
+            if (payload.payload.senderId === myUserId || !peerConnection) return;
             await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.payload.answer));
             
             // Process queued ICE candidates
@@ -258,7 +257,7 @@ export function VoiceRoom({
             }
           })
           .on('broadcast', { event: 'ice-candidate' }, async (payload) => {
-            if (payload.payload.senderId === userId || !peerConnection) return;
+            if (payload.payload.senderId === myUserId || !peerConnection) return;
             const candidate = payload.payload.candidate;
             if (candidate) {
               if (peerConnection.remoteDescription && peerConnection.remoteDescription.type) {
@@ -279,7 +278,7 @@ export function VoiceRoom({
                 signalChannel.send({
                   type: 'broadcast',
                   event: 'peer_ready',
-                  payload: { senderId: userId }
+                  payload: { senderId: myUserId }
                 });
               }, 500);
             }
@@ -302,7 +301,7 @@ export function VoiceRoom({
       }
       supabase.removeChannel(signalChannel);
     };
-  }, [useP2P, channelId, video, userId, partnerId]);
+  }, [useP2P, channelId, video, myUserId, matchedPartnerId]);
 
   // Sync global isMuted and isDeafened settings to P2P connection
   useEffect(() => {
@@ -617,41 +616,63 @@ export function VoiceRoom({
             )
           ) : (
             /* Discord-like Voice Call Grid Layout */
-            <div className="flex flex-wrap items-center justify-center gap-6 p-6 select-none max-w-lg mx-auto w-full">
-              {/* Local Participant Card */}
-              <div className="bg-zinc-850/70 border border-white/10 backdrop-blur-md rounded-2xl p-6 flex flex-col items-center justify-center space-y-4 w-44 h-44 shadow-2xl relative transition-all duration-300">
-                <div className="relative">
-                  <div className={`w-16 h-16 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xl font-black uppercase border-2 border-indigo-400 ${!p2pMuted ? 'animate-pulse-subtle shadow-[0_0_15px_rgba(99,102,241,0.5)]' : ''}`}>
-                    {username.charAt(0).toUpperCase()}
-                  </div>
-                  {p2pMuted && (
-                    <span className="absolute -bottom-1 -right-1 bg-red-600 text-white rounded-full p-1 border border-zinc-900">
-                      <MicOff size={10} />
-                    </span>
-                  )}
-                </div>
-                <div>
-                  <h5 className="font-extrabold text-xs text-white text-center truncate w-32">{customName || username}</h5>
-                  <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider text-center mt-1">Bạn (Thiết bị)</p>
-                </div>
-              </div>
+            <div className="flex flex-wrap items-center justify-center gap-6 p-6 select-none max-w-4xl mx-auto w-full">
+              {activeParticipants
+                .filter(p => p.voice_channel_id === channelId)
+                .map(p => {
+                  const isSelf = p.user_id === myUserId;
+                  const displayName = p.custom_name || p.display_name;
+                  const initial = displayName.charAt(0).toUpperCase();
+                  const isMutedOrDeafened = p.is_muted || p.is_deafened;
+                  const isSpeaking = speakingUserIds.includes(p.user_id);
 
-              {/* Remote Participant Card */}
-              <div className="bg-zinc-850/70 border border-white/10 backdrop-blur-md rounded-2xl p-6 flex flex-col items-center justify-center space-y-4 w-44 h-44 shadow-2xl relative transition-all duration-300">
-                <div className="relative">
-                  <div className={`w-16 h-16 rounded-full bg-emerald-600 flex items-center justify-center text-white text-xl font-black uppercase border-2 border-emerald-400 ${remoteStream ? 'animate-pulse-subtle shadow-[0_0_15px_rgba(16,185,129,0.5)]' : ''}`}>
-                    X
-                  </div>
-                </div>
-                <div>
-                  <h5 className="font-extrabold text-xs text-white text-center truncate w-32">Đàm thoại trực tiếp</h5>
-                  <p className="text-[9px] text-emerald-400 font-black uppercase tracking-wider text-center mt-1 flex items-center justify-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
-                    Đang truyền mic
-                  </p>
-                  <audio ref={remoteAudioRef} autoPlay playsInline />
-                </div>
-              </div>
+                  return (
+                    <div 
+                      key={p.user_id} 
+                      className={`bg-zinc-850/70 border backdrop-blur-md rounded-2xl p-6 flex flex-col items-center justify-center space-y-4 w-44 h-44 shadow-2xl relative transition-all duration-300 ${
+                        isSpeaking 
+                          ? 'border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)] scale-105' 
+                          : 'border-white/10'
+                      }`}
+                    >
+                      <div className="relative">
+                        {p.avatar_key ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img 
+                            src={`https://pub-9664a868c7184eaea9c2c5f43942f9d9.r2.dev/${p.avatar_key}`} 
+                            alt="" 
+                            className={`w-16 h-16 rounded-full object-cover border-2 transition-all duration-300 ${
+                              isSpeaking ? 'border-emerald-400' : 'border-zinc-700'
+                            }`}
+                          />
+                        ) : (
+                          <div 
+                            className={`w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-black uppercase border-2 transition-all duration-300 ${
+                              isSelf ? 'bg-indigo-650' : 'bg-zinc-700'
+                            } ${
+                              isSpeaking ? 'border-emerald-400' : 'border-zinc-500'
+                            }`}
+                          >
+                            {initial}
+                          </div>
+                        )}
+                        {isMutedOrDeafened && (
+                          <span className="absolute -bottom-1 -right-1 bg-red-600 text-white rounded-full p-1 border border-zinc-900 shadow-md">
+                            <MicOff size={10} />
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-center w-full">
+                        <h5 className="font-extrabold text-xs text-white truncate px-2">{displayName}</h5>
+                        <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider mt-1">
+                          {isSelf ? 'Bạn (Thiết bị)' : 'Đang kết nối'}
+                        </p>
+                      </div>
+                      {/* Audio tag for WebRTC remote streams */}
+                      {!isSelf && <audio ref={remoteAudioRef} autoPlay playsInline />}
+                    </div>
+                  );
+                })}
             </div>
           )}
 
