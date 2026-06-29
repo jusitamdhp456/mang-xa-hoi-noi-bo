@@ -400,3 +400,90 @@ export async function removeFriend(threadId: string) {
 
   return { success: true };
 }
+
+// Optimized parallel dashboard loader
+export async function loadFriendsDashboardData() {
+  const supabaseUserClient = await createSupabaseServerClient();
+  const { data: { user } } = await supabaseUserClient.auth.getUser();
+
+  if (!user) {
+    return { friends: [], requests: [] };
+  }
+
+  const supabaseAdmin = createSupabaseServiceClient();
+
+  const [friendsList, requestsList] = await Promise.all([
+    // 1. Fetch Friends (DM Threads)
+    (async () => {
+      const { data: memberships } = await supabaseAdmin
+        .from('direct_thread_members')
+        .select('thread_id')
+        .eq('user_id', user.id);
+
+      if (!memberships || memberships.length === 0) return [];
+      const threadIds = memberships.map(m => m.thread_id);
+
+      const { data: dmThreads } = await supabaseAdmin
+        .from('direct_threads')
+        .select('id')
+        .in('id', threadIds)
+        .eq('is_group', false);
+
+      if (!dmThreads || dmThreads.length === 0) return [];
+      const dmThreadIds = dmThreads.map(t => t.id);
+
+      const { data: otherMembers } = await supabaseAdmin
+        .from('direct_thread_members')
+        .select('thread_id, user_id')
+        .in('thread_id', dmThreadIds)
+        .neq('user_id', user.id);
+
+      if (!otherMembers || otherMembers.length === 0) return [];
+      const friendIds = otherMembers.map(m => m.user_id);
+
+      const { data: friendProfiles } = await supabaseAdmin
+        .from('profiles')
+        .select('*')
+        .in('id', friendIds);
+
+      return (friendProfiles || []).map(profile => {
+        const membership = otherMembers.find(m => m.user_id === profile.id);
+        return {
+          ...profile,
+          threadId: membership?.thread_id || null
+        };
+      });
+    })(),
+
+    // 2. Fetch Pending Requests
+    (async () => {
+      const { data: notifications } = await supabaseAdmin
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('type', 'system')
+        .eq('is_read', false)
+        .order('created_at', { ascending: false });
+
+      return (notifications || []).map(n => {
+        let payload = {};
+        try {
+          payload = JSON.parse(n.content || '{}');
+        } catch (e) {
+          console.error('Failed to parse notification content JSON:', e);
+        }
+        return {
+          id: n.id,
+          created_at: n.created_at,
+          sender_id: n.actor_id,
+          ...payload
+        };
+      }).filter((n: any) => n.type === 'friend_request');
+    })()
+  ]);
+
+  return {
+    friends: friendsList,
+    requests: requestsList
+  };
+}

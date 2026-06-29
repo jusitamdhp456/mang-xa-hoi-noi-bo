@@ -36,7 +36,8 @@ import {
   getFriendRequests,
   sendDirectMessage,
   getDirectMessages,
-  removeFriend
+  removeFriend,
+  loadFriendsDashboardData
 } from '@/app/actions/friend';
 
 interface FriendsClientPageProps {
@@ -151,20 +152,19 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
     return () => window.removeEventListener('click', handleCloseMenu);
   }, []);
 
-  // Load friends and pending requests from Supabase
-  const loadFriendsData = async () => {
-    const list = await getFriends();
-    setFriendsProfiles(list);
-  };
-
-  const loadRequestsData = async () => {
-    const list = await getFriendRequests();
-    setFriendRequests(list);
+  // Load friends and pending requests from Supabase in a single parallel request
+  const loadDashboardData = async () => {
+    try {
+      const { friends, requests } = await loadFriendsDashboardData();
+      setFriendsProfiles(friends);
+      setFriendRequests(requests);
+    } catch (e) {
+      console.error('Failed to load dashboard data:', e);
+    }
   };
 
   useEffect(() => {
-    loadFriendsData();
-    loadRequestsData();
+    loadDashboardData();
   }, []);
 
   // Real-time updates subscription for requests and friends
@@ -177,7 +177,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
         'postgres_changes',
         { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
         () => {
-          loadRequestsData();
+          loadDashboardData();
         }
       )
       .subscribe();
@@ -188,7 +188,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
         'postgres_changes',
         { event: '*', schema: 'public', table: 'direct_thread_members', filter: `user_id=eq.${user.id}` },
         () => {
-          loadFriendsData();
+          loadDashboardData();
         }
       )
       .subscribe();
@@ -949,7 +949,13 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                           <div key={p.id} className="flex items-center justify-between p-2.5 rounded-xl hover:bg-white/5 transition-colors border border-transparent hover:border-white/5">
                             <div className="flex items-center gap-3">
                               <div className="relative">
-                                <img src={avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=80&h=80"} alt="Avatar" className="w-10 h-10 rounded-full object-cover" />
+                                {avatar ? (
+                                  <img src={avatar} alt="Avatar" className="w-10 h-10 rounded-full object-cover" />
+                                ) : (
+                                  <div className="w-10 h-10 rounded-full bg-indigo-650 flex items-center justify-center text-white text-sm font-bold uppercase">
+                                    {name.charAt(0)}
+                                  </div>
+                                )}
                                 <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#16133a] ${statusBg}`}></span>
                               </div>
                               <div>
@@ -1053,8 +1059,14 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
 
                     return (
                       <div key={p.id} className="bg-white/5 border border-white/5 p-3 rounded-xl flex gap-3">
-                        <div className="relative">
-                          <img src={avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=80&h=80"} alt="Avatar" className="w-9 h-9 rounded-full object-cover shrink-0" />
+                        <div className="relative shrink-0">
+                          {avatar ? (
+                            <img src={avatar} alt="Avatar" className="w-9 h-9 rounded-full object-cover shrink-0" />
+                          ) : (
+                            <div className="w-9 h-9 rounded-full bg-indigo-650 flex items-center justify-center text-white text-xs font-bold uppercase shrink-0">
+                              {name.charAt(0)}
+                            </div>
+                          )}
                           <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-slate-900 bg-green-500"></span>
                         </div>
                         <div className="min-w-0">
