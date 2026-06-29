@@ -26,49 +26,65 @@ export function IntroSplash() {
   const [phase, setPhase] = useState<'show' | 'hiding' | 'gone'>('show');
   const [needsTap, setNeedsTap] = useState(false);
   const ctxRef = useRef<AudioContext | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const bufferRef = useRef<AudioBuffer | null>(null);
   const playedRef = useRef(false);
 
   useEffect(() => {
     const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    ctxRef.current = AC ? new AC() : null;
-    const audio = new Audio('/alovua.mp3');
-    audio.volume = 0.95;
-    audio.preload = 'auto';
-    audioRef.current = audio;
+    const ctx = AC ? new AC() : null;
+    ctxRef.current = ctx;
+    let cancelled = false;
 
-    // Play both the mp3 and the synth chime. Returns the audio play promise.
-    const play = () => {
-      if (playedRef.current) return Promise.resolve();
+    // Play instantly from a decoded buffer (no <audio> startup latency).
+    const playNow = () => {
+      if (playedRef.current) return;
+      const c = ctxRef.current;
+      if (!c || !bufferRef.current) return;
       playedRef.current = true;
-      const ctx = ctxRef.current;
-      if (ctx) {
-        ctx.resume().catch(() => {});
-        try { ringMelody(ctx); } catch { /* ignore */ }
-      }
-      audio.currentTime = 0;
-      return audio.play();
+      try { ringMelody(c); } catch { /* ignore */ }
+      const src = c.createBufferSource();
+      src.buffer = bufferRef.current;
+      const g = c.createGain();
+      g.gain.value = 0.95;
+      src.connect(g);
+      g.connect(c.destination);
+      src.start();
+      setNeedsTap(false);
     };
 
     const onGesture = () => {
-      playedRef.current = false; // allow the gesture to actually start playback
-      play().then(() => setNeedsTap(false)).catch(() => {});
+      ctxRef.current?.resume().then(() => playNow()).catch(() => {});
       window.removeEventListener('pointerdown', onGesture);
       window.removeEventListener('keydown', onGesture);
       window.removeEventListener('touchstart', onGesture);
     };
 
-    // Try to autoplay; if the browser blocks it, wait for the first interaction.
-    play().catch(() => {
-      setNeedsTap(true);
+    // Decode the (preloaded) mp3, then play the moment it's ready.
+    if (ctx) {
+      fetch('/alovua.mp3')
+        .then((r) => r.arrayBuffer())
+        .then((b) => ctx.decodeAudioData(b))
+        .then((buf) => {
+          if (cancelled) return;
+          bufferRef.current = buf;
+          // Autoplay may be blocked — resume() succeeds only after a gesture.
+          ctx.resume().then(() => {
+            if (ctx.state === 'running') playNow();
+            else setNeedsTap(true);
+          }).catch(() => setNeedsTap(true));
+        })
+        .catch(() => setNeedsTap(true));
+
+      // Always allow the first interaction to (re)start the sound.
       window.addEventListener('pointerdown', onGesture, { once: true });
       window.addEventListener('keydown', onGesture, { once: true });
       window.addEventListener('touchstart', onGesture, { once: true });
-    });
+    }
 
     const t1 = setTimeout(() => setPhase('hiding'), 2500);
     const t2 = setTimeout(() => setPhase('gone'), 3000);
     return () => {
+      cancelled = true;
       clearTimeout(t1);
       clearTimeout(t2);
       window.removeEventListener('pointerdown', onGesture);

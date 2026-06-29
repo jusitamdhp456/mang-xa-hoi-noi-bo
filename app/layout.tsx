@@ -29,6 +29,11 @@ export default function RootLayout({
       lang="vi"
       className={`${barlow.variable} ${barlow.className} h-full antialiased`}
     >
+      <head>
+        {/* Warm the intro sound + logo so they're ready the moment the app opens */}
+        <link rel="preload" href="/alovua.mp3" as="audio" />
+        <link rel="preload" href="/logo.png" as="image" />
+      </head>
       <body className="min-h-full flex flex-col">
         <IntroSplash />
         {children}
