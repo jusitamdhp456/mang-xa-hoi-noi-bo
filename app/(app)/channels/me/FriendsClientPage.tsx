@@ -1713,8 +1713,6 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                               <span>{timeStr}</span>
                             </div>
 
-                            {/* Bubble Body with larger text and padded nicely */}
-                            <div 
                             {/* Bubble Body: Conditional styling if it's an image */}
                             {msg.type === 'image' ? (
                               (() => {
