@@ -1341,49 +1341,16 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
         {/* VIEW 3: DIRECT CHAT PANEL */}
         {activeView === 'chat' && activeChatPartner && (
           <div className="flex-1 flex flex-col h-full bg-transparent overflow-hidden">
-            <div className="h-16 border-b border-white/10 flex items-center px-6 justify-between flex-shrink-0 bg-white/5 backdrop-blur-md">
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  {activeChatPartner?.avatar_key ? (
-                    <img src={`https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${activeChatPartner.avatar_key}`} alt="avatar" className="w-8 h-8 rounded-full object-cover" />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-indigo-900 flex items-center justify-center text-white text-xs font-bold uppercase">
-                      {activeChatPartner?.display_name?.charAt(0)}
-                    </div>
-                  )}
-                  <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-slate-900 ${activeChatPartner?.status === 'online' ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
-                </div>
-                <div>
-                  <h4 className="text-white font-bold text-sm leading-none">{activeChatPartner?.display_name}</h4>
-                  <p className="text-[10px] text-zinc-400 uppercase tracking-wider font-extrabold mt-0.5">@{activeChatPartner?.username}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4 text-zinc-400">
-                <button 
-                  onClick={() => initiateCall('voice')}
-                  className="hover:text-zinc-200 animate-pulse-subtle cursor-pointer" 
-                  title="Bắt đầu cuộc gọi thoại"
-                >
-                  <Phone size={18} />
-                </button>
-                <button 
-                  onClick={() => initiateCall('video')}
-                  className="hover:text-zinc-200 animate-pulse-subtle cursor-pointer" 
-                  title="Bắt đầu cuộc gọi video"
-                >
-                  <Video size={18} />
-                </button>
-              </div>
-            </div>
-
-            {isCalling && (
-              <div className="bg-black/30 p-4 border-b border-white/10 flex flex-col relative shrink-0" style={{ height: '350px' }}>
-                <div className="absolute top-4 right-4 z-20 flex gap-2">
+            {isCalling ? (
+              /* FULL VIEW Calling Screen */
+              <div className="flex-1 flex flex-col h-full bg-[#121214] overflow-hidden p-6 relative animate-scale-in">
+                {/* Hang up button in top right */}
+                <div className="absolute top-6 right-6 z-20">
                   <button 
                     onClick={handleHangUp}
-                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all shadow-md hover:scale-105 cursor-pointer"
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all shadow-md hover:scale-105 cursor-pointer flex items-center gap-1.5"
                   >
+                    <PhoneOff size={14} />
                     Gác máy (Đóng cuộc gọi)
                   </button>
                 </div>
@@ -1396,69 +1363,108 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                   partnerId={activeChatPartner.id}
                 />
               </div>
-            )}
-
-            {/* Message Log */}
-            <div className="flex-1 p-6 overflow-y-auto space-y-4 flex flex-col">
-              
-              <div className="text-center py-6 border-b border-white/5 mb-4 shrink-0">
-                <div className="w-16 h-16 rounded-full bg-zinc-800 flex items-center justify-center text-white text-3xl mx-auto mb-3 shadow-lg border border-white/5">👋</div>
-                <h3 className="text-white font-bold text-base">Bắt đầu cuộc trò chuyện với {activeChatPartner?.display_name}</h3>
-                <p className="text-xs text-zinc-500">Đây là sự khởi đầu của lịch sử tin nhắn trực tiếp của bạn.</p>
-              </div>
-
-              <div className="flex-1 space-y-4">
-                {dbMessages.map((msg, index) => {
-                  const isMe = msg.sender_id === user.id;
-                  const partnerName = activeChatPartner?.display_name || 'Bạn';
-                  const partnerAvatar = activeChatPartner?.avatar_key ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${activeChatPartner.avatar_key}` : null;
-                  const timeStr = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-                  return (
-                    <div key={msg.id || index} className="flex gap-4 items-start hover:bg-white/5 -mx-6 px-6 py-1 transition-all">
-                      <div className="relative flex-shrink-0 mt-0.5">
-                        {isMe ? (
-                          avatarUrl ? (
-                            <img src={avatarUrl} alt="Me" className="w-9 h-9 rounded-full object-cover border border-white/5" />
-                          ) : (
-                            <div className="w-9 h-9 rounded-full bg-cyan-600 flex items-center justify-center text-white font-bold text-xs uppercase">
-                              {displayName.charAt(0).toUpperCase()}
-                            </div>
-                          )
-                        ) : (
-                          partnerAvatar ? (
-                            <img src={partnerAvatar} alt="Partner" className="w-9 h-9 rounded-full object-cover border border-white/5" />
-                          ) : (
-                            <div className="w-9 h-9 rounded-full bg-indigo-900 flex items-center justify-center text-white font-bold text-xs uppercase">
-                              {partnerName.charAt(0).toUpperCase()}
-                            </div>
-                          )
-                        )}
-                      </div>
-                      
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-white font-bold text-xs leading-none hover:underline cursor-pointer">{isMe ? 'Bạn' : partnerName}</span>
-                          <span className="text-[9px] text-zinc-500 font-medium">{timeStr}</span>
+            ) : (
+              /* Normal text chat interface */
+              <>
+                <div className="h-16 border-b border-white/10 flex items-center px-6 justify-between flex-shrink-0 bg-white/5 backdrop-blur-md">
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      {activeChatPartner?.avatar_key ? (
+                        <img src={`https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${activeChatPartner.avatar_key}`} alt="avatar" className="w-8 h-8 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-indigo-900 flex items-center justify-center text-white text-xs font-bold uppercase">
+                          {activeChatPartner?.display_name?.charAt(0)}
                         </div>
-                        <p className="text-xs text-zinc-300 mt-1.5 leading-relaxed whitespace-pre-wrap">{msg.content}</p>
-                      </div>
+                      )}
+                      <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-slate-900 ${activeChatPartner?.status === 'online' ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
                     </div>
-                  );
-                })}
-                <div ref={chatEndRef} />
-              </div>
-            </div>
+                    <div>
+                      <h4 className="text-white font-bold text-sm leading-none">{activeChatPartner?.display_name}</h4>
+                      <p className="text-[10px] text-zinc-400 uppercase tracking-wider font-extrabold mt-0.5">@{activeChatPartner?.username}</p>
+                    </div>
+                  </div>
 
-            <form onSubmit={handleSendMessage} className="p-4 bg-transparent border-t border-white/10 flex gap-2 flex-shrink-0">
-              <input 
-                type="text" 
-                placeholder={`Nhắn tin cho @${activeChatPartner?.display_name || 'user'}`}
-                value={currentMessageInput}
-                onChange={e => setCurrentMessageInput(e.target.value)}
-                className="w-full bg-[#383a40]/60 border border-white/5 text-xs text-white rounded-xl p-3 outline-none placeholder:text-zinc-500 focus:border-indigo-500 focus:bg-[#383a40]/90 transition-all font-medium"
-              />
-            </form>
+                  <div className="flex items-center gap-4 text-zinc-400">
+                    <button 
+                      onClick={() => initiateCall('voice')}
+                      className="hover:text-zinc-200 animate-pulse-subtle cursor-pointer" 
+                      title="Bắt đầu cuộc gọi thoại"
+                    >
+                      <Phone size={18} />
+                    </button>
+                    <button 
+                      onClick={() => initiateCall('video')}
+                      className="hover:text-zinc-200 animate-pulse-subtle cursor-pointer" 
+                      title="Bắt đầu cuộc gọi video"
+                    >
+                      <Video size={18} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Message Log */}
+                <div className="flex-1 p-6 overflow-y-auto space-y-4 flex flex-col">
+                  
+                  <div className="text-center py-6 border-b border-white/5 mb-4 shrink-0">
+                    <div className="w-16 h-16 rounded-full bg-zinc-800 flex items-center justify-center text-white text-3xl mx-auto mb-3 shadow-lg border border-white/5">👋</div>
+                    <h3 className="text-white font-bold text-base">Bắt đầu cuộc trò chuyện với {activeChatPartner?.display_name}</h3>
+                    <p className="text-xs text-zinc-500">Đây là sự khởi đầu của lịch sử tin nhắn trực tiếp của bạn.</p>
+                  </div>
+
+                  <div className="flex-1 space-y-4">
+                    {dbMessages.map((msg, index) => {
+                      const isMe = msg.sender_id === user.id;
+                      const partnerName = activeChatPartner?.display_name || 'Bạn';
+                      const partnerAvatar = activeChatPartner?.avatar_key ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${activeChatPartner.avatar_key}` : null;
+                      const timeStr = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                      return (
+                        <div key={msg.id || index} className="flex gap-4 items-start hover:bg-white/5 -mx-6 px-6 py-1 transition-all">
+                          <div className="relative flex-shrink-0 mt-0.5">
+                            {isMe ? (
+                              avatarUrl ? (
+                                <img src={avatarUrl} alt="Me" className="w-9 h-9 rounded-full object-cover border border-white/5" />
+                              ) : (
+                                <div className="w-9 h-9 rounded-full bg-cyan-600 flex items-center justify-center text-white font-bold text-xs uppercase">
+                                  {displayName.charAt(0).toUpperCase()}
+                                </div>
+                              )
+                            ) : (
+                              partnerAvatar ? (
+                                <img src={partnerAvatar} alt="Partner" className="w-9 h-9 rounded-full object-cover border border-white/5" />
+                              ) : (
+                                <div className="w-9 h-9 rounded-full bg-indigo-900 flex items-center justify-center text-white font-bold text-xs uppercase">
+                                  {partnerName.charAt(0).toUpperCase()}
+                                </div>
+                              )
+                            )}
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-white font-bold text-xs leading-none hover:underline cursor-pointer">{isMe ? 'Bạn' : partnerName}</span>
+                              <span className="text-[9px] text-zinc-500 font-medium">{timeStr}</span>
+                            </div>
+                            <p className="text-xs text-zinc-300 mt-1.5 leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div ref={chatEndRef} />
+                  </div>
+                </div>
+
+                <form onSubmit={handleSendMessage} className="p-4 bg-transparent border-t border-white/10 flex gap-2 flex-shrink-0">
+                  <input 
+                    type="text" 
+                    placeholder={`Nhắn tin cho @${activeChatPartner?.display_name || 'user'}`}
+                    value={currentMessageInput}
+                    onChange={e => setCurrentMessageInput(e.target.value)}
+                    className="w-full bg-[#383a40]/60 border border-white/5 text-xs text-white rounded-xl p-3 outline-none placeholder:text-zinc-500 focus:border-indigo-500 focus:bg-[#383a40]/90 transition-all font-medium"
+                  />
+                </form>
+              </>
+            )}
           </div>
         )}
 

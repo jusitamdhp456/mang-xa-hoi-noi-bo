@@ -8,7 +8,7 @@ import {
 } from '@livekit/components-react';
 import { useEffect, useState, useRef } from 'react';
 import { useVoiceSettings } from '@/components/providers/VoiceSettingsProvider';
-import { Edit3, Check, X } from 'lucide-react';
+import { Edit3, Check, X, Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff } from 'lucide-react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
 export function VoiceRoom({ 
@@ -145,20 +145,29 @@ export function VoiceRoom({
           }
         };
 
-        // Handshake: create offer only when peer_ready is received to avoid timing issues
+        // Handshake: peer_ready synchronization logic
         signalChannel
           .on('broadcast', { event: 'peer_ready' }, async (payload) => {
             if (payload.payload.senderId === userId || !peerConnection) return;
             
-            // Tie breaker: Alphabetically smaller UUID initiates the connection offer
             const isOfferCreator = userId < partnerId;
             if (isOfferCreator) {
-              const offer = await peerConnection.createOffer();
-              await peerConnection.setLocalDescription(offer);
+              // Creator creates offer
+              const offer = peerConnection.remoteDescription ? null : await peerConnection.createOffer();
+              if (offer) {
+                await peerConnection.setLocalDescription(offer);
+                signalChannel.send({
+                  type: 'broadcast',
+                  event: 'sdp-offer',
+                  payload: { offer, senderId: userId }
+                });
+              }
+            } else {
+              // Receiver re-broadcasts peer_ready to acknowledge creator in case of race conditions
               signalChannel.send({
                 type: 'broadcast',
-                event: 'sdp-offer',
-                payload: { offer, senderId: userId }
+                event: 'peer_ready',
+                payload: { senderId: userId }
               });
             }
           })
@@ -216,12 +225,14 @@ export function VoiceRoom({
           })
           .subscribe(async (status) => {
             if (status === 'SUBSCRIBED') {
-              // Inform partner that we are ready to initiate/receive
-              signalChannel.send({
-                type: 'broadcast',
-                event: 'peer_ready',
-                payload: { senderId: userId }
-              });
+              // Wait slightly for connection to establish and then send ready
+              setTimeout(() => {
+                signalChannel.send({
+                  type: 'broadcast',
+                  event: 'peer_ready',
+                  payload: { senderId: userId }
+                });
+              }, 500);
             }
           });
 
@@ -374,7 +385,7 @@ export function VoiceRoom({
             setToken('');
             setUseP2P(false);
           }}
-          className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-xs font-bold text-white rounded-lg transition-colors cursor-pointer shrink-0"
+          className="px-5 py-2 bg-indigo-650 hover:bg-indigo-700 text-xs font-bold text-white rounded-lg transition-colors cursor-pointer shrink-0"
         >
           Thử kết nối lại
         </button>
@@ -384,30 +395,56 @@ export function VoiceRoom({
 
   if (useP2P) {
     return (
-      <div className="flex-1 w-full h-full relative bg-zinc-950 flex flex-col justify-between p-4 overflow-hidden rounded-xl select-none">
-        {/* WebRTC Video/Audio Render Frame */}
-        <div className="flex-1 w-full h-full flex items-center justify-center relative rounded-xl overflow-hidden bg-zinc-900 border border-white/5">
+      <div className="flex-1 w-full h-full relative bg-zinc-950 flex flex-col justify-between p-6 overflow-hidden rounded-2xl select-none border border-white/5 shadow-2xl">
+        
+        {/* Call Content Area */}
+        <div className="flex-1 w-full h-full flex items-center justify-center relative rounded-2xl overflow-hidden bg-zinc-900 border border-white/10 shadow-inner">
           {video ? (
             remoteStream ? (
               <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
             ) : (
-              <div className="flex flex-col items-center gap-2 text-zinc-500">
-                <div className="w-8 h-8 border-4 border-zinc-800 border-t-indigo-500 rounded-full animate-spin"></div>
-                <p className="text-xs">Đang kết nối camera đối phương...</p>
+              <div className="flex flex-col items-center gap-3 text-zinc-500">
+                <div className="w-9 h-9 border-4 border-zinc-800 border-t-indigo-500 rounded-full animate-spin"></div>
+                <p className="text-xs font-semibold">Đang truyền video của bạn & kết nối camera đối phương...</p>
               </div>
             )
           ) : (
-            <div className="flex flex-col items-center justify-center p-8 select-none text-center">
-              <div className="w-20 h-20 rounded-full bg-indigo-600/10 text-indigo-400 flex items-center justify-center border border-indigo-500/20 text-4xl mb-4 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400/10 opacity-75"></span>
-                🎙️
+            /* Discord-like Voice Call Grid Layout */
+            <div className="flex flex-wrap items-center justify-center gap-6 p-6 select-none max-w-lg mx-auto w-full">
+              {/* Local Participant Card */}
+              <div className="bg-zinc-850/70 border border-white/10 backdrop-blur-md rounded-2xl p-6 flex flex-col items-center justify-center space-y-4 w-44 h-44 shadow-2xl relative transition-all duration-300">
+                <div className="relative">
+                  <div className={`w-16 h-16 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xl font-black uppercase border-2 border-indigo-400 ${!p2pMuted ? 'animate-pulse-subtle shadow-[0_0_15px_rgba(99,102,241,0.5)]' : ''}`}>
+                    {username.charAt(0).toUpperCase()}
+                  </div>
+                  {p2pMuted && (
+                    <span className="absolute -bottom-1 -right-1 bg-red-600 text-white rounded-full p-1 border border-zinc-900">
+                      <MicOff size={10} />
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <h5 className="font-extrabold text-xs text-white text-center truncate w-32">{customName || username}</h5>
+                  <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider text-center mt-1">Bạn (Thiết bị)</p>
+                </div>
               </div>
-              <h4 className="font-extrabold text-sm text-white">Đang gọi thoại</h4>
-              <p className="text-[10px] text-emerald-400 font-black uppercase tracking-wider mt-1.5 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                Kết nối thiết bị trực tiếp (P2P WebRTC)
-              </p>
-              <audio ref={remoteAudioRef} autoPlay playsInline />
+
+              {/* Remote Participant Card */}
+              <div className="bg-zinc-850/70 border border-white/10 backdrop-blur-md rounded-2xl p-6 flex flex-col items-center justify-center space-y-4 w-44 h-44 shadow-2xl relative transition-all duration-300">
+                <div className="relative">
+                  <div className={`w-16 h-16 rounded-full bg-emerald-600 flex items-center justify-center text-white text-xl font-black uppercase border-2 border-emerald-400 ${remoteStream ? 'animate-pulse-subtle shadow-[0_0_15px_rgba(16,185,129,0.5)]' : ''}`}>
+                    X
+                  </div>
+                </div>
+                <div>
+                  <h5 className="font-extrabold text-xs text-white text-center truncate w-32">Đàm thoại trực tiếp</h5>
+                  <p className="text-[9px] text-emerald-400 font-black uppercase tracking-wider text-center mt-1 flex items-center justify-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                    Đang truyền mic
+                  </p>
+                  <audio ref={remoteAudioRef} autoPlay playsInline />
+                </div>
+              </div>
             </div>
           )}
 
@@ -418,26 +455,28 @@ export function VoiceRoom({
               autoPlay 
               playsInline 
               muted 
-              className="w-32 h-24 object-cover rounded-lg border border-white/20 absolute top-4 right-4 z-10 bg-zinc-950 shadow-2xl" 
+              className="w-36 h-28 object-cover rounded-xl border border-white/20 absolute top-4 right-4 z-10 bg-zinc-950 shadow-2xl transition-all hover:scale-105" 
             />
           )}
         </div>
 
         {/* Action Toggle controls */}
-        <div className="mt-4 flex items-center justify-center gap-3 shrink-0">
+        <div className="mt-5 flex items-center justify-center gap-4 shrink-0 bg-zinc-900/60 p-3 rounded-2xl border border-white/5 backdrop-blur-md max-w-sm mx-auto w-full">
           <button
             onClick={toggleMute}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer border ${p2pMuted ? 'bg-red-600 border-red-600 text-white' : 'bg-zinc-800 border-white/5 text-zinc-300 hover:bg-zinc-700'}`}
+            className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer border ${p2pMuted ? 'bg-red-600 border-red-600 text-white' : 'bg-zinc-800 border-white/10 text-zinc-300 hover:bg-zinc-700'}`}
+            title={p2pMuted ? 'Mở khóa Micro' : 'Tắt tiếng Micro'}
           >
-            {p2pMuted ? 'Bỏ tắt Mic 🎙️' : 'Tắt tiếng 🎙️'}
+            {p2pMuted ? <MicOff size={18} /> : <Mic size={18} />}
           </button>
 
           {video && (
             <button
               onClick={toggleVideo}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer border ${p2pVideoOff ? 'bg-red-600 border-red-600 text-white' : 'bg-zinc-800 border-white/5 text-zinc-300 hover:bg-zinc-700'}`}
+              className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer border ${p2pVideoOff ? 'bg-red-600 border-red-600 text-white' : 'bg-zinc-800 border-white/10 text-zinc-300 hover:bg-zinc-700'}`}
+              title={p2pVideoOff ? 'Bật Camera' : 'Tắt Camera'}
             >
-              {p2pVideoOff ? 'Bật Camera 📷' : 'Tắt Camera 📷'}
+              {p2pVideoOff ? <VideoOff size={18} /> : <VideoIcon size={18} />}
             </button>
           )}
         </div>
