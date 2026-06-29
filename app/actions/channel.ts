@@ -7,6 +7,11 @@ export async function createCategory(workspaceId: string, formData: FormData) {
   const name = formData.get('name') as string
   const supabase = await createSupabaseServerClient()
 
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (!user || authError) {
+    return { error: 'Bạn cần đăng nhập để thực hiện' }
+  }
+
   const { error } = await supabase
     .from('channel_categories')
     .insert({ workspace_id: workspaceId, name })
