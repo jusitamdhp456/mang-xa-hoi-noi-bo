@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { ImageUploader } from '../ui/ImageUploader';
 import { updateAvatar, updateProfile } from '@/app/actions/user';
 import { X, User, LogOut, Volume2, Video, Tv, Bell, ShieldCheck, Check, Laptop } from 'lucide-react';
@@ -19,6 +20,12 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('account');
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
 
   // Profile Form state
   const [displayName, setDisplayName] = useState(profile?.display_name || '');
@@ -145,26 +152,7 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
     '#111214'  // Midnight
   ];
 
-  return (
-    <>
-      {customTrigger ? (
-        <div onClick={() => setIsOpen(true)}>{customTrigger}</div>
-      ) : (
-        <div 
-          className="w-12 h-12 mt-auto bg-white/10 backdrop-blur-md shadow-sm border border-white/10 rounded-full flex items-center justify-center text-white cursor-pointer hover:bg-white/20 hover:shadow-md transition-all duration-200 overflow-hidden"
-          onClick={() => setIsOpen(true)}
-          title="Cài đặt cá nhân"
-        >
-          {avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-          ) : (
-            <User size={24} className="text-white/70" />
-          )}
-        </div>
-      )}
-
-      {isOpen && (
+  const modalContent = isOpen && (
         <div className="fixed inset-0 z-50 bg-[#313338] flex text-zinc-300 font-sans animate-in fade-in duration-200">
           
           {/* LEFT SIDEBAR NAVIGATION */}
@@ -700,7 +688,30 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
           </div>
 
         </div>
-      )}
-    </>
-  );
+      );
+
+      return (
+        <>
+          {customTrigger ? (
+            <div onClick={() => setIsOpen(true)}>{customTrigger}</div>
+          ) : (
+            <div 
+              className="w-12 h-12 mt-auto bg-white/10 backdrop-blur-md shadow-sm border border-white/10 rounded-full flex items-center justify-center text-white cursor-pointer hover:bg-white/20 hover:shadow-md transition-all duration-200 overflow-hidden"
+              onClick={() => setIsOpen(true)}
+              title="Cài đặt cá nhân"
+            >
+              {avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                <User size={24} className="text-white/70" />
+              )}
+            </div>
+          )}
+
+          {mounted && typeof document !== 'undefined'
+            ? createPortal(modalContent, document.body)
+            : modalContent}
+        </>
+      );
 }
