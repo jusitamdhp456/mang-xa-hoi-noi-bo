@@ -15,19 +15,22 @@ export default async function FriendsPage() {
     redirect('/login');
   }
 
-  // Fetch current user profile
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single();
+  // Fetch current user profile and other profiles in parallel
+  const [profileResult, otherProfilesResult] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single(),
+    supabase
+      .from('profiles')
+      .select('*')
+      .neq('id', user.id)
+      .limit(20)
+  ]);
 
-  // Fetch other profiles for DM list
-  const { data: otherProfiles } = await supabase
-    .from('profiles')
-    .select('*')
-    .neq('id', user.id)
-    .limit(20);
+  const profile = profileResult.data;
+  const otherProfiles = otherProfilesResult.data;
 
   return (
     <FriendsClientPage 

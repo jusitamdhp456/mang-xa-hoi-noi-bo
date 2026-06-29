@@ -8,29 +8,34 @@ export default async function ChannelSidebar({ workspaceId }: { workspaceId: str
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  const { data: profile } = user ? await supabase
+  // Run database fetches in parallel to optimize rendering speed
+  const [profileResult, workspaceResult, categoriesResult, channelsResult] = await Promise.all([
+    user ? supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
-      .single() : { data: null };
+      .single() : Promise.resolve({ data: null }),
+    supabase
+      .from('workspaces')
+      .select('name')
+      .eq('id', workspaceId)
+      .single(),
+    supabase
+      .from('channel_categories')
+      .select('*')
+      .eq('workspace_id', workspaceId)
+      .order('sort_order', { ascending: true }),
+    supabase
+      .from('channels')
+      .select('*')
+      .eq('workspace_id', workspaceId)
+      .order('sort_order', { ascending: true })
+  ]);
 
-  const { data: workspace } = await supabase
-    .from('workspaces')
-    .select('name')
-    .eq('id', workspaceId)
-    .single()
-
-  const { data: categories } = await supabase
-    .from('channel_categories')
-    .select('*')
-    .eq('workspace_id', workspaceId)
-    .order('sort_order', { ascending: true })
-
-  const { data: channels } = await supabase
-    .from('channels')
-    .select('*')
-    .eq('workspace_id', workspaceId)
-    .order('sort_order', { ascending: true })
+  const profile = profileResult.data;
+  const workspace = workspaceResult.data;
+  const categories = categoriesResult.data;
+  const channels = channelsResult.data;
 
   const channelsWithoutCategory = channels?.filter(c => !c.category_id) || []
 
