@@ -148,7 +148,12 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
         {/* Search Header */}
         <div className="h-16 px-4 border-b border-white/10 flex items-center justify-center flex-shrink-0 bg-black/10">
           <div className="w-full bg-black/35 text-xs text-zinc-400 rounded-lg p-2 px-3 flex items-center justify-between cursor-pointer hover:bg-black/50 border border-white/5 transition-all">
-            <span>Tìm cuộc trò chuy�         {/* Main DM Navigation Links */}
+            <span>Tìm cuộc trò chuyện...</span>
+            <span className="text-zinc-500 text-[10px] bg-white/10 px-1.5 py-0.5 rounded border border-white/5 shadow-sm">⌘K</span>
+          </div>
+        </div>
+
+        {/* Main DM Navigation Links */}
         <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
           <button 
             onClick={() => {
