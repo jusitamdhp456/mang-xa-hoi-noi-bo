@@ -16,13 +16,19 @@ export function MessageInput({
   channelName,
   channelType,
   workspaceId,
+  currentUser = null,
+  onOptimistic,
+  onOptimisticFailed,
   onSent
 }: {
   channelId: string,
   channelName: string,
   channelType: string,
   workspaceId: string,
-  onSent?: (message: any) => void
+  currentUser?: { id: string; display_name: string; avatar_key: string | null } | null,
+  onOptimistic?: (message: any) => void,
+  onOptimisticFailed?: (tempId: string) => void,
+  onSent?: (message: any, tempId?: string) => void
 }) {
   const [content, setContent] = useState('')
   const [isSending, setIsSending] = useState(false)
@@ -142,13 +148,29 @@ export function MessageInput({
     setIsSending(true)
     const currentContent = content
     const currentFile = selectedFile
-    
-    setContent('') 
+
+    setContent('')
     setSelectedFile(null)
-    
+
+    // Optimistic render for text-only messages so they appear instantly,
+    // without waiting for the server round-trip. Reconciled by onSent.
+    let tempId: string | undefined
+    if (!currentFile && currentContent.trim() && currentUser) {
+      tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      onOptimistic?.({
+        id: tempId,
+        content: currentContent.trim(),
+        created_at: new Date().toISOString(),
+        sender_id: currentUser.id,
+        profiles: { display_name: currentUser.display_name, avatar_key: currentUser.avatar_key },
+        message_attachments: [],
+        message_reactions: [],
+      })
+    }
+
     try {
       let attachmentData = undefined
-      
+
       if (currentFile) {
         const formData = new FormData()
         formData.append('file', currentFile)
@@ -176,9 +198,10 @@ export function MessageInput({
       
       const res = await sendMessage(channelId, workspaceId, currentContent, attachmentData)
       if (res?.error) throw new Error(res.error)
-      if (res?.message) onSent?.(res.message)
+      if (res?.message) onSent?.(res.message, tempId)
 
     } catch (err: unknown) {
+      if (tempId) onOptimisticFailed?.(tempId)
       alert((err as Error).message || 'Có lỗi xảy ra khi gửi tin nhắn')
       setContent(currentContent)
       setSelectedFile(currentFile)

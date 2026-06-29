@@ -22,11 +22,17 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
     .limit(50)
   if (msgs) initialMessages = msgs
 
-  // Get current user profile for VoiceRoom username
+  // Get current user profile for VoiceRoom username + optimistic chat rendering
   let currentUsername = 'Khách'
+  let currentUser: { id: string; display_name: string; avatar_key: string | null } | null = null
   if (user) {
-    const { data: profile } = await supabase.from('profiles').select('display_name').eq('id', user.id).single()
+    const { data: profile } = await supabase.from('profiles').select('display_name, avatar_key').eq('id', user.id).single()
     if (profile?.display_name) currentUsername = profile.display_name
+    currentUser = {
+      id: user.id,
+      display_name: profile?.display_name || currentUsername,
+      avatar_key: profile?.avatar_key || null,
+    }
   }
 
   return (
@@ -72,7 +78,7 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
                   channelType={channel?.type || 'voice'}
                   workspaceId={workspaceId}
                   initialMessages={initialMessages}
-                  currentUserId={user?.id || null}
+                  currentUser={currentUser}
                 />
               </div>
             </div>
@@ -83,7 +89,7 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
               channelType={channel?.type || 'text'}
               workspaceId={workspaceId}
               initialMessages={initialMessages}
-              currentUserId={user?.id || null}
+              currentUser={currentUser}
             />
           )}
       </div>

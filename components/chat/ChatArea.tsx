@@ -40,15 +40,16 @@ export function ChatArea({
   channelType,
   workspaceId,
   initialMessages,
-  currentUserId = null
+  currentUser = null
 }: {
   channelId: string,
   channelName: string,
   channelType: string,
   workspaceId: string,
   initialMessages: MessageRow[],
-  currentUserId?: string | null
+  currentUser?: { id: string; display_name: string; avatar_key: string | null } | null
 }) {
+  const currentUserId = currentUser?.id ?? null
   const [messages, setMessages] = useState<MessageRow[]>(initialMessages)
   const [activeLightboxImg, setActiveLightboxImg] = useState<string | null>(null)
   const supabase = createSupabaseBrowserClient()
@@ -116,16 +117,29 @@ export function ChatArea({
     setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]))
   }, [])
 
-  // After a message is sent: show it locally and notify other clients with the
-  // full payload so they render it directly (no RLS re-read needed).
-  const handleSent = useCallback((message: MessageRow) => {
-    appendMessage(message)
+  // Optimistic UI: show the sender's message instantly, before the round-trip.
+  const addOptimistic = useCallback((msg: MessageRow) => {
+    setMessages((prev) => [...prev, msg])
+  }, [])
+
+  const removeOptimistic = useCallback((tempId: string) => {
+    setMessages((prev) => prev.filter((m) => m.id !== tempId))
+  }, [])
+
+  // After the server confirms: replace the optimistic placeholder with the real
+  // message and notify other clients with the full payload.
+  const handleSent = useCallback((message: MessageRow, tempId?: string) => {
+    setMessages((prev) => {
+      const withoutTemp = tempId ? prev.filter((m) => m.id !== tempId) : prev
+      if (withoutTemp.some((m) => m.id === message.id)) return withoutTemp
+      return [...withoutTemp, message]
+    })
     channelRef.current?.send({
       type: 'broadcast',
       event: 'new_message',
       payload: { message },
     })
-  }, [appendMessage])
+  }, [])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -209,6 +223,9 @@ export function ChatArea({
         channelName={channelName}
         channelType={channelType}
         workspaceId={workspaceId}
+        currentUser={currentUser}
+        onOptimistic={addOptimistic}
+        onOptimisticFailed={removeOptimistic}
         onSent={handleSent}
       />
 

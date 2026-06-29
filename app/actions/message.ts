@@ -15,28 +15,30 @@ export async function sendMessage(
 
   if (authError || !user) return { error: 'Bạn cần đăng nhập để thực hiện' }
 
-  // Secure Server-side Validation: Verify if user is in workspace_members
-  const { data: member, error: memberError } = await supabase
-    .from('workspace_members')
-    .select('role')
-    .eq('workspace_id', workspaceId)
-    .eq('user_id', user.id)
-    .maybeSingle()
+  // Run the membership check and channel lookup in parallel to cut latency.
+  const [memberRes, channelRes] = await Promise.all([
+    supabase
+      .from('workspace_members')
+      .select('role')
+      .eq('workspace_id', workspaceId)
+      .eq('user_id', user.id)
+      .maybeSingle(),
+    supabase
+      .from('channels')
+      .select('is_private')
+      .eq('id', channelId)
+      .single(),
+  ])
 
-  if (memberError || !member) {
+  if (memberRes.error || !memberRes.data) {
     return { error: 'Bạn không có quyền gửi tin nhắn: Không phải là thành viên của không gian này' }
   }
 
-  // Fetch channel privacy details
-  const { data: channel, error: channelError } = await supabase
-    .from('channels')
-    .select('is_private')
-    .eq('id', channelId)
-    .single()
-
-  if (channelError || !channel) {
+  if (channelRes.error || !channelRes.data) {
     return { error: 'Kênh hội thoại không tồn tại' }
   }
+
+  const channel = channelRes.data
 
   // If private, verify channel membership and write permission
   if (channel.is_private) {
