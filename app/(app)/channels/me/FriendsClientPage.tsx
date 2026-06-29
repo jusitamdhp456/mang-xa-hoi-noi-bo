@@ -981,7 +981,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                                           setSelectedChatId(p.threadId);
                                           setActiveView('chat');
                                         }}
-                                        className="px-3 py-1.5 bg-indigo-650 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black transition-colors cursor-pointer"
+                                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black transition-colors cursor-pointer"
                                       >
                                         Nhắn tin
                                       </button>
@@ -1041,7 +1041,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                           <p className="text-xs text-zinc-500 mt-1 max-w-xs">Không có ai ở đây cả. Bạn có muốn thêm bạn mới?</p>
                           <button 
                             onClick={() => setActiveTab('add')}
-                            className="mt-5 px-5 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-xs font-bold text-white rounded-xl transition-all shadow-md cursor-pointer hover:scale-105"
+                            className="mt-5 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-xs font-bold text-white rounded-xl transition-all shadow-md cursor-pointer hover:scale-105"
                           >
                             Thêm Bạn Bè
                           </button>
@@ -1057,7 +1057,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                           <p className="text-xs text-zinc-500 mt-1 max-w-xs">Hãy thêm bạn bè mới để trò chuyện trực tiếp và gọi thoại nhé!</p>
                           <button 
                             onClick={() => setActiveTab('add')}
-                            className="mt-5 px-5 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-xs font-bold text-white rounded-xl transition-all shadow-md cursor-pointer hover:scale-105"
+                            className="mt-5 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-xs font-bold text-white rounded-xl transition-all shadow-md cursor-pointer hover:scale-105"
                           >
                             Thêm Bạn Bè
                           </button>
@@ -1085,7 +1085,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                                 {avatar ? (
                                   <img src={avatar} alt="Avatar" className="w-10 h-10 rounded-full object-cover" />
                                 ) : (
-                                  <div className="w-10 h-10 rounded-full bg-indigo-650 flex items-center justify-center text-white text-sm font-bold uppercase">
+                                  <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-bold uppercase">
                                     {name.charAt(0)}
                                   </div>
                                 )}
@@ -1196,7 +1196,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                           {avatar ? (
                             <img src={avatar} alt="Avatar" className="w-9 h-9 rounded-full object-cover shrink-0" />
                           ) : (
-                            <div className="w-9 h-9 rounded-full bg-indigo-650 flex items-center justify-center text-white text-xs font-bold uppercase shrink-0">
+                            <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold uppercase shrink-0">
                               {name.charAt(0)}
                             </div>
                           )}
@@ -1410,7 +1410,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                     setNewVoiceRoomName('');
                   }
                 }}
-                className="px-4 py-2 bg-indigo-650 hover:bg-indigo-700 text-xs font-bold rounded-lg transition-colors cursor-pointer animate-pulse-subtle"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-xs font-bold rounded-lg transition-colors cursor-pointer animate-pulse-subtle"
               >
                 Tạo
               </button>
@@ -1553,7 +1553,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
               {t.avatar ? (
                 <img src={t.avatar} alt="" className="w-8 h-8 rounded-full object-cover border border-white/5" />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-indigo-650 flex items-center justify-center text-white font-bold text-xs uppercase border border-white/5">
+                <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-xs uppercase border border-white/5">
                   {t.title.charAt(0)}
                 </div>
               )}

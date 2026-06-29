@@ -108,32 +108,31 @@ export function VoiceRoom({
     const isMissingKeys = error.includes("Missing LiveKit API keys");
 
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-[#121214] text-zinc-300 p-6 select-none max-w-2xl mx-auto">
-        <div className="w-16 h-16 bg-red-500/10 text-red-400 rounded-full flex items-center justify-center text-2xl mb-4 border border-red-500/20">
+      <div className="absolute inset-0 z-40 bg-zinc-950/95 backdrop-blur-md flex flex-col items-center justify-center text-zinc-300 p-4 select-none overflow-y-auto scrollbar-thin scrollbar-thumb-white/10">
+        <div className="w-12 h-12 bg-red-500/10 text-red-400 rounded-full flex items-center justify-center text-xl mb-3 border border-red-500/20 shrink-0">
           ⚠️
         </div>
-        <h2 className="text-base font-bold mb-2 text-white">
+        <h2 className="text-sm font-bold mb-1 text-white shrink-0">
           {isMissingKeys ? "Chưa cấu hình API Key cho Đàm thoại" : "Lỗi kết nối phòng thoại"}
         </h2>
         
         {isMissingKeys ? (
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4 text-left w-full text-xs leading-relaxed max-w-md my-4 animate-scale-in">
-            <p className="text-zinc-300">
-              Hệ thống sử dụng <strong>LiveKit (WebRTC)</strong> để kết nối âm thanh & video trực tiếp giữa các thiết bị của người dùng. Để kích hoạt tính năng này, bạn cần điền 3 biến môi trường sau:
+          <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3 text-left w-full text-xs leading-relaxed max-w-md my-2.5 animate-scale-in shrink-0">
+            <p className="text-zinc-300 text-[11px]">
+              Hệ thống sử dụng <strong>LiveKit (WebRTC)</strong> để đàm thoại trực tiếp giữa các thiết bị. Bạn cần thêm 3 biến môi trường sau:
             </p>
-            <div className="space-y-2 bg-black/40 p-3.5 rounded-xl border border-white/5 font-mono text-[10px] text-cyan-400 select-all cursor-pointer">
+            <div className="space-y-1 bg-black/40 p-2.5 rounded-lg border border-white/5 font-mono text-[9px] text-cyan-400 select-all cursor-pointer">
               <div>LIVEKIT_API_KEY=your_api_key</div>
               <div>LIVEKIT_API_SECRET=your_api_secret</div>
               <div>NEXT_PUBLIC_LIVEKIT_URL=wss://your-project.livekit.cloud</div>
             </div>
-            <div className="text-zinc-400 space-y-1.5 pl-1.5">
-              <p>• Bước 1: Truy cập <strong><a href="https://cloud.livekit.io/" target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline">LiveKit Cloud</a></strong> và đăng ký tài khoản (Miễn phí).</p>
-              <p>• Bước 2: Tạo project mới và copy các mã API keys.</p>
-              <p>• Bước 3: Thêm vào <strong>Environment Variables</strong> trên <strong>Vercel Settings</strong> (hoặc file local <strong>.env.local</strong>) rồi redeploy.</p>
+            <div className="text-zinc-400 space-y-1 text-[11px] pl-1">
+              <p>• Bước 1: Tạo project miễn phí tại <strong><a href="https://cloud.livekit.io/" target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline">LiveKit Cloud</a></strong>.</p>
+              <p>• Bước 2: Thêm các mã này vào <strong>Environment Variables</strong> trên <strong>Vercel Settings</strong> (hoặc file local <strong>.env.local</strong>) rồi redeploy.</p>
             </div>
           </div>
         ) : (
-          <p className="text-xs text-zinc-400 mb-6 text-center max-w-sm">{error}</p>
+          <p className="text-xs text-zinc-400 mb-4 text-center max-w-sm shrink-0">{error}</p>
         )}
 
         <button 
@@ -142,7 +141,7 @@ export function VoiceRoom({
             setDisconnected(false);
             setToken('');
           }}
-          className="px-5 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-xs font-bold text-white rounded-xl transition-colors cursor-pointer"
+          className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-xs font-bold text-white rounded-lg transition-colors cursor-pointer shrink-0"
         >
           Thử kết nối lại
         </button>
