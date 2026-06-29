@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { useVoiceSettings } from '@/components/providers/VoiceSettingsProvider';
 
@@ -17,16 +17,27 @@ export default function WorkspaceResponsiveWrapper({
   const isChannelView = pathname.includes('/channel/');
   const { setWorkspaceId, activeChannelId } = useVoiceSettings();
 
+  // Sync workspace ID on change
   useEffect(() => {
     if (workspaceId) {
       setWorkspaceId(workspaceId);
     }
+  }, [workspaceId, setWorkspaceId]);
+
+  // Maintain latest call state in ref for safe unmount cleanup
+  const activeChannelIdRef = useRef(activeChannelId);
+  useEffect(() => {
+    activeChannelIdRef.current = activeChannelId;
+  }, [activeChannelId]);
+
+  // Clean up workspace ID ONLY on true unmount
+  useEffect(() => {
     return () => {
-      if (!activeChannelId) {
+      if (!activeChannelIdRef.current) {
         setWorkspaceId(null);
       }
     };
-  }, [workspaceId, setWorkspaceId, activeChannelId]);
+  }, [setWorkspaceId]);
 
   // Sync document root class for server sidebar hiding on mobile
   useEffect(() => {
