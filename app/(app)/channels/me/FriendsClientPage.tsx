@@ -94,10 +94,45 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  const isMounted = useRef(false);
+
   // Scroll to bottom of chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [dbMessages, selectedChatId]);
+
+  // Load saved navigation state on mount
+  useEffect(() => {
+    const savedView = localStorage.getItem('friends_active_view');
+    const savedTab = localStorage.getItem('friends_active_tab');
+    const savedChatId = localStorage.getItem('friends_selected_chat_id');
+    const savedVoiceRoomId = localStorage.getItem('friends_active_voice_room_id');
+
+    if (savedView) setActiveView(savedView as ViewType);
+    if (savedTab) setActiveTab(savedTab as TabType);
+    if (savedChatId) setSelectedChatId(savedChatId);
+    if (savedVoiceRoomId) setActiveVoiceRoomId(savedVoiceRoomId);
+  }, []);
+
+  // Save navigation state on change
+  useEffect(() => {
+    if (isMounted.current) {
+      localStorage.setItem('friends_active_view', activeView);
+      localStorage.setItem('friends_active_tab', activeTab);
+      if (selectedChatId) {
+        localStorage.setItem('friends_selected_chat_id', selectedChatId);
+      } else {
+        localStorage.removeItem('friends_selected_chat_id');
+      }
+      if (activeVoiceRoomId) {
+        localStorage.setItem('friends_active_voice_room_id', activeVoiceRoomId);
+      } else {
+        localStorage.removeItem('friends_active_voice_room_id');
+      }
+    } else {
+      isMounted.current = true;
+    }
+  }, [activeView, activeTab, selectedChatId, activeVoiceRoomId]);
 
   // Load blocked user IDs
   useEffect(() => {
