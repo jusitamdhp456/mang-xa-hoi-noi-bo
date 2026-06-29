@@ -12,6 +12,7 @@ import {
   Gamepad2, 
   Phone, 
   Video, 
+  PhoneOff,
   Send, 
   Check, 
   X, 
