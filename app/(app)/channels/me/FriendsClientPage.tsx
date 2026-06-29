@@ -244,12 +244,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                   onClick={() => {
                     setSelectedChatId(p.id);
                     setActiveVoiceRoomId(null);
-                  }};
-
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => setSelectedChatId(p.id)}
+                  }}
                   className={`w-full flex items-center gap-3 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors text-left ${isSelected ? 'bg-white/10 text-white font-semibold' : 'hover:bg-white/5 hover:text-zinc-200 text-zinc-400'}`}
                 >
                   <div className="relative flex-shrink-0">
