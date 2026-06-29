@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { VoiceRoom } from '@/components/workspace/VoiceRoom';
+import { VoiceInviteCard } from '@/components/chat/VoiceInviteCard';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { 
   sendFriendRequest, 
@@ -1806,6 +1807,8 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                                   );
                                 }
                               })()
+                            ) : msg.content.startsWith('[VOICE_INVITE]:') ? (
+                              <VoiceInviteCard payload={msg.content.slice('[VOICE_INVITE]:'.length)} />
                             ) : (
                               /* Bubble Body for text or file */
                               <div 

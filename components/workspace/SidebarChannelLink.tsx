@@ -49,8 +49,12 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
     if (!friend.threadId) return;
     setInvitedFriendIds(prev => [...prev, friend.id]);
     
-    const inviteLink = `${window.location.origin}/workspace/${workspaceId}/channel/${channel.id}`;
-    const inviteMessage = `👋 Hãy tham gia kênh đàm thoại "${channel.name}" cùng tôi nhé!\nLiên kết tham gia: ${inviteLink}`;
+    const invitePayload = JSON.stringify({
+      workspaceId,
+      channelId: channel.id,
+      channelName: channel.name
+    });
+    const inviteMessage = `[VOICE_INVITE]:${invitePayload}`;
     
     await sendDirectMessage(friend.threadId, inviteMessage, 'text');
   };

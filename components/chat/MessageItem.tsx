@@ -1,4 +1,5 @@
 import { type MessageRow } from './ChatArea'
+import { VoiceInviteCard } from './VoiceInviteCard'
 
 export function MessageItem({ message, onImageClick }: { message: MessageRow; onImageClick?: (url: string) => void }) {
   const senderName = message.profiles?.display_name || 'Người dùng ẩn danh'
@@ -18,9 +19,13 @@ export function MessageItem({ message, onImageClick }: { message: MessageRow; on
              <span className="text-xs text-zinc-500 font-medium">{timeStr}</span>
           </div>
           {message.content && (
-            <div className="mt-1 bg-white/60 backdrop-blur-sm border border-white/60 shadow-sm rounded-2xl rounded-tl-sm px-4 py-3 text-zinc-800 text-[15px] whitespace-pre-wrap leading-relaxed inline-block max-w-[85%] font-medium">
-              {message.content}
-            </div>
+            message.content.startsWith('[VOICE_INVITE]:') ? (
+              <VoiceInviteCard payload={message.content.slice('[VOICE_INVITE]:'.length)} />
+            ) : (
+              <div className="mt-1 bg-white/60 backdrop-blur-sm border border-white/60 shadow-sm rounded-2xl rounded-tl-sm px-4 py-3 text-zinc-800 text-[15px] whitespace-pre-wrap leading-relaxed inline-block max-w-[85%] font-medium">
+                {message.content}
+              </div>
+            )
           )}
           
           {attachment && (
