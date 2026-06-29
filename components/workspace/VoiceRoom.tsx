@@ -6,6 +6,7 @@ import {
   VideoConference,
   RoomAudioRenderer,
   useLocalParticipant,
+  useParticipants,
 } from '@livekit/components-react';
 
 function LiveKitSync({ isMuted, isDeafened }: { isMuted: boolean; isDeafened: boolean }) {
@@ -19,6 +20,19 @@ function LiveKitSync({ isMuted, isDeafened }: { isMuted: boolean; isDeafened: bo
       });
     }
   }, [isMuted, isDeafened, localParticipant]);
+
+  return null;
+}
+
+function LiveKitActiveSpeakersSync({ setSpeakingUserIds }: { setSpeakingUserIds: (ids: string[]) => void }) {
+  const participants = useParticipants();
+
+  useEffect(() => {
+    const speakingIds = participants
+      .filter(p => p.isSpeaking)
+      .map(p => p.identity);
+    setSpeakingUserIds(speakingIds);
+  }, [participants, setSpeakingUserIds]);
 
   return null;
 }
@@ -77,7 +91,8 @@ export function VoiceRoom({
     setActiveChannelId, 
     setWorkspaceId, 
     customName, 
-    setCustomName 
+    setCustomName,
+    setSpeakingUserIds
   } = useVoiceSettings();
 
   // Sync connection state with presence tracking provider
@@ -322,6 +337,83 @@ export function VoiceRoom({
       remoteAudioRef.current.play().catch(e => console.warn('Audio play warning:', e));
     }
   }, [remoteStream, isDeafened]);
+
+  // For P2P speaking detection using Web Audio API AnalyserNode
+  useEffect(() => {
+    if (!useP2P || !localStream) return;
+
+    let audioContext: AudioContext | null = null;
+    let localAnalyser: AnalyserNode | null = null;
+    let remoteAnalyser: AnalyserNode | null = null;
+    let localSource: MediaStreamAudioSourceNode | null = null;
+    let remoteSource: MediaStreamAudioSourceNode | null = null;
+    let intervalId: any = null;
+
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      audioContext = new AudioContextClass();
+      
+      localAnalyser = audioContext.createAnalyser();
+      localAnalyser.fftSize = 512;
+      localSource = audioContext.createMediaStreamSource(localStream);
+      localSource.connect(localAnalyser);
+
+      if (remoteStream) {
+        remoteAnalyser = audioContext.createAnalyser();
+        remoteAnalyser.fftSize = 512;
+        remoteSource = audioContext.createMediaStreamSource(remoteStream);
+        remoteSource.connect(remoteAnalyser);
+      }
+
+      const bufferLength = localAnalyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      intervalId = setInterval(() => {
+        const speakingList: string[] = [];
+
+        // Check local mic volume
+        if (localAnalyser && !isMuted && !isDeafened) {
+          localAnalyser.getByteFrequencyData(dataArray);
+          let sum = 0;
+          for (let i = 0; i < bufferLength; i++) {
+            sum += dataArray[i];
+          }
+          const average = sum / bufferLength;
+          if (average > 15) { // volume threshold
+            speakingList.push(userId);
+          }
+        }
+
+        // Check remote mic volume
+        if (remoteAnalyser && remoteStream && !isDeafened) {
+          remoteAnalyser.getByteFrequencyData(dataArray);
+          let sum = 0;
+          for (let i = 0; i < bufferLength; i++) {
+            sum += dataArray[i];
+          }
+          const average = sum / bufferLength;
+          if (average > 15) { // volume threshold
+            if (partnerId) {
+              speakingList.push(partnerId);
+            }
+          }
+        }
+
+        setSpeakingUserIds(speakingList);
+      }, 150);
+
+    } catch (e) {
+      console.warn("P2P speaking analyzer error:", e);
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+      if (localSource) localSource.disconnect();
+      if (remoteSource) remoteSource.disconnect();
+      if (audioContext) audioContext.close();
+      setSpeakingUserIds([]);
+    };
+  }, [useP2P, localStream, remoteStream, isMuted, isDeafened, userId, partnerId, setSpeakingUserIds]);
 
   // Query available media input and output devices
   useEffect(() => {
@@ -732,6 +824,7 @@ export function VoiceRoom({
         className="h-full w-full flex flex-col flex-1"
       >
         <LiveKitSync isMuted={isMuted} isDeafened={isDeafened} />
+        <LiveKitActiveSpeakersSync setSpeakingUserIds={setSpeakingUserIds} />
         <VideoConference />
         {!isDeafened && <RoomAudioRenderer />}
       </LiveKitRoom>

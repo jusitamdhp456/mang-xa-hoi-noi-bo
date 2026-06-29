@@ -64,7 +64,7 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
     (f.username || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const { activeParticipants, changeUserNickname, currentUser, setActiveChannelId, setWorkspaceId } = useVoiceSettings()
+  const { activeParticipants, changeUserNickname, currentUser, setActiveChannelId, setWorkspaceId, speakingUserIds } = useVoiceSettings()
   
   const isVoice = channel.type === 'voice'
   const channelUrl = `/workspace/${workspaceId}/channel/${channel.id}`
@@ -179,6 +179,8 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
                   }
                 }
 
+                const isSpeaking = speakingUserIds.includes(p.user_id)
+
                 return (
                   <div key={p.user_id} className="flex items-center gap-2 group/user py-0.5 select-none hover:bg-white/5 rounded-lg px-2 transition-colors">
                     {/* Avatar */}
@@ -187,10 +189,10 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
                       <img 
                         src={`https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${p.avatar_key}`} 
                         alt="" 
-                        className="w-6 h-6 rounded-full object-cover shrink-0" 
+                        className={`w-6 h-6 rounded-full object-cover shrink-0 transition-all duration-200 ${isSpeaking ? 'ring-2 ring-emerald-500 ring-offset-1 ring-offset-zinc-900 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : ''}`} 
                       />
                     ) : (
-                      <div className="w-6 h-6 rounded-full bg-[#35363c] text-zinc-300 text-[10px] font-bold flex items-center justify-center border border-white/5 shrink-0">
+                      <div className={`w-6 h-6 rounded-full bg-[#35363c] text-zinc-300 text-[10px] font-bold flex items-center justify-center border border-white/5 shrink-0 transition-all duration-200 ${isSpeaking ? 'ring-2 ring-emerald-500 ring-offset-1 ring-offset-zinc-900 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : ''}`}>
                         {initial}
                       </div>
                     )}

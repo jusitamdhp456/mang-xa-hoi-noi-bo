@@ -29,6 +29,10 @@ interface VoiceSettingsContextType {
   activeParticipants: Participant[];
   changeUserNickname: (targetUserId: string, newName: string) => void;
   currentUser: any;
+
+  // Speaking status
+  speakingUserIds: string[];
+  setSpeakingUserIds: (ids: string[]) => void;
 }
 
 const VoiceSettingsContext = createContext<VoiceSettingsContextType | undefined>(undefined);
@@ -97,6 +101,27 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
   const [activeParticipants, setActiveParticipants] = useState<Participant[]>([]);
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
+  const [speakingUserIds, setSpeakingUserIds] = useState<string[]>([]);
+
+  // Optimistic merged participants list so the current user shows up instantly upon joining
+  const mergedParticipants = React.useMemo(() => {
+    if (!activeChannelId || !user) return activeParticipants;
+    const hasSelf = activeParticipants.some(p => p.user_id === user.id);
+    if (hasSelf) return activeParticipants;
+    
+    return [
+      {
+        user_id: user.id,
+        display_name: profile?.display_name || user.email?.split('@')[0] || 'User',
+        avatar_key: profile?.avatar_key || null,
+        voice_channel_id: activeChannelId,
+        custom_name: customName || null,
+        is_muted: isMuted,
+        is_deafened: isDeafened,
+      },
+      ...activeParticipants
+    ];
+  }, [activeParticipants, activeChannelId, user, profile, customName, isMuted, isDeafened]);
 
   const supabase = createSupabaseBrowserClient();
 
@@ -300,9 +325,11 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
         setWorkspaceId,
         customName,
         setCustomName,
-        activeParticipants,
+        activeParticipants: mergedParticipants,
         changeUserNickname,
-        currentUser: user
+        currentUser: user,
+        speakingUserIds,
+        setSpeakingUserIds
       }}
     >
       {children}
