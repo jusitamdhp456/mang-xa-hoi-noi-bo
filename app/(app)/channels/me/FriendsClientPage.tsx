@@ -655,7 +655,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
 
                   {/* Red Unread Count Badge */}
                   {unreadCounts[p.threadId] && unreadCounts[p.threadId] > 0 && (
-                    <span className="shrink-0 bg-red-650 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase leading-none shadow-md ml-1.5 animate-pulse-subtle">
+                    <span className="shrink-0 text-red-500 text-[10px] font-black uppercase leading-none ml-1.5 animate-pulse-subtle">
                       {unreadCounts[p.threadId] > 5 ? '5+' : unreadCounts[p.threadId]}
                     </span>
                   )}
@@ -1541,7 +1541,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
         {toasts.map(t => (
           <div 
             key={t.id} 
-            className="pointer-events-auto bg-[#1e1f22]/95 border border-white/10 p-3.5 rounded-xl shadow-2xl flex gap-3 animate-scale-in items-center text-white w-80 backdrop-blur-md"
+            className="pointer-events-auto bg-black/75 border border-white/10 p-3.5 rounded-xl shadow-2xl flex gap-3 animate-scale-in items-center text-white w-80 backdrop-blur-xl"
           >
             <div className="shrink-0 relative">
               {t.avatar ? (
@@ -1554,11 +1554,11 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
             </div>
             <div className="min-w-0 flex-1">
               <h5 className="font-bold text-xs text-white truncate">{t.title}</h5>
-              <p className="text-[11px] text-zinc-400 truncate mt-0.5">{t.content}</p>
+              <p className="text-[11px] text-white/80 truncate mt-0.5">{t.content}</p>
             </div>
             <button 
               onClick={() => setToasts(prev => prev.filter(x => x.id !== t.id))}
-              className="text-zinc-500 hover:text-white cursor-pointer p-1 rounded-lg hover:bg-white/5 transition-all shrink-0"
+              className="text-zinc-400 hover:text-white cursor-pointer p-1 rounded-lg hover:bg-white/5 transition-all shrink-0"
             >
               <X size={14} />
             </button>
