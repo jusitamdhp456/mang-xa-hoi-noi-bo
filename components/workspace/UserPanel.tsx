@@ -39,9 +39,11 @@ export function UserPanel({ user, profile }: UserPanelProps) {
           )}
           <div className={`absolute bottom-0 right-0 w-3 h-3 ${statusColor} rounded-full border-2 border-[#1e1f22]`}></div>
         </div>
-        <div className="flex flex-col min-w-0">
+        <div className="flex flex-col min-w-0" title={`ID: ${user?.id}`}>
           <span className="text-white text-sm font-bold truncate leading-tight">{displayName}</span>
-          <span className="text-white/50 text-xs truncate leading-tight">Đang hoạt động</span>
+          <span className="text-white/40 text-[10px] truncate leading-tight mt-0.5 font-semibold">
+            @{profile?.username || user?.email?.split('@')[0]}
+          </span>
         </div>
       </div>
 

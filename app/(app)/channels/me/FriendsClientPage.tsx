@@ -37,15 +37,42 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
   const [isCreateVoiceRoomOpen, setIsCreateVoiceRoomOpen] = useState(false);
   const [newVoiceRoomName, setNewVoiceRoomName] = useState('');
   
-  // DM message logs (mocked for each user)
-  const [chatMessages, setChatMessages] = useState<Record<string, Array<{ sender: 'me' | 'them', text: string, time: string }>>>({
-    default: [
-      { sender: 'them', text: 'Chào cậu! Cậu khoẻ không?', time: '10:15 AM' },
-      { sender: 'me', text: 'Tớ khoẻ, cảm ơn cậu! Còn cậu?', time: '10:16 AM' },
-      { sender: 'them', text: 'Tớ cũng ổn, đang code giao diện nè haha.', time: '10:18 AM' }
-    ]
-  });
+  // Persistent Friends State (loads and saves from/to localStorage)
+  const [friendIds, setFriendIds] = useState<string[]>([]);
+  
+  // Persistent Direct Messages State
+  const [chatMessages, setChatMessages] = useState<Record<string, Array<{ sender: 'me' | 'them', text: string, time: string }>>>({});
   const [currentMessageInput, setCurrentMessageInput] = useState('');
+
+  // 1. Initialize persistent friends and DMs list
+  useEffect(() => {
+    // Load friends
+    const savedFriends = localStorage.getItem('friends_ids');
+    if (savedFriends) {
+      setFriendIds(JSON.parse(savedFriends));
+    } else {
+      // Seed with first 2 profiles from otherProfiles so the list is populated initially
+      const seed = otherProfiles.slice(0, 2).map(p => p.id);
+      setFriendIds(seed);
+      localStorage.setItem('friends_ids', JSON.stringify(seed));
+    }
+
+    // Load chat logs
+    const savedMessages = localStorage.getItem('chat_messages');
+    if (savedMessages) {
+      setChatMessages(JSON.parse(savedMessages));
+    } else {
+      const initialLogs = {
+        default: [
+          { sender: 'them' as const, text: 'Chào cậu! Cậu khoẻ không?', time: '10:15 AM' },
+          { sender: 'me' as const, text: 'Tớ khoẻ, cảm ơn cậu! Còn cậu?', time: '10:16 AM' },
+          { sender: 'them' as const, text: 'Tớ cũng ổn, đang code giao diện nè haha.', time: '10:18 AM' }
+        ]
+      };
+      setChatMessages(initialLogs);
+      localStorage.setItem('chat_messages', JSON.stringify(initialLogs));
+    }
+  }, [otherProfiles]);
 
   // Assign mock online status & activities to profiles for high fidelity
   const mockStatusAndActivity = (id: string, index: number) => {
@@ -75,17 +102,20 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
     ...mockStatusAndActivity(p.id, idx)
   }));
 
+  // Filter profiles based on established friendships
+  const friendsProfiles = profilesWithStatus.filter(p => friendIds.includes(p.id));
+
   // Filtering lists
-  const filteredDMs = profilesWithStatus.filter(p => 
+  const filteredDMs = friendsProfiles.filter(p => 
     (p.display_name || '').toLowerCase().includes(dmSearch.toLowerCase())
   );
 
-  const friendsList = profilesWithStatus.filter(p => 
+  const friendsList = friendsProfiles.filter(p => 
     p.status !== 'offline' && 
     (p.display_name || '').toLowerCase().includes(friendSearch.toLowerCase())
   );
 
-  const allList = profilesWithStatus.filter(p => 
+  const allList = friendsProfiles.filter(p => 
     (p.display_name || '').toLowerCase().includes(friendSearch.toLowerCase())
   );
 
@@ -102,10 +132,13 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
-    setChatMessages({
+    const updatedMessages = {
       ...chatMessages,
       [selectedChatId]: [...partnerMessages, newMsg]
-    });
+    };
+
+    setChatMessages(updatedMessages);
+    localStorage.setItem('chat_messages', JSON.stringify(updatedMessages));
     setCurrentMessageInput('');
 
     // Simulate reply from the partner after 1.5 seconds
@@ -118,23 +151,47 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
       "Giao diện đẹp thật sự!"
     ];
     setTimeout(() => {
-      const partnerMsgs = chatMessages[selectedChatId] || [];
-      const replyMsg = {
-        sender: 'them' as const,
-        text: replyTexts[Math.floor(Math.random() * replyTexts.length)],
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-      setChatMessages(prev => ({
-        ...prev,
-        [selectedChatId]: [...(prev[selectedChatId] || [...partnerMessages, newMsg]), replyMsg]
-      }));
+      setChatMessages(prev => {
+        const partnerMsgs = prev[selectedChatId] || [];
+        const replyMsg = {
+          sender: 'them' as const,
+          text: replyTexts[Math.floor(Math.random() * replyTexts.length)],
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        const finalMessages = {
+          ...prev,
+          [selectedChatId]: [...partnerMsgs, replyMsg]
+        };
+        localStorage.setItem('chat_messages', JSON.stringify(finalMessages));
+        return finalMessages;
+      });
     }, 1500);
   };
 
   const handleAddFriendSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!addFriendInput.trim()) return;
-    setAddFriendStatus(`Đã gửi lời mời kết bạn đến "${addFriendInput.trim()}"!`);
+    const query = addFriendInput.trim();
+    if (!query) return;
+
+    // Search for user in database profiles by username or UUID
+    const foundUser = otherProfiles.find(p => 
+      p.username?.toLowerCase() === query.toLowerCase() ||
+      p.id === query
+    );
+
+    if (foundUser) {
+      if (friendIds.includes(foundUser.id)) {
+        setAddFriendStatus(`Bạn và "${foundUser.display_name}" đã kết bạn từ trước.`);
+      } else {
+        const updatedFriends = [...friendIds, foundUser.id];
+        setFriendIds(updatedFriends);
+        localStorage.setItem('friends_ids', JSON.stringify(updatedFriends));
+        setAddFriendStatus(`Thành công! Đã kết bạn với "${foundUser.display_name}".`);
+      }
+    } else {
+      setAddFriendStatus(`Không tìm thấy người dùng có Tên/ID: "${query}".`);
+    }
+
     setAddFriendInput('');
     setTimeout(() => setAddFriendStatus(''), 4000);
   };
@@ -372,7 +429,27 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                 <div className="space-y-6 max-w-xl">
                   <div>
                     <h3 className="text-white font-bold uppercase text-xs tracking-wider mb-2">Thêm Bạn</h3>
-                    <p className="text-xs text-zinc-400">Bạn có thể thêm bạn bè bằng tên người dùng Discord của họ.</p>
+                    <p className="text-xs text-zinc-400">Bạn có thể kết bạn với người dùng khác bằng cách nhập chính xác Tên tài khoản hoặc mã ID của họ.</p>
+                    
+                    {/* User credentials share box */}
+                    <div className="mt-3 p-3 bg-white/5 border border-white/5 rounded-2xl flex flex-col gap-1.5 max-w-lg animate-scale-in">
+                      <span className="text-[10px] text-zinc-500 uppercase font-black tracking-wider leading-none">Thông tin tài khoản của bạn</span>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs font-semibold text-zinc-300">
+                        <div className="flex items-center gap-1">
+                          <span>Tên tài khoản:</span>
+                          <code className="text-emerald-400 font-mono font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/10 select-all cursor-pointer" title="Click đúp để copy">
+                            @{profile?.username || user?.email?.split('@')[0]}
+                          </code>
+                        </div>
+                        <span className="w-1 h-1 rounded-full bg-zinc-700 hidden sm:block"></span>
+                        <div className="flex items-center gap-1">
+                          <span>Mã ID:</span>
+                          <code className="text-cyan-400 font-mono font-bold bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/10 select-all cursor-pointer" title="Click đúp để copy">
+                            {user?.id}
+                          </code>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Add Friend Input form */}
