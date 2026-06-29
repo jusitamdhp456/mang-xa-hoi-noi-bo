@@ -14,15 +14,13 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
   const { data: channel } = await supabase.from('channels').select('*').eq('id', channelId).single()
   
   let initialMessages = []
-  if (channel?.type !== 'voice') {
-    const { data: msgs } = await supabase
-      .from('messages')
-      .select('*, profiles(display_name, avatar_key), message_attachments(*)')
-      .eq('channel_id', channelId)
-      .order('created_at', { ascending: true })
-      .limit(50)
-    if (msgs) initialMessages = msgs
-  }
+  const { data: msgs } = await supabase
+    .from('messages')
+    .select('*, profiles(display_name, avatar_key), message_attachments(*)')
+    .eq('channel_id', channelId)
+    .order('created_at', { ascending: true })
+    .limit(50)
+  if (msgs) initialMessages = msgs
 
   // Get current user profile for VoiceRoom username
   let currentUsername = 'Khách'
@@ -61,16 +59,31 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
          </div>
          
          {channel?.type === 'voice' ? (
-           <VoiceRoom channelId={channelId} workspaceId={workspaceId} username={currentUsername} />
-         ) : (
-           <ChatArea 
-             channelId={channelId} 
-             channelName={channel?.name || ''} 
-             channelType={channel?.type || 'text'} 
-             workspaceId={workspaceId}
-             initialMessages={initialMessages} 
-           />
-         )}
+            <div className="flex-1 flex flex-col h-full overflow-hidden">
+              {/* Upper Part: Calling viewport */}
+              <div className="h-[45%] border-b border-white/10 flex-shrink-0 relative">
+                <VoiceRoom channelId={channelId} workspaceId={workspaceId} username={currentUsername} />
+              </div>
+              {/* Lower Part: Text Chat area */}
+              <div className="flex-1 flex flex-col overflow-hidden bg-black/10">
+                <ChatArea 
+                  channelId={channelId} 
+                  channelName={channel?.name || ''} 
+                  channelType={channel?.type || 'voice'} 
+                  workspaceId={workspaceId}
+                  initialMessages={initialMessages} 
+                />
+              </div>
+            </div>
+          ) : (
+            <ChatArea 
+              channelId={channelId} 
+              channelName={channel?.name || ''} 
+              channelType={channel?.type || 'text'} 
+              workspaceId={workspaceId}
+              initialMessages={initialMessages} 
+            />
+          )}
       </div>
       
       {/* Member Sidebar */}

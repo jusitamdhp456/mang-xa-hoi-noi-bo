@@ -3,8 +3,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { Phone, Lock, Edit3 } from 'lucide-react'
+import { Phone, Lock, Edit3, X, Search, UserPlus } from 'lucide-react'
 import { useVoiceSettings } from '@/components/providers/VoiceSettingsProvider'
+import { getFriends, sendDirectMessage } from '@/app/actions/friend'
 
 interface ChannelItem {
   id: string
@@ -25,6 +26,39 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
   const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null)
   const [showHint, setShowHint] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [friends, setFriends] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [invitedFriendIds, setInvitedFriendIds] = useState<string[]>([]);
+  const [loadingFriends, setLoadingFriends] = useState(false);
+
+  useEffect(() => {
+    if (isInviteModalOpen) {
+      setLoadingFriends(true);
+      getFriends().then(res => {
+        if (Array.isArray(res)) {
+          setFriends(res);
+        }
+        setLoadingFriends(false);
+      });
+    }
+  }, [isInviteModalOpen]);
+
+  const handleSendInvite = async (friend: any) => {
+    if (!friend.threadId) return;
+    setInvitedFriendIds(prev => [...prev, friend.id]);
+    
+    const inviteLink = `${window.location.origin}/workspace/${workspaceId}/channel/${channel.id}`;
+    const inviteMessage = `👋 Hãy tham gia kênh đàm thoại "${channel.name}" cùng tôi nhé!\nLiên kết tham gia: ${inviteLink}`;
+    
+    await sendDirectMessage(friend.threadId, inviteMessage, 'text');
+  };
+
+  const filteredFriends = friends.filter(f => 
+    (f.display_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (f.username || '').toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const { activeParticipants, changeUserNickname, currentUser } = useVoiceSettings()
   
@@ -91,6 +125,21 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
       </span>
       <span className="truncate flex-1">{channel.name}</span>
       {channel.is_private && <Lock size={12} className="text-zinc-500 ml-2 shrink-0" />}
+
+      {isVoice && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            setIsInviteModalOpen(true);
+          }}
+          className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 text-zinc-400 hover:text-white transition-all cursor-pointer ml-1.5 shrink-0"
+          title="Mời bạn bè tham gia"
+        >
+          <UserPlus size={12} />
+        </button>
+      )}
 
       {/* Double click hint for voice channels */}
       {isVoice && showHint && (
@@ -184,6 +233,102 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
             <Phone size={14} className="text-cyan-400 shrink-0" />
             <span>Tham gia hội thoại</span>
           </button>
+        </div>
+      )}
+
+      {/* Invite Friends Modal */}
+      {isInviteModalOpen && (
+        <div 
+          onClick={() => setIsInviteModalOpen(false)}
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 cursor-default animate-fade-in"
+        >
+          <div 
+            onClick={e => e.stopPropagation()}
+            className="bg-[#2b2d31] border border-white/10 w-full max-w-sm rounded-2xl shadow-2xl p-5 animate-scale-in text-white"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-extrabold uppercase tracking-wide">Mời bạn bè vào đàm thoại</h3>
+              <button
+                type="button"
+                onClick={() => setIsInviteModalOpen(false)}
+                className="text-zinc-400 hover:text-white transition-colors text-lg font-bold cursor-pointer"
+              >
+                ×
+              </button>
+            </div>
+
+            <p className="text-xs text-zinc-400 mb-4 font-medium leading-relaxed">
+              Gửi tin nhắn mời tham gia kênh thoại <strong className="text-cyan-400">🔊 {channel.name}</strong> cho bạn bè của bạn.
+            </p>
+
+            {/* Search Box */}
+            <div className="bg-black/20 border border-white/5 rounded-xl py-2 px-3 flex items-center mb-4 focus-within:border-indigo-500 transition-colors">
+              <Search size={14} className="text-zinc-500 mr-2 shrink-0" />
+              <input
+                type="text"
+                placeholder="Tìm kiếm bạn bè..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="bg-transparent w-full outline-none text-xs text-white placeholder:text-zinc-500 font-medium"
+              />
+            </div>
+
+            {/* Friends List */}
+            <div className="max-h-60 overflow-y-auto space-y-2 mb-4 pr-1 scrollbar-thin scrollbar-thumb-white/10">
+              {loadingFriends ? (
+                <p className="text-xs text-zinc-500 text-center py-4 font-medium animate-pulse">Đang tải danh sách bạn bè...</p>
+              ) : filteredFriends.length === 0 ? (
+                <p className="text-xs text-zinc-500 text-center py-4 font-medium">Không tìm thấy bạn bè nào</p>
+              ) : (
+                filteredFriends.map(f => {
+                  const isInvited = invitedFriendIds.includes(f.id);
+                  const fInitial = (f.display_name || 'U').charAt(0).toUpperCase();
+                  const fAvatar = f.avatar_key ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${f.avatar_key}` : null;
+
+                  return (
+                    <div key={f.id} className="flex items-center justify-between bg-black/10 p-2 rounded-xl border border-white/5">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {fAvatar ? (
+                          <img src={fAvatar} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-indigo-600/30 text-indigo-300 text-xs font-black flex items-center justify-center border border-indigo-500/10 shrink-0">
+                            {fInitial}
+                          </div>
+                        )}
+                        <div className="min-w-0 flex flex-col">
+                          <span className="text-xs font-extrabold text-zinc-200 truncate leading-none">{f.display_name}</span>
+                          <span className="text-[9px] text-zinc-500 mt-1 font-semibold truncate leading-none">@{f.username}</span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={isInvited}
+                        onClick={() => handleSendInvite(f)}
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wide cursor-pointer transition-all ${
+                          isInvited 
+                            ? 'bg-zinc-800 text-zinc-500' 
+                            : 'bg-indigo-600 hover:bg-indigo-500 text-white hover:scale-[1.02]'
+                        }`}
+                      >
+                        {isInvited ? 'Đã mời ✔' : 'Mời'}
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsInviteModalOpen(false)}
+                className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 transition-colors text-white font-bold text-xs rounded-xl cursor-pointer"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </>

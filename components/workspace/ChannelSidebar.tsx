@@ -90,7 +90,7 @@ export default async function ChannelSidebar({ workspaceId }: { workspaceId: str
       </div>
       
       {/* User Panel */}
-      <UserPanel user={user} profile={profile} />
+      <UserPanel user={user} profile={profile} channels={channels} workspaceName={workspace?.name} />
     </div>
   )
 }
