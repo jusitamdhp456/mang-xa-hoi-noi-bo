@@ -1,6 +1,6 @@
 'use server'
 
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase/server'
 
 export async function sendMessage(
   channelId: string, 
@@ -11,12 +11,50 @@ export async function sendMessage(
   if (!content?.trim() && !attachment) return { error: 'Tin nhắn không được để trống' }
   
   const supabase = await createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-  if (!user) return { error: 'Bạn cần đăng nhập' }
+  if (authError || !user) return { error: 'Bạn cần đăng nhập để thực hiện' }
 
-  // 1. Insert message
-  const { data: message, error } = await supabase
+  // Secure Server-side Validation: Verify if user is in workspace_members
+  const { data: member, error: memberError } = await supabase
+    .from('workspace_members')
+    .select('role')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (memberError || !member) {
+    return { error: 'Bạn không có quyền gửi tin nhắn: Không phải là thành viên của không gian này' }
+  }
+
+  // Fetch channel privacy details
+  const { data: channel, error: channelError } = await supabase
+    .from('channels')
+    .select('is_private')
+    .eq('id', channelId)
+    .single()
+
+  if (channelError || !channel) {
+    return { error: 'Kênh hội thoại không tồn tại' }
+  }
+
+  // If private, verify channel membership and write permission
+  if (channel.is_private) {
+    const { data: chanMember } = await supabase
+      .from('channel_members')
+      .select('can_write')
+      .eq('channel_id', channelId)
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (!chanMember || !chanMember.can_write) {
+      return { error: 'Bạn không có quyền viết tin nhắn trong kênh riêng tư này' }
+    }
+  }
+
+  // Use service client to bypass RLS constraint on insert after secure verification
+  const serviceClient = createSupabaseServiceClient()
+  const { data: message, error } = await serviceClient
     .from('messages')
     .insert({
       channel_id: channelId,
@@ -29,7 +67,7 @@ export async function sendMessage(
 
   if (error || !message) {
     console.error('Error sending message:', error)
-    return { error: 'Không thể gửi tin nhắn' }
+    return { error: `Không thể gửi tin nhắn: ${error?.message || 'Lỗi hệ thống'}` }
   }
 
   // 2. Insert attachment nếu có

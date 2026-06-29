@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { CreateChannelModal } from './CreateChannelModal'
 import { 
@@ -13,10 +14,9 @@ import {
   PhoneCall, 
   Search, 
   ChevronRight, 
-  Compass, 
   Grid,
-  FileText,
-  FolderOpen
+  FolderOpen,
+  Phone
 } from 'lucide-react'
 
 interface CategoryItem {
@@ -313,44 +313,131 @@ export function WorkspaceDashboard({
 
 function ChannelCard({ channel, workspaceId }: { channel: ChannelItem; workspaceId: string }) {
   const isVoice = channel.type === 'voice'
+  const router = useRouter()
+  const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null)
+  const [showHint, setShowHint] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
   
-  return (
-    <Link href={`/workspace/${workspaceId}/channel/${channel.id}`}>
-      <div className="bg-white/5 border border-white/5 hover:border-indigo-500/30 hover:bg-white/10 rounded-2xl p-4 transition-all duration-200 cursor-pointer flex flex-col justify-between gap-4 h-full relative group hover:shadow-lg hover:shadow-indigo-500/5">
-        
-        {/* Border Glow Highlight on Hover */}
-        <div className="absolute inset-0 rounded-2xl border border-transparent group-hover:border-indigo-500/20 pointer-events-none transition-colors" />
+  const channelUrl = `/workspace/${workspaceId}/channel/${channel.id}`
 
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            {/* Channel Icon Wrapper */}
-            <div className={`p-2.5 rounded-xl shrink-0 ${isVoice ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/15' : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/15'}`}>
-              {isVoice ? <Volume2 size={18} /> : <Hash size={18} />}
-            </div>
-            
-            <div className="min-w-0">
-              <h4 className="font-bold text-white text-sm group-hover:text-cyan-300 transition-colors flex items-center gap-1.5 truncate">
-                {channel.name}
-                {channel.is_private && <Lock size={12} className="text-zinc-500 shrink-0" />}
-              </h4>
-              <p className="text-zinc-400 text-xs truncate mt-0.5">
-                {channel.topic || (isVoice ? 'Kênh đàm thoại trực tuyến' : 'Kênh trao đổi bằng văn bản')}
-              </p>
-            </div>
-          </div>
+  // Handle right-click context menu
+  const handleContextMenu = (e: React.MouseEvent) => {
+    if (!isVoice) return
+    e.preventDefault()
+    setMenuPosition({ x: e.clientX, y: e.clientY })
+  }
+
+  // Handle single click (shows hint for voice, navigates for text)
+  const handleClick = (e: React.MouseEvent) => {
+    if (isVoice) {
+      e.preventDefault()
+      setShowHint(true)
+      setTimeout(() => setShowHint(false), 2000)
+    } else {
+      router.push(channelUrl)
+    }
+  }
+
+  // Handle double click
+  const handleDoubleClick = () => {
+    if (isVoice) {
+      router.push(channelUrl)
+    }
+  }
+
+  // Close context menu on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuPosition(null)
+      }
+    }
+    if (menuPosition) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [menuPosition])
+
+  const cardContent = (
+    <div 
+      onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
+      onContextMenu={handleContextMenu}
+      className="bg-white/5 border border-white/5 hover:border-indigo-500/30 hover:bg-white/10 rounded-2xl p-4 transition-all duration-200 cursor-pointer flex flex-col justify-between gap-4 h-full relative group hover:shadow-lg hover:shadow-indigo-500/5 select-none"
+    >
+      {/* Border Glow Highlight on Hover */}
+      <div className="absolute inset-0 rounded-2xl border border-transparent group-hover:border-indigo-500/20 pointer-events-none transition-colors" />
+
+      {/* Double click hint for voice channels */}
+      {isVoice && showHint && (
+        <div className="absolute inset-0 rounded-2xl bg-indigo-950/80 backdrop-blur-xs flex items-center justify-center text-xs font-bold text-cyan-300 animate-scale-in border border-indigo-500/30">
+          🔊 Nhấp đúp (Double-click) để tham gia thoại
         </div>
+      )}
 
-        {/* Action Button Area */}
-        <div className="flex items-center justify-between border-t border-white/5 pt-3">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-            {isVoice ? 'Thoại' : 'Văn bản'}
-          </span>
-          <div className="flex items-center gap-1 text-xs font-bold text-indigo-400 group-hover:text-indigo-300 transition-colors">
-            <span>{isVoice ? 'Vào phòng thoại' : 'Vào trò chuyện'}</span>
-            <ChevronRight size={14} className="transform group-hover:translate-x-0.5 transition-transform" />
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          {/* Channel Icon Wrapper */}
+          <div className={`p-2.5 rounded-xl shrink-0 ${isVoice ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/15' : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/15'}`}>
+            {isVoice ? <Volume2 size={18} /> : <Hash size={18} />}
+          </div>
+          
+          <div className="min-w-0">
+            <h4 className="font-bold text-white text-sm group-hover:text-cyan-300 transition-colors flex items-center gap-1.5 truncate">
+              {channel.name}
+              {channel.is_private && <Lock size={12} className="text-zinc-500 shrink-0" />}
+            </h4>
+            <p className="text-zinc-400 text-xs truncate mt-0.5">
+              {channel.topic || (isVoice ? 'Kênh đàm thoại trực tuyến' : 'Kênh trao đổi bằng văn bản')}
+            </p>
           </div>
         </div>
       </div>
-    </Link>
+
+      {/* Action Button Area */}
+      <div className="flex items-center justify-between border-t border-white/5 pt-3">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+          {isVoice ? 'Thoại' : 'Văn bản'}
+        </span>
+        <div className="flex items-center gap-1 text-xs font-bold text-indigo-400 group-hover:text-indigo-300 transition-colors">
+          <span>{isVoice ? 'Kích đúp để vào' : 'Vào trò chuyện'}</span>
+          <ChevronRight size={14} className="transform group-hover:translate-x-0.5 transition-transform" />
+        </div>
+      </div>
+    </div>
+  )
+
+  return (
+    <>
+      {isVoice ? (
+        cardContent
+      ) : (
+        <Link href={channelUrl}>
+          {cardContent}
+        </Link>
+      )}
+
+      {/* Custom Context Menu */}
+      {menuPosition && (
+        <div 
+          ref={menuRef}
+          style={{ top: menuPosition.y, left: menuPosition.x }}
+          className="fixed z-50 bg-[#1e1b4b]/95 border border-white/15 backdrop-blur-2xl rounded-xl p-1.5 shadow-2xl animate-scale-in text-white w-48"
+        >
+          <button
+            onClick={() => {
+              router.push(channelUrl)
+              setMenuPosition(null)
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-600 rounded-lg transition-colors cursor-pointer text-left"
+          >
+            <Phone size={14} className="text-cyan-400 shrink-0" />
+            <span>Tham gia hội thoại</span>
+          </button>
+        </div>
+      )}
+    </>
   )
 }

@@ -1,6 +1,7 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { CreateChannelModal } from './CreateChannelModal'
+import { SidebarChannelLink } from './SidebarChannelLink'
 import { UserPanel } from './UserPanel'
 
 export default async function ChannelSidebar({ workspaceId }: { workspaceId: string }) {
@@ -35,9 +36,9 @@ export default async function ChannelSidebar({ workspaceId }: { workspaceId: str
   const profile = profileResult.data;
   const workspace = workspaceResult.data;
   const categories = categoriesResult.data || [];
-  const channels = channelsResult.data;
+  const channels = channelsResult.data || [];
 
-  const channelsWithoutCategory = channels?.filter(c => !c.category_id) || []
+  const channelsWithoutCategory = channels.filter(c => !c.category_id)
 
   return (
     <div className="w-64 bg-black/20 backdrop-blur-xl border-r border-white/10 flex-shrink-0 flex flex-col h-full text-white z-10 transition-all">
@@ -56,16 +57,11 @@ export default async function ChannelSidebar({ workspaceId }: { workspaceId: str
       <div className="flex-1 overflow-y-auto p-3 scrollbar-thin scrollbar-thumb-white/20">
         
         {channelsWithoutCategory.map(channel => (
-          <Link key={channel.id} href={`/workspace/${workspaceId}/channel/${channel.id}`}>
-            <div className="px-3 py-2 rounded-xl hover:bg-white/10 hover:shadow-sm cursor-pointer text-sm mb-1 flex items-center text-white/70 hover:text-white font-medium transition-all">
-              <span className="mr-3 text-lg leading-none">{channel.type === 'voice' ? '🔊' : '#'}</span>
-              <span className="truncate">{channel.name}</span>
-            </div>
-          </Link>
+          <SidebarChannelLink key={channel.id} workspaceId={workspaceId} channel={channel} />
         ))}
 
         {categories?.map(category => {
-          const categoryChannels = channels?.filter(c => c.category_id === category.id) || []
+          const categoryChannels = channels.filter(c => c.category_id === category.id)
           return (
             <div key={category.id} className="mt-6">
               <div className="flex items-center justify-between px-3 mb-2 group">
@@ -78,12 +74,7 @@ export default async function ChannelSidebar({ workspaceId }: { workspaceId: str
                 />
               </div>
               {categoryChannels.map(channel => (
-                <Link key={channel.id} href={`/workspace/${workspaceId}/channel/${channel.id}`}>
-                  <div className="px-3 py-2 rounded-xl hover:bg-white/10 hover:shadow-sm cursor-pointer text-sm mb-1 flex items-center text-white/70 hover:text-white font-medium transition-all">
-                    <span className="mr-3 text-lg leading-none">{channel.type === 'voice' ? '🔊' : '#'}</span>
-                    <span className="truncate">{channel.name}</span>
-                  </div>
-                </Link>
+                <SidebarChannelLink key={channel.id} workspaceId={workspaceId} channel={channel} />
               ))}
             </div>
           )
