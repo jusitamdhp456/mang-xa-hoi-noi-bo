@@ -353,8 +353,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
   const handleAcceptRequest = async (requestId: string) => {
     try {
       await acceptFriendRequest(requestId);
-      await loadRequestsData();
-      await loadFriendsData();
+      await loadDashboardData();
     } catch (e) {
       console.error('Failed to accept request:', e);
     }
@@ -363,7 +362,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
   const handleDeclineRequest = async (requestId: string) => {
     try {
       await declineFriendRequest(requestId);
-      await loadRequestsData();
+      await loadDashboardData();
     } catch (e) {
       console.error('Failed to decline request:', e);
     }
@@ -810,7 +809,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                                 } else {
                                   setAddFriendStatus(`Đã gửi lời mời kết bạn đến "${name}". Chờ đối phương chấp nhận.`);
                                 }
-                                loadRequestsData();
+                                loadDashboardData();
                                 setTimeout(() => setAddFriendStatus(''), 6000);
                               } catch (e) {
                                 console.error(e);
@@ -1311,7 +1310,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                 if (confirm(`Bạn có chắc chắn muốn hủy kết bạn với "${friend.display_name || friend.username}"?`)) {
                   try {
                     await removeFriend(friend.threadId);
-                    await loadFriendsData();
+                    await loadDashboardData();
                   } catch (e) {
                     console.error('Failed to unfriend:', e);
                   }
