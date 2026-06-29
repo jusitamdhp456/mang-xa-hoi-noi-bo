@@ -8,7 +8,7 @@ import {
 } from '@livekit/components-react';
 import { useEffect, useState, useRef } from 'react';
 import { useVoiceSettings } from '@/components/providers/VoiceSettingsProvider';
-import { Edit3, Check, X, Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Volume2, VolumeX } from 'lucide-react';
+import { Edit3, Check, X, Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Volume2, VolumeX, Settings } from 'lucide-react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
 export function VoiceRoom({ 
@@ -38,6 +38,15 @@ export function VoiceRoom({
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [p2pMuted, setP2PMuted] = useState(false);
   const [p2pVideoOff, setP2PVideoOff] = useState(false);
+
+  // Media device settings states
+  const [micDevices, setMicDevices] = useState<MediaDeviceInfo[]>([]);
+  const [outputDevices, setOutputDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedMicId, setSelectedMicId] = useState<string>('');
+  const [selectedOutputId, setSelectedOutputId] = useState<string>('');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  const pcRef = useRef<RTCPeerConnection | null>(null);
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -115,13 +124,15 @@ export function VoiceRoom({
         setLocalStream(localMediaStream);
 
         // Initialize Peer Connection with Google Stun Servers
-        peerConnection = new RTCPeerConnection({
+        const pc = new RTCPeerConnection({
           iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' },
             { urls: 'stun:stun2.l.google.com:19302' }
           ]
         });
+        peerConnection = pc;
+        pcRef.current = pc;
 
         // Add local tracks to peer connection
         localMediaStream.getTracks().forEach(track => {
@@ -293,6 +304,91 @@ export function VoiceRoom({
     }
   }, [remoteStream, isDeafened]);
 
+  // Query available media input and output devices
+  useEffect(() => {
+    if (!useP2P) return;
+
+    const getDevices = async () => {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        
+        const mDevices = devices.filter(d => d.kind === 'audioinput');
+        const oDevices = devices.filter(d => d.kind === 'audiooutput');
+        
+        setMicDevices(mDevices);
+        setOutputDevices(oDevices);
+
+        // Auto select current active microphone deviceId
+        if (localStream) {
+          const activeMicTrack = localStream.getAudioTracks()[0];
+          if (activeMicTrack) {
+            const settings = activeMicTrack.getSettings();
+            if (settings.deviceId) {
+              setSelectedMicId(settings.deviceId);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('enumerateDevices error:', e);
+      }
+    };
+
+    getDevices();
+    
+    navigator.mediaDevices.addEventListener('devicechange', getDevices);
+    return () => {
+      navigator.mediaDevices.removeEventListener('devicechange', getDevices);
+    };
+  }, [useP2P, localStream]);
+
+  // Handle changing the microphone device dynamically
+  const changeMicrophone = async (deviceId: string) => {
+    try {
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        audio: { deviceId: { exact: deviceId } },
+        video: video ? { width: 640, height: 480 } : false
+      });
+      
+      const newAudioTrack = newStream.getAudioTracks()[0];
+      
+      if (localStream) {
+        const oldAudioTrack = localStream.getAudioTracks()[0];
+        if (oldAudioTrack) {
+          localStream.removeTrack(oldAudioTrack);
+          oldAudioTrack.stop();
+        }
+        localStream.addTrack(newAudioTrack);
+        setLocalStream(new MediaStream(localStream.getTracks()));
+      }
+
+      if (pcRef.current) {
+        const senders = pcRef.current.getSenders();
+        const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
+        if (audioSender) {
+          await audioSender.replaceTrack(newAudioTrack);
+        }
+      }
+      setSelectedMicId(deviceId);
+    } catch (e) {
+      console.error('Failed to change microphone:', e);
+    }
+  };
+
+  // Handle changing the speaker / headphones output device
+  const changeAudioOutput = async (deviceId: string) => {
+    try {
+      if (remoteAudioRef.current && (remoteAudioRef.current as any).setSinkId) {
+        await (remoteAudioRef.current as any).setSinkId(deviceId);
+      }
+      if (remoteVideoRef.current && (remoteVideoRef.current as any).setSinkId) {
+        await (remoteVideoRef.current as any).setSinkId(deviceId);
+      }
+      setSelectedOutputId(deviceId);
+    } catch (e) {
+      console.error('Failed to change audio output device:', e);
+    }
+  };
+
   const toggleMute = () => {
     if (localStream) {
       const audioTrack = localStream.getAudioTracks()[0];
@@ -461,33 +557,81 @@ export function VoiceRoom({
         </div>
 
         {/* Action Toggle controls */}
-        <div className="mt-5 flex items-center justify-center gap-4 shrink-0 bg-zinc-900/60 p-3 rounded-2xl border border-white/5 backdrop-blur-md max-w-sm mx-auto w-full">
+        <div className="mt-5 flex items-center justify-center gap-4 shrink-0 bg-zinc-900/60 p-3 rounded-2xl border border-white/5 backdrop-blur-md max-w-sm mx-auto w-full relative">
           <button
             onClick={toggleMute}
             className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer border ${p2pMuted ? 'bg-red-600 border-red-600 text-white' : 'bg-zinc-800 border-white/10 text-zinc-300 hover:bg-zinc-700'}`}
             title={p2pMuted ? 'Mở khóa Micro' : 'Tắt tiếng Micro'}
           >
-        {p2pMuted ? <MicOff size={18} /> : <Mic size={18} />}
-      </button>
+            {p2pMuted ? <MicOff size={18} /> : <Mic size={18} />}
+          </button>
 
-      <button
-        onClick={toggleDeafen}
-        className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer border ${isDeafened ? 'bg-red-600 border-red-600 text-white' : 'bg-zinc-800 border-white/10 text-zinc-300 hover:bg-zinc-700'}`}
-        title={isDeafened ? 'Bật âm thanh (Nghe)' : 'Tắt âm thanh (Deafen)'}
-      >
-        {isDeafened ? <VolumeX size={18} /> : <Volume2 size={18} />}
-      </button>
+          <button
+            onClick={toggleDeafen}
+            className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer border ${isDeafened ? 'bg-red-600 border-red-600 text-white' : 'bg-zinc-800 border-white/10 text-zinc-300 hover:bg-zinc-700'}`}
+            title={isDeafened ? 'Bật âm thanh (Nghe)' : 'Tắt âm thanh (Deafen)'}
+          >
+            {isDeafened ? <VolumeX size={18} /> : <Volume2 size={18} />}
+          </button>
 
-      {video && (
-        <button
-          onClick={toggleVideo}
-          className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer border ${p2pVideoOff ? 'bg-red-600 border-red-600 text-white' : 'bg-zinc-800 border-white/10 text-zinc-300 hover:bg-zinc-700'}`}
-          title={p2pVideoOff ? 'Bật Camera' : 'Tắt Camera'}
-        >
-          {p2pVideoOff ? <VideoOff size={18} /> : <VideoIcon size={18} />}
-        </button>
-      )}
-    </div>
+          {video && (
+            <button
+              onClick={toggleVideo}
+              className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer border ${p2pVideoOff ? 'bg-red-600 border-red-600 text-white' : 'bg-zinc-800 border-white/10 text-zinc-300 hover:bg-zinc-700'}`}
+              title={p2pVideoOff ? 'Bật Camera' : 'Tắt Camera'}
+            >
+              {p2pVideoOff ? <VideoOff size={18} /> : <VideoIcon size={18} />}
+            </button>
+          )}
+
+          {/* Device Audio Settings Popover trigger */}
+          <button
+            onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+            className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer border ${isSettingsOpen ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-zinc-800 border-white/10 text-zinc-300 hover:bg-zinc-700'}`}
+            title="Cài đặt thiết bị âm thanh"
+          >
+            <Settings size={18} />
+          </button>
+
+          {/* Device settings popover menu */}
+          {isSettingsOpen && (
+            <div className="absolute bottom-16 left-1/2 -translate-x-1/2 bg-[#1e1f22]/95 border border-white/10 rounded-2xl p-4 w-[280px] shadow-2xl z-30 space-y-4 animate-scale-in text-left">
+              <h4 className="font-extrabold text-[11px] text-zinc-400 uppercase tracking-wider">Cấu hình Thiết bị</h4>
+              
+              <div className="space-y-1.5">
+                <label className="text-[10px] text-zinc-400 font-bold">🎙️ Đầu vào (Microphone)</label>
+                <select
+                  value={selectedMicId}
+                  onChange={(e) => changeMicrophone(e.target.value)}
+                  className="w-full bg-zinc-950 border border-white/5 text-zinc-200 text-xs rounded-xl p-2.5 outline-none font-semibold cursor-pointer"
+                >
+                  {micDevices.map((d, idx) => (
+                    <option key={d.deviceId || idx} value={d.deviceId}>
+                      {d.label || `Microphone ${idx + 1}`}
+                    </option>
+                  ))}
+                  {micDevices.length === 0 && <option>Không tìm thấy thiết bị thu</option>}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] text-zinc-400 font-bold">🔊 Đầu ra (Loa / Tai nghe)</label>
+                <select
+                  value={selectedOutputId}
+                  onChange={(e) => changeAudioOutput(e.target.value)}
+                  className="w-full bg-zinc-950 border border-white/5 text-zinc-200 text-xs rounded-xl p-2.5 outline-none font-semibold cursor-pointer"
+                >
+                  {outputDevices.map((d, idx) => (
+                    <option key={d.deviceId || idx} value={d.deviceId}>
+                      {d.label || `Speaker/Headphones ${idx + 1}`}
+                    </option>
+                  ))}
+                  {outputDevices.length === 0 && <option>Thiết bị mặc định hệ thống</option>}
+                </select>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     );
   }

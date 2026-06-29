@@ -141,10 +141,52 @@ const playIncomingCallRingtone = () => {
   }
 };
 
+let callToneInterval: any = null;
+
+const playCallingTone = () => {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const playBeep = () => {
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
+      
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(440, ctx.currentTime);
+      
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(480, ctx.currentTime);
+      
+      gain.gain.setValueAtTime(0.06, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
+      
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(ctx.destination);
+      
+      osc1.start();
+      osc2.start();
+      
+      osc1.stop(ctx.currentTime + 1.2);
+      osc2.stop(ctx.currentTime + 1.2);
+    };
+
+    playBeep();
+    if (callToneInterval) clearInterval(callToneInterval);
+    callToneInterval = setInterval(playBeep, 2500);
+  } catch (e) {
+    console.warn('Failed to play calling tone:', e);
+  }
+};
+
 const stopCallSounds = () => {
   if (ringtoneInterval) {
     clearInterval(ringtoneInterval);
     ringtoneInterval = null;
+  }
+  if (callToneInterval) {
+    clearInterval(callToneInterval);
+    callToneInterval = null;
   }
 };
 
@@ -213,6 +255,16 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
     const info = incomingCallInvite;
     setIncomingCallInvite(null);
 
+    // Broadcast call_accepted event to the caller
+    const supabase = createSupabaseBrowserClient();
+    supabase.channel(`room-dm-${info.threadId}`).send({
+      type: 'broadcast',
+      event: 'call_accepted',
+      payload: {
+        receiverId: info.senderId
+      }
+    });
+
     setCallType(info.callType);
     setSelectedChatId(info.threadId);
     setActiveVoiceRoomId(null);
@@ -256,6 +308,9 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
   const initiateCall = (type: 'voice' | 'video') => {
     setCallType(type);
     setIsCalling(true);
+    
+    // Play calling ringback beep on caller side
+    playCallingTone();
     
     if (activeChatPartner) {
       const supabase = createSupabaseBrowserClient();
@@ -441,6 +496,12 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
         .on('broadcast', { event: 'call_declined' }, (payload) => {
           if (payload.payload.receiverId === user.id) {
             setIsCalling(false);
+            setIncomingCallInvite(null);
+            stopCallSounds();
+          }
+        })
+        .on('broadcast', { event: 'call_accepted' }, (payload) => {
+          if (payload.payload.receiverId === user.id) {
             stopCallSounds();
           }
         })
