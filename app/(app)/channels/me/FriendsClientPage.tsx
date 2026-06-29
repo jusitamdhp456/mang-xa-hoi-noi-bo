@@ -27,6 +27,15 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
   // Calling states
   const [isCalling, setIsCalling] = useState(false);
   const [callType, setCallType] = useState<'voice' | 'video'>('voice');
+
+  // Group Voice Rooms states
+  const [voiceRooms, setVoiceRooms] = useState([
+    { id: 'general-lobby', name: 'Phòng thoại chung' },
+    { id: 'gaming-lounge', name: 'Kênh chơi game' }
+  ]);
+  const [activeVoiceRoomId, setActiveVoiceRoomId] = useState<string | null>(null);
+  const [isCreateVoiceRoomOpen, setIsCreateVoiceRoomOpen] = useState(false);
+  const [newVoiceRoomName, setNewVoiceRoomName] = useState('');
   
   // DM message logs (mocked for each user)
   const [chatMessages, setChatMessages] = useState<Record<string, Array<{ sender: 'me' | 'them', text: string, time: string }>>>({
@@ -139,16 +148,14 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
         {/* Search Header */}
         <div className="h-16 px-4 border-b border-white/10 flex items-center justify-center flex-shrink-0 bg-black/10">
           <div className="w-full bg-black/35 text-xs text-zinc-400 rounded-lg p-2 px-3 flex items-center justify-between cursor-pointer hover:bg-black/50 border border-white/5 transition-all">
-            <span>Tìm cuộc trò chuyện...</span>
-            <Search size={14} className="text-zinc-500" />
-          </div>
-        </div>
-
-        {/* Main DM Navigation Links */}
+            <span>Tìm cuộc trò chuy�         {/* Main DM Navigation Links */}
         <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
           <button 
-            onClick={() => setSelectedChatId(null)}
-            className={`w-full flex items-center gap-4 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${selectedChatId === null ? 'bg-white/10 text-white font-semibold' : 'hover:bg-white/5 hover:text-zinc-200 text-zinc-400'}`}
+            onClick={() => {
+              setSelectedChatId(null);
+              setActiveVoiceRoomId(null);
+            }}
+            className={`w-full flex items-center gap-4 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${selectedChatId === null && activeVoiceRoomId === null ? 'bg-white/10 text-white font-semibold' : 'hover:bg-white/5 hover:text-zinc-200 text-zinc-400'}`}
           >
             <User size={20} className="flex-shrink-0" />
             <span>Bạn bè</span>
@@ -175,8 +182,39 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
             <span>Nhiệm vụ</span>
           </button>
 
-          {/* DM Users List Header */}
+          {/* Group Voice Rooms Section */}
           <div className="pt-4 pb-1 px-3 flex items-center justify-between text-[11px] font-bold text-zinc-500 tracking-wider uppercase group">
+            <span>Kênh thoại nhóm</span>
+            <button 
+              onClick={() => setIsCreateVoiceRoomOpen(true)}
+              className="hover:text-zinc-300 transition-colors"
+              title="Tạo kênh thoại mới"
+            >
+              <Plus size={14} />
+            </button>
+          </div>
+
+          <div className="space-y-0.5 mt-1 mb-4">
+            {voiceRooms.map(room => {
+              const isSelected = activeVoiceRoomId === room.id;
+              return (
+                <button
+                  key={room.id}
+                  onClick={() => {
+                    setSelectedChatId(null);
+                    setActiveVoiceRoomId(room.id);
+                  }}
+                  className={`w-full flex items-center gap-3 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors text-left ${isSelected ? 'bg-white/10 text-white font-semibold' : 'hover:bg-white/5 hover:text-zinc-200 text-zinc-400'}`}
+                >
+                  <span className="text-lg leading-none text-zinc-400">🔊</span>
+                  <span className="truncate text-white text-sm font-medium">{room.name}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* DM Users List Header */}
+          <div className="pt-4 pb-1 px-3 flex items-center justify-between text-[11px] font-bold text-zinc-500 tracking-wider uppercase group border-t border-white/5">
             <span>Tin nhắn trực tiếp</span>
             <button className="hover:text-zinc-300 opacity-0 group-hover:opacity-100 transition-opacity">
               <Plus size={14} />
@@ -194,6 +232,14 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
               let statusBg = 'bg-zinc-500';
               if (p.status === 'online') statusBg = 'bg-green-500';
               else if (p.status === 'idle') statusBg = 'bg-yellow-500';
+
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => {
+                    setSelectedChatId(p.id);
+                    setActiveVoiceRoomId(null);
+                  }};
 
               return (
                 <button
