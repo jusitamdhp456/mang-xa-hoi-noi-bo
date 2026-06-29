@@ -88,13 +88,13 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
 
   // Initialize persistent friends and DMs list
   useEffect(() => {
-    const savedFriends = localStorage.getItem('friends_ids');
+    const savedFriends = localStorage.getItem('friends_ids_v3');
     if (savedFriends) {
       setFriendIds(JSON.parse(savedFriends));
     } else {
       const seed: string[] = [];
       setFriendIds(seed);
-      localStorage.setItem('friends_ids', JSON.stringify(seed));
+      localStorage.setItem('friends_ids_v3', JSON.stringify(seed));
     }
 
     const savedMessages = localStorage.getItem('chat_messages');
@@ -224,7 +224,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
       } else {
         const updatedFriends = [...friendIds, foundUser.id];
         setFriendIds(updatedFriends);
-        localStorage.setItem('friends_ids', JSON.stringify(updatedFriends));
+        localStorage.setItem('friends_ids_v3', JSON.stringify(updatedFriends));
         setAddFriendStatus(`Thành công! Đã kết bạn với "${foundUser.display_name}".`);
       }
     } else {
