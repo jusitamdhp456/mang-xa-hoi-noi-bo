@@ -243,6 +243,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
   const [groupNameInput, setGroupNameInput] = useState('');
   const [chatThemeColor, setChatThemeColor] = useState<string>('indigo'); 
   const [archiveActiveTab, setArchiveActiveTab] = useState<'media' | 'files' | 'links'>('media');
+  const [activeLightboxImg, setActiveLightboxImg] = useState<string | null>(null);
 
   const themeStyles: Record<string, { bg: string; border: string; label: string; dot: string }> = {
     indigo: { bg: 'bg-indigo-600', border: 'border-indigo-500', label: 'Indigo', dot: 'bg-indigo-500' },
@@ -1794,11 +1795,10 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                                 try {
                                   const attachment = JSON.parse(msg.content);
                                   return (
-                                    <a 
-                                      href={`/api/media/${attachment.objectKey}`} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer" 
-                                      className="inline-block relative group/img overflow-hidden rounded-xl border border-white/10 shadow-md max-w-[150px] sm:max-w-[180px] transition-all hover:scale-[1.02] duration-200 mt-1"
+                                    <button 
+                                      type="button"
+                                      onClick={() => setActiveLightboxImg(`/api/media/${attachment.objectKey}`)}
+                                      className="inline-block relative group/img overflow-hidden rounded-xl border border-white/10 shadow-md max-w-[150px] sm:max-w-[180px] transition-all hover:scale-[1.02] duration-200 mt-1 cursor-pointer text-left"
                                     >
                                       {/* eslint-disable-next-line @next/next/no-img-element */}
                                       <img 
@@ -1806,7 +1806,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                                         alt={attachment.fileName} 
                                         className="w-full h-auto object-cover max-h-40" 
                                       />
-                                    </a>
+                                    </button>
                                   );
                                 } catch (e) {
                                   return (
@@ -1997,12 +1997,11 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                                 try {
                                   const attachment = JSON.parse(m.content);
                                   return (
-                                    <a 
+                                    <button 
                                       key={idx} 
-                                      href={`/api/media/${attachment.objectKey}`} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer" 
-                                      className="aspect-square bg-black/20 rounded-lg overflow-hidden border border-white/5 hover:scale-[1.02] transition-all flex items-center justify-center"
+                                      type="button"
+                                      onClick={() => setActiveLightboxImg(`/api/media/${attachment.objectKey}`)}
+                                      className="aspect-square bg-black/20 rounded-lg overflow-hidden border border-white/5 hover:scale-[1.02] transition-all flex items-center justify-center cursor-pointer"
                                     >
                                       {/* eslint-disable-next-line @next/next/no-img-element */}
                                       <img 
@@ -2010,7 +2009,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                                         alt={attachment.fileName} 
                                         className="w-full h-full object-cover" 
                                       />
-                                    </a>
+                                    </button>
                                   );
                                 } catch(e) {
                                   return null;
@@ -2419,6 +2418,44 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                 Tạo ngay
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Lightbox Modal Overlay */}
+      {activeLightboxImg && (
+        <div 
+          onClick={() => setActiveLightboxImg(null)}
+          className="fixed inset-0 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center z-[100] p-4 cursor-zoom-out animate-fade-in"
+        >
+          {/* Close & Action bar at the top */}
+          <div className="absolute top-4 right-4 flex items-center gap-3 z-10" onClick={e => e.stopPropagation()}>
+            <a 
+              href={activeLightboxImg}
+              download
+              className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border border-white/10"
+              title="Tải ảnh gốc"
+            >
+              📥 Tải ảnh
+            </a>
+            <button
+              type="button"
+              onClick={() => setActiveLightboxImg(null)}
+              className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-lg font-bold transition-all cursor-pointer border border-white/10"
+              title="Đóng xem ảnh"
+            >
+              ×
+            </button>
+          </div>
+
+          {/* Main image view container */}
+          <div className="max-w-4xl max-h-[85vh] relative animate-scale-in" onClick={e => e.stopPropagation()}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img 
+              src={activeLightboxImg} 
+              alt="Lightbox View" 
+              className="max-w-full max-h-[85vh] object-contain rounded-lg border border-white/10 shadow-2xl select-none"
+            />
           </div>
         </div>
       )}

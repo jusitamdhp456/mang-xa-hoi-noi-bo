@@ -1,6 +1,6 @@
 import { type MessageRow } from './ChatArea'
 
-export function MessageItem({ message }: { message: MessageRow }) {
+export function MessageItem({ message, onImageClick }: { message: MessageRow; onImageClick?: (url: string) => void }) {
   const senderName = message.profiles?.display_name || 'Người dùng ẩn danh'
   const initial = senderName.charAt(0).toUpperCase()
   
@@ -26,14 +26,29 @@ export function MessageItem({ message }: { message: MessageRow }) {
           {attachment && (
             <div className="mt-2">
               {attachment.mime_type?.startsWith('image/') ? (
-                 <a href={`/api/media/${attachment.object_key}`} target="_blank" rel="noopener noreferrer" className="inline-block relative group/img">
-                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                   <img 
-                     src={`/api/media/${attachment.object_key}`} 
-                     alt={attachment.file_name} 
-                     className="max-w-sm max-h-72 object-cover rounded-2xl border-4 border-white shadow-md transition-transform transform group-hover/img:scale-[1.02]"
-                   />
-                 </a>
+                onImageClick ? (
+                  <button 
+                    type="button" 
+                    onClick={() => onImageClick(`/api/media/${attachment.object_key}`)}
+                    className="inline-block relative group/img cursor-pointer text-left"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img 
+                      src={`/api/media/${attachment.object_key}`} 
+                      alt={attachment.file_name} 
+                      className="max-w-sm max-h-72 object-cover rounded-2xl border-4 border-white shadow-md transition-transform transform group-hover/img:scale-[1.02]"
+                    />
+                  </button>
+                ) : (
+                  <a href={`/api/media/${attachment.object_key}`} target="_blank" rel="noopener noreferrer" className="inline-block relative group/img">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img 
+                      src={`/api/media/${attachment.object_key}`} 
+                      alt={attachment.file_name} 
+                      className="max-w-sm max-h-72 object-cover rounded-2xl border-4 border-white shadow-md transition-transform transform group-hover/img:scale-[1.02]"
+                    />
+                  </a>
+                )
               ) : (
                  <a 
                    href={`/api/media/${attachment.object_key}`} 

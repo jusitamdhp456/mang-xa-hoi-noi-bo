@@ -40,6 +40,7 @@ export function ChatArea({
   initialMessages: MessageRow[] 
 }) {
   const [messages, setMessages] = useState<MessageRow[]>(initialMessages)
+  const [activeLightboxImg, setActiveLightboxImg] = useState<string | null>(null)
   const supabase = createSupabaseBrowserClient()
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -105,7 +106,7 @@ export function ChatArea({
             </div>
           ) : (
             messages.map((msg) => (
-              <MessageItem key={msg.id} message={msg} />
+              <MessageItem key={msg.id} message={msg} onImageClick={setActiveLightboxImg} />
             ))
           )}
           <div ref={messagesEndRef} />
@@ -118,6 +119,44 @@ export function ChatArea({
         channelType={channelType} 
         workspaceId={workspaceId}
       />
+
+      {/* Image Lightbox Modal Overlay */}
+      {activeLightboxImg && (
+        <div 
+          onClick={() => setActiveLightboxImg(null)}
+          className="fixed inset-0 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center z-[100] p-4 cursor-zoom-out animate-fade-in"
+        >
+          {/* Close & Action bar at the top */}
+          <div className="absolute top-4 right-4 flex items-center gap-3 z-10" onClick={e => e.stopPropagation()}>
+            <a 
+              href={activeLightboxImg}
+              download
+              className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border border-white/10"
+              title="Tải ảnh gốc"
+            >
+              📥 Tải ảnh
+            </a>
+            <button
+              type="button"
+              onClick={() => setActiveLightboxImg(null)}
+              className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-lg font-bold transition-all cursor-pointer border border-white/10"
+              title="Đóng xem ảnh"
+            >
+              ×
+            </button>
+          </div>
+
+          {/* Main image view container */}
+          <div className="max-w-4xl max-h-[85vh] relative animate-scale-in" onClick={e => e.stopPropagation()}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img 
+              src={activeLightboxImg} 
+              alt="Lightbox View" 
+              className="max-w-full max-h-[85vh] object-contain rounded-lg border border-white/10 shadow-2xl select-none"
+            />
+          </div>
+        </div>
+      )}
     </>
   )
 }
