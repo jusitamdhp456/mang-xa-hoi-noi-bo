@@ -1647,63 +1647,72 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
 
                             {/* Bubble Body with larger text and padded nicely */}
                             <div 
-                              className={`px-4 py-2.5 rounded-2xl whitespace-pre-wrap leading-relaxed break-words text-[13.5px] sm:text-[14px] font-medium shadow-md border ${
-                                isMe 
-                                  ? 'bg-indigo-600 border-indigo-500 text-white rounded-br-none' 
-                                  : 'bg-zinc-800/90 border-white/5 text-zinc-200 rounded-bl-none'
-                              }`}
-                            >
-                              {msg.type === 'image' ? (
-                                (() => {
-                                  try {
-                                    const attachment = JSON.parse(msg.content);
-                                    return (
-                                      <a 
-                                        href={`/api/media/${attachment.objectKey}`} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer" 
-                                        className="inline-block relative group/img mt-1 overflow-hidden rounded-xl border border-white/10"
-                                      >
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img 
-                                          src={`/api/media/${attachment.objectKey}`} 
-                                          alt={attachment.fileName} 
-                                          className="max-w-xs sm:max-w-sm max-h-60 object-contain hover:scale-[1.02] transition-transform duration-200" 
-                                        />
-                                      </a>
-                                    );
-                                  } catch (e) {
-                                    return <span>{msg.content}</span>;
-                                  }
-                                })()
-                              ) : msg.type === 'file' ? (
-                                (() => {
-                                  try {
-                                    const attachment = JSON.parse(msg.content);
-                                    return (
-                                      <div className="flex items-center gap-3 bg-black/25 p-3 rounded-xl border border-white/5 max-w-sm mt-1">
-                                        <span className="text-2xl shrink-0">📎</span>
-                                        <div className="min-w-0 flex-1">
-                                          <p className="text-xs font-bold text-zinc-200 truncate">{attachment.fileName}</p>
-                                          <p className="text-[10px] text-zinc-400 mt-0.5">{(attachment.sizeBytes / 1024).toFixed(1)} KB</p>
+                            {/* Bubble Body: Conditional styling if it's an image */}
+                            {msg.type === 'image' ? (
+                              (() => {
+                                try {
+                                  const attachment = JSON.parse(msg.content);
+                                  return (
+                                    <a 
+                                      href={`/api/media/${attachment.objectKey}`} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer" 
+                                      className="inline-block relative group/img overflow-hidden rounded-xl border border-white/10 shadow-md max-w-[150px] sm:max-w-[180px] transition-all hover:scale-[1.02] duration-200 mt-1"
+                                    >
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                      <img 
+                                        src={`/api/media/${attachment.objectKey}`} 
+                                        alt={attachment.fileName} 
+                                        className="w-full h-auto object-cover max-h-40" 
+                                      />
+                                    </a>
+                                  );
+                                } catch (e) {
+                                  return (
+                                    <div className="px-4 py-2.5 rounded-2xl bg-zinc-800/90 border border-white/5 text-zinc-200 rounded-bl-none text-[13.5px]">
+                                      {msg.content}
+                                    </div>
+                                  );
+                                }
+                              })()
+                            ) : (
+                              /* Bubble Body for text or file */
+                              <div 
+                                className={`px-4 py-2.5 rounded-2xl whitespace-pre-wrap leading-relaxed break-words text-[13.5px] sm:text-[14px] font-medium shadow-md border ${
+                                  isMe 
+                                    ? 'bg-indigo-600 border-indigo-500 text-white rounded-br-none' 
+                                    : 'bg-zinc-800/90 border-white/5 text-zinc-200 rounded-bl-none'
+                                }`}
+                              >
+                                {msg.type === 'file' ? (
+                                  (() => {
+                                    try {
+                                      const attachment = JSON.parse(msg.content);
+                                      return (
+                                        <div className="flex items-center gap-3 bg-black/25 p-3 rounded-xl border border-white/5 max-w-sm mt-1">
+                                          <span className="text-2xl shrink-0">📎</span>
+                                          <div className="min-w-0 flex-1">
+                                            <p className="text-xs font-bold text-zinc-200 truncate">{attachment.fileName}</p>
+                                            <p className="text-[10px] text-zinc-400 mt-0.5">{(attachment.sizeBytes / 1024).toFixed(1)} KB</p>
+                                          </div>
+                                          <a 
+                                            href={`/api/media/${attachment.objectKey}`} 
+                                            download={attachment.fileName}
+                                            className="p-1.5 bg-white/5 hover:bg-white/15 rounded-lg text-xs font-bold text-white transition-all select-none shrink-0"
+                                          >
+                                            Tải xuống
+                                          </a>
                                         </div>
-                                        <a 
-                                          href={`/api/media/${attachment.objectKey}`} 
-                                          download={attachment.fileName}
-                                          className="p-1.5 bg-white/5 hover:bg-white/15 rounded-lg text-xs font-bold text-white transition-all select-none shrink-0"
-                                        >
-                                          Tải xuống
-                                        </a>
-                                      </div>
-                                    );
-                                  } catch (e) {
-                                    return <span>{msg.content}</span>;
-                                  }
-                                })()
-                              ) : (
-                                msg.content
-                              )}
-                            </div>
+                                      );
+                                    } catch (e) {
+                                      return <span>{msg.content}</span>;
+                                    }
+                                  })()
+                                ) : (
+                                  msg.content
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
