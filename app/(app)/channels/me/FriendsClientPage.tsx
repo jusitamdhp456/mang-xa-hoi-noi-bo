@@ -226,11 +226,11 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
   }, []);
 
   // Show Toast Helper
-  const showToast = (senderName: string, content: string, avatarKey: string | null) => {
+  const showToast = (senderName: string, content: string, avatarKey: string | null, threadId: string) => {
     const id = `toast-${Date.now()}`;
     const avatarUrl = avatarKey ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${avatarKey}` : null;
     
-    setToasts(prev => [...prev, { id, title: senderName, content, avatar: avatarUrl }]);
+    setToasts(prev => [...prev, { id, title: senderName, content, avatar: avatarUrl, threadId }]);
     
     // Auto dismiss after 4 seconds
     setTimeout(() => {
@@ -314,7 +314,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
             } else {
               // Show toast and increment unread badge
               const senderName = friend.display_name || friend.username || 'Bạn';
-              showToast(senderName, msg.content, friend.avatar_key);
+              showToast(senderName, msg.content, friend.avatar_key, friend.threadId);
 
               setUnreadCounts(prev => {
                 const nextCount = (prev[friend.threadId] || 0) + 1;
@@ -1541,7 +1541,13 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
         {toasts.map(t => (
           <div 
             key={t.id} 
-            className="pointer-events-auto bg-black/75 border border-white/10 p-3.5 rounded-xl shadow-2xl flex gap-3 animate-scale-in items-center text-white w-80 backdrop-blur-xl"
+            onClick={() => {
+              setSelectedChatId(t.threadId);
+              setActiveVoiceRoomId(null);
+              setActiveView('chat');
+              setToasts(prev => prev.filter(x => x.id !== t.id));
+            }}
+            className="pointer-events-auto bg-black/40 border border-white/10 hover:bg-black/55 p-3.5 rounded-xl shadow-2xl flex gap-3 animate-scale-in items-center text-white w-80 backdrop-blur-xl cursor-pointer hover:border-white/20 transition-all"
           >
             <div className="shrink-0 relative">
               {t.avatar ? (
@@ -1557,7 +1563,10 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
               <p className="text-[11px] text-white/80 truncate mt-0.5">{t.content}</p>
             </div>
             <button 
-              onClick={() => setToasts(prev => prev.filter(x => x.id !== t.id))}
+              onClick={(e) => {
+                e.stopPropagation();
+                setToasts(prev => prev.filter(x => x.id !== t.id));
+              }}
               className="text-zinc-400 hover:text-white cursor-pointer p-1 rounded-lg hover:bg-white/5 transition-all shrink-0"
             >
               <X size={14} />
