@@ -215,20 +215,22 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
 
     // Audio chimes when someone else joins/leaves the voice channel we are in.
     // Read the live channel id from a ref so this handler never goes stale.
+    // supabase-js v2 delivers newPresences/leftPresences as a flat array of
+    // presence objects (not an object keyed by user).
     const onJoin = (payload: any) => {
-      const { newPresences } = payload;
-      if (!newPresences) return;
-      const someoneElseJoined = Object.values(newPresences).some((presenceList: any) =>
-        presenceList.some((p: any) => p && p.user_id && p.user_id !== user.id && p.voice_channel_id === activeChannelIdRef.current)
+      const newPresences = payload?.newPresences;
+      if (!Array.isArray(newPresences)) return;
+      const someoneElseJoined = newPresences.some(
+        (p: any) => p && p.user_id && p.user_id !== user.id && p.voice_channel_id === activeChannelIdRef.current
       );
       if (someoneElseJoined) playVoiceTone('join');
     };
 
     const onLeave = (payload: any) => {
-      const { leftPresences } = payload;
-      if (!leftPresences) return;
-      const someoneElseLeft = Object.values(leftPresences).some((presenceList: any) =>
-        presenceList.some((p: any) => p && p.user_id && p.user_id !== user.id && p.voice_channel_id === activeChannelIdRef.current)
+      const leftPresences = payload?.leftPresences;
+      if (!Array.isArray(leftPresences)) return;
+      const someoneElseLeft = leftPresences.some(
+        (p: any) => p && p.user_id && p.user_id !== user.id && p.voice_channel_id === activeChannelIdRef.current
       );
       if (someoneElseLeft) playVoiceTone('leave');
     };
