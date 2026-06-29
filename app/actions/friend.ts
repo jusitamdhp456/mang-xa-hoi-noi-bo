@@ -32,10 +32,11 @@ export async function sendFriendRequest(targetUserId: string) {
   const supabaseAdmin = createSupabaseServiceClient();
   const { data: existingNotifications, error: queryErr } = await supabaseAdmin
     .from('notifications')
-    .select('id, body')
+    .select('id, content')
     .eq('user_id', targetUserId)
-    .eq('title', 'Lời mời kết bạn')
-    .is('read_at', null);
+    .eq('actor_id', user.id)
+    .eq('type', 'system')
+    .eq('is_read', false);
 
   if (queryErr) {
     console.error('Error checking existing notifications:', queryErr);
@@ -44,8 +45,8 @@ export async function sendFriendRequest(targetUserId: string) {
 
   const alreadySent = (existingNotifications || []).some(n => {
     try {
-      const payload = JSON.parse(n.body || '{}');
-      return payload.sender_id === user.id;
+      const payload = JSON.parse(n.content || '{}');
+      return payload.type === 'friend_request';
     } catch (e) {
       return false;
     }
@@ -55,19 +56,21 @@ export async function sendFriendRequest(targetUserId: string) {
     return { success: true, message: 'Yêu cầu kết bạn đã được gửi trước đó.' };
   }
 
-  // Insert notification for the target user
+  // Insert notification for the target user matching the actual database schema
   const { error } = await supabaseAdmin
     .from('notifications')
     .insert({
       user_id: targetUserId,
-      title: 'Lời mời kết bạn',
-      body: JSON.stringify({
-        sender_id: user.id,
+      actor_id: user.id,
+      type: 'system',
+      content: JSON.stringify({
+        type: 'friend_request',
         sender_name: senderProfile.display_name || senderProfile.username || 'User',
         sender_username: senderProfile.username,
         sender_avatar: senderProfile.avatar_key
       }),
-      href: '/channels/me'
+      link: '/channels/me',
+      is_read: false
     });
 
   if (error) {
@@ -100,12 +103,10 @@ export async function acceptFriendRequest(notificationId: string) {
     throw new Error('Notification not found');
   }
 
-  // Parse sender details
-  const payload = JSON.parse(notification.body || '{}');
-  const senderId = payload.sender_id;
+  const senderId = notification.actor_id;
 
   if (!senderId) {
-    throw new Error('Invalid friend request payload');
+    throw new Error('Invalid friend request sender');
   }
 
   // Check if they are already friends (direct thread exists)
@@ -120,7 +121,6 @@ export async function acceptFriendRequest(notificationId: string) {
   if (existingMemberships && existingMemberships.length > 0) {
     const threadIds = existingMemberships.map(m => m.thread_id);
     
-    // Check if the sender is also in any of these threads (for 1-to-1 DMs)
     const { data: matchingThreads } = await supabaseAdmin
       .from('direct_threads')
       .select('id')
@@ -177,7 +177,7 @@ export async function acceptFriendRequest(notificationId: string) {
   // Mark request notification as read
   await supabaseAdmin
     .from('notifications')
-    .update({ read_at: new Date().toISOString() })
+    .update({ is_read: true })
     .eq('id', notificationId);
 
   return { success: true };
@@ -197,7 +197,7 @@ export async function declineFriendRequest(notificationId: string) {
   // Mark request notification as read (dismissed)
   const { error } = await supabaseAdmin
     .from('notifications')
-    .update({ read_at: new Date().toISOString() })
+    .update({ is_read: true })
     .eq('id', notificationId);
 
   if (error) {
@@ -287,23 +287,24 @@ export async function getFriendRequests() {
     .from('notifications')
     .select('*')
     .eq('user_id', user.id)
-    .eq('title', 'Lời mời kết bạn')
-    .is('read_at', null)
+    .eq('type', 'system')
+    .eq('is_read', false)
     .order('created_at', { ascending: false });
 
   return (notifications || []).map(n => {
     let payload = {};
     try {
-      payload = JSON.parse(n.body || '{}');
+      payload = JSON.parse(n.content || '{}');
     } catch (e) {
-      console.error('Failed to parse notification body JSON:', e);
+      console.error('Failed to parse notification content JSON:', e);
     }
     return {
       id: n.id,
       created_at: n.created_at,
+      sender_id: n.actor_id,
       ...payload
     };
-  });
+  }).filter((n: any) => n.type === 'friend_request');
 }
 
 // Send a direct message in a DM thread
