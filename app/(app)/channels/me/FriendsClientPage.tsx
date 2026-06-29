@@ -285,52 +285,57 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
     };
   }, [user.id]);
 
-  // Global personal broadcast DM notification listener
+  // Subscribe to all friend DM thread channels for realtime messaging, sound beeps, and unread badges
   useEffect(() => {
+    if (friendsProfiles.length === 0) return;
+
     const supabase = createSupabaseBrowserClient();
-    
-    const channel = supabase
-      .channel(`user-dm-${user.id}`)
-      .on('broadcast', { event: 'new_dm' }, (payload) => {
-        const { senderName, senderAvatar, content, threadId, senderId, messageId } = payload.payload;
+    const activeChannels: any[] = [];
 
-        // 1. Play receiving sound
-        playReceiveSound();
+    friendsProfiles.forEach(friend => {
+      if (!friend.threadId) return;
 
-        // 2. If user is currently looking at this active chat thread, append to messages
-        if (selectedChatId === threadId) {
-          setDbMessages(prev => {
-            if (prev.some(m => m.id === messageId)) return prev;
-            return [...prev, {
-              id: messageId,
-              thread_id: threadId,
-              sender_id: senderId,
-              content: content,
-              type: 'text',
-              created_at: new Date().toISOString()
-            }];
-          });
-        } else {
-          // 3. Otherwise, show a toast notification in the bottom right corner
-          showToast(senderName, content, senderAvatar);
-          // Increment unread count for this thread
-          setUnreadCounts(prev => {
-            const nextCount = (prev[threadId] || 0) + 1;
-            const updated = { ...prev, [threadId]: nextCount };
-            localStorage.setItem('friends_unread_counts', JSON.stringify(updated));
-            return updated;
-          });
-        }
+      const channel = supabase
+        .channel(`room-dm-${friend.threadId}`)
+        .on('broadcast', { event: 'new_message' }, (payload) => {
+          const msg = payload.payload;
+          
+          // Ignore messages sent by ourselves
+          if (msg.sender_id !== user.id) {
+            // Play receiving double beep
+            playReceiveSound();
 
-        // 4. Update the dashboard statuses
-        loadDashboardData();
-      })
-      .subscribe();
+            if (selectedChatId === friend.threadId) {
+              // Append to active chat
+              setDbMessages(prev => {
+                if (prev.some(m => m.id === msg.id)) return prev;
+                return [...prev, msg];
+              });
+            } else {
+              // Show toast and increment unread badge
+              const senderName = friend.display_name || friend.username || 'Bạn';
+              showToast(senderName, msg.content, friend.avatar_key);
+
+              setUnreadCounts(prev => {
+                const nextCount = (prev[friend.threadId] || 0) + 1;
+                const updated = { ...prev, [friend.threadId]: nextCount };
+                localStorage.setItem('friends_unread_counts', JSON.stringify(updated));
+                return updated;
+              });
+            }
+          }
+        })
+        .subscribe();
+
+      activeChannels.push(channel);
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      activeChannels.forEach(ch => {
+        supabase.removeChannel(ch);
+      });
     };
-  }, [user.id, selectedChatId]);
+  }, [friendsProfiles, selectedChatId, user.id]);
 
   // Load direct messages history when a thread is selected
   useEffect(() => {
@@ -421,28 +426,15 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
       // 3. Save in database
       await sendDirectMessage(selectedChatId, content);
 
-      // 4. Broadcast to peer personal notification channel
-      if (activeChatPartner) {
-        const supabase = createSupabaseBrowserClient();
-        await supabase
-          .channel(`user-dm-${activeChatPartner.id}`)
-          .subscribe((status) => {
-            if (status === 'SUBSCRIBED') {
-              supabase.channel(`user-dm-${activeChatPartner.id}`).send({
-                type: 'broadcast',
-                event: 'new_dm',
-                payload: {
-                  messageId: tempMessageId,
-                  threadId: selectedChatId,
-                  senderId: user.id,
-                  senderName: displayName,
-                  senderAvatar: profile?.avatar_key || null,
-                  content: content
-                }
-              });
-            }
-          });
-      }
+      // 4. Broadcast to the thread channel room-dm
+      const supabase = createSupabaseBrowserClient();
+      await supabase
+        .channel(`room-dm-${selectedChatId}`)
+        .send({
+          type: 'broadcast',
+          event: 'new_message',
+          payload: messagePayload
+        });
     } catch (err) {
       console.error('Failed to send DM:', err);
     }
