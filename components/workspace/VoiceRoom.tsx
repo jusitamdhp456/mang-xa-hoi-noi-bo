@@ -46,6 +46,7 @@ export function VoiceRoom({
   const { 
     isMuted, 
     isDeafened, 
+    toggleDeafen,
     setActiveChannelId, 
     setWorkspaceId, 
     customName, 
