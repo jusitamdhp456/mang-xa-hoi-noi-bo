@@ -131,14 +131,14 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
   };
 
   return (
-    <div className="flex-1 flex h-full overflow-hidden bg-[#313338] text-zinc-300 select-none">
+    <div className="flex-1 flex h-full overflow-hidden bg-transparent text-zinc-300 select-none">
       
       {/* COLUMN 1: DIRECT MESSAGES SIDEBAR */}
-      <div className="w-60 bg-[#2b2d31] flex-shrink-0 flex flex-col h-full border-r border-white/5">
+      <div className="w-60 bg-black/20 backdrop-blur-xl flex-shrink-0 flex flex-col h-full border-r border-white/10">
         
         {/* Search Header */}
-        <div className="h-12 px-3 border-b border-black/20 flex items-center justify-center flex-shrink-0">
-          <div className="w-full bg-[#1e1f22] text-xs text-zinc-400 rounded-md p-1.5 px-2 flex items-center justify-between cursor-pointer hover:bg-[#1a1b1e]">
+        <div className="h-16 px-4 border-b border-white/10 flex items-center justify-center flex-shrink-0 bg-black/10">
+          <div className="w-full bg-black/35 text-xs text-zinc-400 rounded-lg p-2 px-3 flex items-center justify-between cursor-pointer hover:bg-black/50 border border-white/5 transition-all">
             <span>Tìm cuộc trò chuyện...</span>
             <Search size={14} className="text-zinc-500" />
           </div>
@@ -159,7 +159,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
               <span className="text-lg leading-none">🚀</span>
               <span>Nitro</span>
             </div>
-            <span className="text-[10px] bg-[#5865f2] text-white px-1.5 py-0.5 rounded font-black tracking-wider uppercase leading-none">Mới</span>
+            <span className="text-[10px] bg-indigo-600 text-white px-1.5 py-0.5 rounded font-black tracking-wider uppercase leading-none">Mới</span>
           </button>
 
           <button className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-zinc-400 hover:bg-white/5 hover:text-zinc-200 transition-colors">
@@ -167,7 +167,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
               <span className="text-lg leading-none">🛍️</span>
               <span>Cửa hàng</span>
             </div>
-            <span className="text-[10px] bg-[#5865f2] text-white px-1.5 py-0.5 rounded font-black tracking-wider uppercase leading-none">Mới</span>
+            <span className="text-[10px] bg-indigo-600 text-white px-1.5 py-0.5 rounded font-black tracking-wider uppercase leading-none">Mới</span>
           </button>
 
           <button className="w-full flex items-center gap-4 px-3 py-2.5 rounded-lg text-sm font-medium text-zinc-400 hover:bg-white/5 hover:text-zinc-200 transition-colors">
@@ -210,7 +210,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                         {name.charAt(0)}
                       </div>
                     )}
-                    <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-[#2b2d31] ${statusBg}`}></span>
+                    <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-[#16133a] ${statusBg}`}></span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="truncate text-white text-sm font-medium">{name}</p>
@@ -229,7 +229,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
       </div>
 
       {/* COLUMN 2: MAIN WORKSPACE */}
-      <div className="flex-1 flex flex-col h-full bg-[#313338]">
+      <div className="flex-1 flex flex-col h-full bg-white/5">
         
         {/* TAB OR CHAT HEADER */}
         {selectedChatId === null ? (
@@ -270,18 +270,18 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
           </div>
         ) : (
           /* Direct Message Chat Header */
-          <div className="h-12 border-b border-black/20 flex items-center px-4 justify-between flex-shrink-0 bg-[#313338]">
+          <div className="h-16 border-b border-white/10 flex items-center px-6 justify-between flex-shrink-0 bg-white/5 backdrop-blur-md">
             <div className="flex items-center gap-3">
               <div className="relative">
                 {activeChatPartner?.avatar_key ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={`https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${activeChatPartner.avatar_key}`} alt="avatar" className="w-7 h-7 rounded-full object-cover" />
+                  <img src={`https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${activeChatPartner.avatar_key}`} alt="avatar" className="w-8 h-8 rounded-full object-cover" />
                 ) : (
-                  <div className="w-7 h-7 rounded-full bg-indigo-900 flex items-center justify-center text-white text-xs font-bold">
+                  <div className="w-8 h-8 rounded-full bg-indigo-900 flex items-center justify-center text-white text-xs font-bold">
                     {(activeChatPartner?.display_name || 'U').charAt(0)}
                   </div>
                 )}
-                <span className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border border-[#313338] ${activeChatPartner?.status === 'online' ? 'bg-green-500' : activeChatPartner?.status === 'idle' ? 'bg-yellow-500' : 'bg-zinc-500'}`} />
+                <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-[#16133a] ${activeChatPartner?.status === 'online' ? 'bg-green-500' : activeChatPartner?.status === 'idle' ? 'bg-yellow-500' : 'bg-zinc-500'}`} />
               </div>
               <span className="text-white font-bold text-sm">{activeChatPartner?.display_name || activeChatPartner?.username}</span>
             </div>
@@ -330,7 +330,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                   </div>
 
                   {/* Add Friend Input form */}
-                  <form onSubmit={handleAddFriendSubmit} className="flex bg-[#1e1f22] p-3 rounded-lg border border-black/30 items-center justify-between focus-within:border-green-500 transition-colors">
+                  <form onSubmit={handleAddFriendSubmit} className="flex bg-black/30 p-3 rounded-xl border border-white/10 items-center justify-between focus-within:border-green-400 transition-colors">
                     <input 
                       type="text"
                       placeholder="Nhập tên người dùng..."
@@ -340,7 +340,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                     />
                     <button 
                       type="submit"
-                      className="bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-bold py-2 px-4 rounded transition-colors"
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors"
                     >
                       Gửi Yêu Cầu Kết Bạn
                     </button>
@@ -354,7 +354,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                   <div className="pt-6 border-t border-white/5 space-y-4">
                     <h4 className="text-white font-bold uppercase text-xs tracking-wider">Những Nơi Khác Để Kết Bạn</h4>
                     
-                    <div className="bg-[#2b2d31] p-4 rounded-xl border border-white/5 flex items-center justify-between hover:bg-white/5 cursor-pointer transition-colors group">
+                    <div className="bg-white/5 p-4 rounded-xl border border-white/10 flex items-center justify-between hover:bg-white/10 cursor-pointer transition-colors group">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center text-green-400">
                           <Compass size={20} />
@@ -378,7 +378,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                     <input 
                       type="text" 
                       placeholder="Tìm kiếm..."
-                      className="w-full bg-[#1e1f22] text-xs text-zinc-300 rounded p-2.5 pl-9 outline-none border border-black/20 focus:border-[#5865f2] transition-colors"
+                      className="w-full bg-black/30 text-xs text-white rounded-xl p-2.5 pl-9 outline-none border border-white/10 focus:border-cyan-400 transition-all duration-200"
                       value={friendSearch}
                       onChange={e => setFriendSearch(e.target.value)}
                     />
@@ -417,7 +417,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                                   {name.charAt(0)}
                                 </div>
                               )}
-                              <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#313338] ${statusBg}`}></span>
+                              <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#16133a] ${statusBg}`}></span>
                             </div>
                             <div>
                               <p className="text-white text-sm font-bold leading-tight">{name}</p>
@@ -428,7 +428,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                           <div className="flex gap-2">
                             <button 
                               onClick={() => setSelectedChatId(p.id)}
-                              className="w-9 h-9 rounded-full bg-[#2b2d31] hover:bg-black/30 hover:text-white flex items-center justify-center text-zinc-400 transition-colors"
+                              className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
                               title="Nhắn tin"
                             >
                               <MessageSquare size={16} />
@@ -440,9 +440,9 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
 
                     {/* Pending Request Mock for fidelity */}
                     {activeTab === 'pending' && (
-                      <div className="flex items-center justify-between p-2.5 rounded-xl border border-white/5 bg-white/5">
+                      <div className="flex items-center justify-between p-2.5 rounded-xl border border-white/10 bg-white/5">
                         <div className="flex items-center gap-3">
-                          <div className="relative w-10 h-10 rounded-full bg-[#5865f2] flex items-center justify-center text-white font-bold text-sm">
+                          <div className="relative w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">
                             N
                           </div>
                           <div>
@@ -452,7 +452,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                         </div>
 
                         <div className="flex gap-2">
-                          <button className="px-3 py-1.5 bg-[#24a159] hover:bg-[#1f874a] text-white rounded-lg text-xs font-bold transition-colors">Chấp nhận</button>
+                          <button className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-colors">Chấp nhận</button>
                           <button className="px-3 py-1.5 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-lg text-xs font-bold transition-colors">Từ chối</button>
                         </div>
                       </div>
@@ -463,11 +463,11 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
             </div>
           ) : (
             /* Direct Chat Panel Area */
-            <div className="flex-1 flex flex-col h-full bg-[#313338] overflow-hidden">
+            <div className="flex-1 flex flex-col h-full bg-transparent overflow-hidden">
               
               {/* Voice/Video Call Interface */}
               {isCalling && activeChatPartner && (
-                <div className="bg-[#1e1f22] p-4 border-b border-black/20 flex flex-col relative shrink-0" style={{ height: '350px' }}>
+                <div className="bg-black/30 p-4 border-b border-white/10 flex flex-col relative shrink-0" style={{ height: '350px' }}>
                   <div className="absolute top-4 right-4 z-20 flex gap-2">
                     <button 
                       onClick={() => setIsCalling(false)}
@@ -547,15 +547,15 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
               </div>
 
               {/* Chat Input form */}
-              <form onSubmit={handleSendMessage} className="p-4 bg-[#313338] border-t border-white/5 flex gap-2 flex-shrink-0">
+              <form onSubmit={handleSendMessage} className="p-4 bg-transparent border-t border-white/10 flex gap-2 flex-shrink-0">
                 <input 
                   type="text" 
                   placeholder={`Nhắn tin cho @${activeChatPartner?.display_name || 'user'}`}
                   value={currentMessageInput}
                   onChange={e => setCurrentMessageInput(e.target.value)}
-                  className="flex-1 bg-[#383a40] text-sm text-white rounded-lg p-3 outline-none focus:placeholder-zinc-400 placeholder-zinc-500"
+                  className="flex-1 bg-black/30 border border-white/10 text-sm text-white rounded-xl p-3 outline-none focus:border-cyan-400 focus:placeholder-white/40 placeholder-white/20 transition-all"
                 />
-                <button type="submit" className="w-11 h-11 bg-[#5865f2] hover:bg-[#4752c4] text-white rounded-lg flex items-center justify-center transition-colors">
+                <button type="submit" className="w-11 h-11 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl flex items-center justify-center transition-colors">
                   <Send size={18} />
                 </button>
               </form>
@@ -564,7 +564,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
 
           {/* COLUMN 3: ACTIVE NOW SIDEBAR */}
           {selectedChatId === null && (
-            <div className="w-80 flex-shrink-0 bg-[#313338] border-l border-white/5 p-4 flex flex-col gap-4 overflow-y-auto hidden lg:flex">
+            <div className="w-80 flex-shrink-0 bg-black/10 border-l border-white/10 p-4 flex flex-col gap-4 overflow-y-auto hidden lg:flex">
               <h3 className="text-white font-bold text-base">Đang Hoạt Động</h3>
               
               {(() => {
@@ -573,7 +573,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                 if (onlineFriends.length === 0) {
                   return (
                     <div className="flex-1 flex flex-col items-center justify-center text-center p-4 text-zinc-500 gap-2 mt-12">
-                      <div className="w-16 h-16 rounded-full bg-[#2b2d31] flex items-center justify-center text-2xl mb-2">💤</div>
+                      <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-2xl mb-2 shadow">💤</div>
                       <p className="text-sm font-semibold text-zinc-400">Bây giờ đang trống...</p>
                       <p className="text-xs text-zinc-600 max-w-[200px]">Khi có bạn bè bắt đầu hoạt động, ví dụ như chơi game hoặc tham gia phòng thoại, chúng tôi sẽ hiển thị ở đây!</p>
                     </div>
@@ -590,7 +590,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                       const activity = p.activity || (p.status_text ? { game: 'Trạng thái', detail: p.status_text, icon: '💬' } : null);
 
                       return (
-                        <div key={p.id} className="bg-[#2b2d31] p-3.5 rounded-xl border border-white/5 hover:bg-white/5 transition-all cursor-pointer">
+                        <div key={p.id} className="bg-white/5 p-3.5 rounded-xl border border-white/10 hover:bg-white/10 transition-all cursor-pointer">
                           <div className="flex items-center gap-3">
                             <div className="relative">
                               {avatar ? (
@@ -600,7 +600,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                                   {name.charAt(0)}
                                 </div>
                               )}
-                              <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-500 border-2 border-[#2b2d31]"></span>
+                              <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-500 border-2 border-[#16133a]"></span>
                             </div>
                             <div>
                               <p className="text-white text-sm font-bold leading-tight">{name}</p>
@@ -611,7 +611,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                           </div>
                           
                           {activity && (
-                            <div className="bg-[#111214] p-3 rounded-lg mt-3 flex items-center gap-3 border border-white/5">
+                            <div className="bg-black/20 p-3 rounded-xl mt-3 flex items-center gap-3 border border-white/10">
                               <span className="text-2xl">{activity.icon}</span>
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs font-bold text-white leading-tight truncate">{activity.game}</p>
