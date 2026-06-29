@@ -15,6 +15,7 @@ interface CreateChannelModalProps {
   isCategory?: boolean
   categories?: CategoryItem[]
   triggerType?: 'icon' | 'header' | 'button' | 'card' | 'text-link'
+  defaultType?: 'text' | 'voice'
 }
 
 // Synthesize a beautiful double-note UI chime sound on success
@@ -60,14 +61,15 @@ export function CreateChannelModal({
   categoryId, 
   isCategory = false, 
   categories = [], 
-  triggerType 
+  triggerType,
+  defaultType
 }: CreateChannelModalProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [error, setError] = useState('')
   const [isPending, startTransition] = useTransition()
   
   // Local state for type and privacy selection to handle custom button styling
-  const [channelType, setChannelType] = useState<'text' | 'voice'>('text')
+  const [channelType, setChannelType] = useState<'text' | 'voice'>(defaultType || 'text')
   const [isPrivate, setIsPrivate] = useState(false)
 
   async function handleSubmit(formData: FormData) {

@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { CreateChannelModal } from './CreateChannelModal'
-import { SidebarChannelLink } from './SidebarChannelLink'
+import { SidebarCategoryGroup } from './SidebarCategoryGroup'
 import { UserPanel } from './UserPanel'
 
 export default async function ChannelSidebar({ workspaceId }: { workspaceId: string }) {
@@ -38,7 +38,9 @@ export default async function ChannelSidebar({ workspaceId }: { workspaceId: str
   const categories = categoriesResult.data || [];
   const channels = channelsResult.data || [];
 
-  const channelsWithoutCategory = channels.filter(c => !c.category_id)
+  // Group channels globally by type
+  const textChannels = channels.filter(c => c.type === 'text')
+  const voiceChannels = channels.filter(c => c.type === 'voice')
 
   return (
     <div className="w-64 bg-black/20 backdrop-blur-xl border-r border-white/10 flex-shrink-0 flex flex-col h-full text-white z-10 transition-all">
@@ -56,33 +58,35 @@ export default async function ChannelSidebar({ workspaceId }: { workspaceId: str
 
       <div className="flex-1 overflow-y-auto p-3 scrollbar-thin scrollbar-thumb-white/20">
         
-        {channelsWithoutCategory.map(channel => (
-          <SidebarChannelLink key={channel.id} workspaceId={workspaceId} channel={channel} />
-        ))}
-
-        {categories?.map(category => {
-          const categoryChannels = channels.filter(c => c.category_id === category.id)
-          return (
-            <div key={category.id} className="mt-6">
-              <div className="flex items-center justify-between px-3 mb-2 group">
-                <p className="text-xs font-bold text-white/50 uppercase tracking-wider flex-1">{category.name}</p>
-                <CreateChannelModal 
-                  workspaceId={workspaceId} 
-                  categoryId={category.id} 
-                  categories={categories}
-                  triggerType="icon"
-                />
-              </div>
-              {categoryChannels.map(channel => (
-                <SidebarChannelLink key={channel.id} workspaceId={workspaceId} channel={channel} />
-              ))}
-            </div>
-          )
-        })}
-        
-        <div className="mt-6 pt-4 border-t border-white/10 mb-4">
-           <CreateChannelModal workspaceId={workspaceId} isCategory={true} />
+        {/* Duyệt các Kênh Button */}
+        <div className="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-white/10 cursor-pointer text-sm mb-4 font-bold text-white/80 hover:text-white transition-colors group select-none">
+          <span className="flex items-center gap-2">
+            <span className="text-base leading-none">🔍</span>
+            Duyệt các Kênh
+          </span>
+          <span className="bg-indigo-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider animate-pulse">
+            Mới
+          </span>
         </div>
+
+        {/* Kênh Chat collapsible group */}
+        <SidebarCategoryGroup
+          title="Kênh Chat"
+          type="text"
+          channels={textChannels}
+          workspaceId={workspaceId}
+          categories={categories}
+        />
+
+        {/* Kênh đàm thoại collapsible group */}
+        <SidebarCategoryGroup
+          title="Kênh đàm thoại"
+          type="voice"
+          channels={voiceChannels}
+          workspaceId={workspaceId}
+          categories={categories}
+        />
+        
       </div>
       
       {/* User Panel */}
