@@ -59,6 +59,57 @@ const getTenDigitId = (uuid: string) => {
   return idNum.toString();
 };
 
+// Play short ascending chirp synth beep when sending a message
+const playSendSound = () => {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.08);
+    
+    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.005, ctx.currentTime + 0.08);
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.08);
+  } catch (e) {
+    console.warn('AudioContext failed:', e);
+  }
+};
+
+// Play Discord-like dual-tone synth chord beep when receiving a message
+const playReceiveSound = () => {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    
+    const playBeep = (freq: number, start: number, duration: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+      
+      gain.gain.setValueAtTime(0.12, start);
+      gain.gain.exponentialRampToValueAtTime(0.005, start + duration);
+      
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + duration);
+    };
+    
+    playBeep(520, ctx.currentTime, 0.07);
+    playBeep(650, ctx.currentTime + 0.08, 0.12);
+  } catch (e) {
+    console.warn('AudioContext failed:', e);
+  }
+};
+
 export default function FriendsClientPage({ user, profile, otherProfiles }: FriendsClientPageProps) {
   const [activeView, setActiveView] = useState<ViewType>('profile');
   const [activeTab, setActiveTab] = useState<TabType>('online');
@@ -87,14 +138,14 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
   const [dbMessages, setDbMessages] = useState<any[]>([]);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
 
-  // Dropdown & Preview States
+  // Dropdown, Preview & Notification Toast States
   const [activeMenuFriendId, setActiveMenuFriendId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [previewUser, setPreviewUser] = useState<any | null>(null);
   const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
+  const [toasts, setToasts] = useState<Array<{ id: string, title: string, content: string, avatar: string | null }>>([]);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
-
   const isMounted = useRef(false);
 
   // Scroll to bottom of chat
@@ -152,6 +203,19 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
     return () => window.removeEventListener('click', handleCloseMenu);
   }, []);
 
+  // Show Toast Helper
+  const showToast = (senderName: string, content: string, avatarKey: string | null) => {
+    const id = `toast-${Date.now()}`;
+    const avatarUrl = avatarKey ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${avatarKey}` : null;
+    
+    setToasts(prev => [...prev, { id, title: senderName, content, avatar: avatarUrl }]);
+    
+    // Auto dismiss after 4 seconds
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4000);
+  };
+
   // Load friends and pending requests from Supabase in a single parallel request
   const loadDashboardData = async () => {
     try {
@@ -199,7 +263,47 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
     };
   }, [user.id]);
 
-  // Load and listen to direct messages when a thread is selected
+  // Global personal broadcast DM notification listener
+  useEffect(() => {
+    const supabase = createSupabaseBrowserClient();
+    
+    const channel = supabase
+      .channel(`user-dm-${user.id}`)
+      .on('broadcast', { event: 'new_dm' }, (payload) => {
+        const { senderName, senderAvatar, content, threadId, senderId, messageId } = payload.payload;
+
+        // 1. Play receiving sound
+        playReceiveSound();
+
+        // 2. If user is currently looking at this active chat thread, append to messages
+        if (selectedChatId === threadId) {
+          setDbMessages(prev => {
+            if (prev.some(m => m.id === messageId)) return prev;
+            return [...prev, {
+              id: messageId,
+              thread_id: threadId,
+              sender_id: senderId,
+              content: content,
+              type: 'text',
+              created_at: new Date().toISOString()
+            }];
+          });
+        } else {
+          // 3. Otherwise, show a toast notification in the bottom right corner
+          showToast(senderName, content, senderAvatar);
+        }
+
+        // 4. Update the dashboard statuses
+        loadDashboardData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user.id, selectedChatId]);
+
+  // Load direct messages history when a thread is selected
   useEffect(() => {
     if (!selectedChatId) {
       setDbMessages([]);
@@ -212,21 +316,6 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
     };
 
     loadMessages();
-
-    const supabase = createSupabaseBrowserClient();
-    const channel = supabase
-      .channel(`room-dm-${selectedChatId}`)
-      .on('broadcast', { event: 'new_message' }, (payload) => {
-        setDbMessages(prev => {
-          if (prev.some(m => m.id === payload.payload.id)) return prev;
-          return [...prev, payload.payload];
-        });
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, [selectedChatId]);
 
   // Assign mock online status & activities to profiles for high fidelity
@@ -283,6 +372,9 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
     const content = currentMessageInput.trim();
     setCurrentMessageInput('');
 
+    // 1. Play sending sound
+    playSendSound();
+
     const tempMessageId = `msg-temp-${Date.now()}`;
     const messagePayload = {
       id: tempMessageId,
@@ -293,22 +385,35 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
       created_at: new Date().toISOString()
     };
 
-    // 1. Render immediately on sender's screen
+    // 2. Render locally immediately
     setDbMessages(prev => [...prev, messagePayload]);
 
     try {
-      // 2. Save in database
+      // 3. Save in database
       await sendDirectMessage(selectedChatId, content);
 
-      // 3. Broadcast to peer
-      const supabase = createSupabaseBrowserClient();
-      await supabase
-        .channel(`room-dm-${selectedChatId}`)
-        .send({
-          type: 'broadcast',
-          event: 'new_message',
-          payload: messagePayload
-        });
+      // 4. Broadcast to peer personal notification channel
+      if (activeChatPartner) {
+        const supabase = createSupabaseBrowserClient();
+        await supabase
+          .channel(`user-dm-${activeChatPartner.id}`)
+          .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+              supabase.channel(`user-dm-${activeChatPartner.id}`).send({
+                type: 'broadcast',
+                event: 'new_dm',
+                payload: {
+                  messageId: tempMessageId,
+                  threadId: selectedChatId,
+                  senderId: user.id,
+                  senderName: displayName,
+                  senderAvatar: profile?.avatar_key || null,
+                  content: content
+                }
+              });
+            }
+          });
+      }
     } catch (err) {
       console.error('Failed to send DM:', err);
     }
@@ -822,7 +927,6 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                                 <div className="flex items-center gap-3">
                                   <div className="relative">
                                     {avatar ? (
-                                      // eslint-disable-next-line @next/next/no-img-element
                                       <img src={avatar} alt="Avatar" className="w-9 h-9 rounded-full object-cover" />
                                     ) : (
                                       <div className="w-9 h-9 rounded-full bg-indigo-900 flex items-center justify-center text-white text-xs font-bold uppercase">
@@ -1401,6 +1505,36 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
           </div>
         </div>
       )}
+
+      {/* Toasts Notification Container */}
+      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none select-none">
+        {toasts.map(t => (
+          <div 
+            key={t.id} 
+            className="pointer-events-auto bg-[#1e1f22]/95 border border-white/10 p-3.5 rounded-xl shadow-2xl flex gap-3 animate-scale-in items-center text-white w-80 backdrop-blur-md"
+          >
+            <div className="shrink-0 relative">
+              {t.avatar ? (
+                <img src={t.avatar} alt="" className="w-8 h-8 rounded-full object-cover border border-white/5" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-indigo-650 flex items-center justify-center text-white font-bold text-xs uppercase border border-white/5">
+                  {t.title.charAt(0)}
+                </div>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <h5 className="font-bold text-xs text-white truncate">{t.title}</h5>
+              <p className="text-[11px] text-zinc-400 truncate mt-0.5">{t.content}</p>
+            </div>
+            <button 
+              onClick={() => setToasts(prev => prev.filter(x => x.id !== t.id))}
+              className="text-zinc-500 hover:text-white cursor-pointer p-1 rounded-lg hover:bg-white/5 transition-all shrink-0"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
 
     </div>
   );
