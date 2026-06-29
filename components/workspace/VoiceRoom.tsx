@@ -106,11 +106,6 @@ export function VoiceRoom({
   useEffect(() => {
     setActiveChannelId(channelId);
     setWorkspaceId(workspaceId);
-
-    return () => {
-      setActiveChannelId(null);
-      setWorkspaceId(null);
-    };
   }, [channelId, workspaceId, setActiveChannelId, setWorkspaceId]);
 
   // Fetch LiveKit Token - switch to P2P fallback on failure or missing keys

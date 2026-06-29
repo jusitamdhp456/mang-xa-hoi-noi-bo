@@ -15,7 +15,7 @@ interface UserPanelProps {
 
 export function UserPanel({ user, profile, channels, workspaceName }: UserPanelProps) {
   const router = useRouter();
-  const { isMuted, isDeafened, toggleMute, toggleDeafen, activeChannelId, setActiveChannelId } = useVoiceSettings();
+  const { isMuted, isDeafened, toggleMute, toggleDeafen, activeChannelId, setActiveChannelId, setWorkspaceId } = useVoiceSettings();
 
   const [micDevices, setMicDevices] = useState<MediaDeviceInfo[]>([]);
   const [speakerDevices, setSpeakerDevices] = useState<MediaDeviceInfo[]>([]);
@@ -89,6 +89,7 @@ export function UserPanel({ user, profile, channels, workspaceName }: UserPanelP
               onClick={() => {
                 playVoiceTone('leave');
                 setActiveChannelId(null);
+                setWorkspaceId(null);
                 const currentWorkspaceId = window.location.pathname.split('/workspace/')[1]?.split('/')[0];
                 if (currentWorkspaceId) {
                   router.push(`/workspace/${currentWorkspaceId}`);

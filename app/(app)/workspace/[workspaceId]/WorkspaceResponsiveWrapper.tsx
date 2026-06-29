@@ -15,16 +15,18 @@ export default function WorkspaceResponsiveWrapper({
 }) {
   const pathname = usePathname();
   const isChannelView = pathname.includes('/channel/');
-  const { setWorkspaceId } = useVoiceSettings();
+  const { setWorkspaceId, activeChannelId } = useVoiceSettings();
 
   useEffect(() => {
     if (workspaceId) {
       setWorkspaceId(workspaceId);
     }
     return () => {
-      setWorkspaceId(null);
+      if (!activeChannelId) {
+        setWorkspaceId(null);
+      }
     };
-  }, [workspaceId, setWorkspaceId]);
+  }, [workspaceId, setWorkspaceId, activeChannelId]);
 
   // Sync document root class for server sidebar hiding on mobile
   useEffect(() => {
