@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useVoiceSettings } from '@/components/providers/VoiceSettingsProvider';
-import { Mic, MicOff, Headphones, HeadphonesIcon, Settings } from 'lucide-react';
+import { Mic, MicOff, Headphones, Settings, PhoneOff, ChevronDown } from 'lucide-react';
 import { UserSettingsModal } from '@/components/auth/UserSettingsModal';
 import { User } from '@supabase/supabase-js';
 
