@@ -85,6 +85,10 @@ export function UserPanel({ user, profile, channels, workspaceName }: UserPanelP
           </div>
 
           <div className="flex items-center gap-1 shrink-0">
+            {/* Camera + screen-share are portaled here from inside LiveKitRoom
+                (mic/deafen already live in the profile bar just below). */}
+            <div id="voice-extra-controls" className="flex items-center" />
+
             <button
               onClick={() => {
                 playVoiceTone('leave');

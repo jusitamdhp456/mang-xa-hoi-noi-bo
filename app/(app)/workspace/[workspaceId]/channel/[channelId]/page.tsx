@@ -66,8 +66,8 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
          
          {channel?.type === 'voice' ? (
             <div className="flex-1 flex flex-col h-full overflow-hidden">
-              {/* Upper Part: Calling viewport */}
-              <div className="h-[45%] border-b border-white/10 flex-shrink-0 relative">
+              {/* Upper Part: Calling viewport (compact — main area is for chat/media) */}
+              <div className="h-[30%] min-h-[160px] border-b border-white/10 flex-shrink-0 relative">
                 <VoiceRoom channelId={channelId} workspaceId={workspaceId} username={currentUsername} />
               </div>
               {/* Lower Part: Text Chat area */}

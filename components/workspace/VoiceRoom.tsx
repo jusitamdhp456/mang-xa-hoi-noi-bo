@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import '@livekit/components-styles';
 import {
   LiveKitRoom,
@@ -65,13 +66,27 @@ function VoiceStage() {
   );
 }
 
-// Compact control bar: mic, camera, screen share, leave. Mic/deafen are driven
-// by the global VoiceSettings so they stay in sync with the sidebar panel.
-function VoiceControlBar({ onLeave }: { onLeave: () => void }) {
+// Camera + screen-share controls. These need the LiveKit room context (so they
+// live inside <LiveKitRoom>), but are portaled into the sidebar voice panel
+// (#voice-extra-controls in UserPanel) so all voice controls sit together at
+// the bottom-left. Mic/deafen/leave already live in UserPanel via VoiceSettings.
+function VoiceExtraControls() {
   const { localParticipant } = useLocalParticipant();
-  const { isMuted, toggleMute, isDeafened, toggleDeafen } = useVoiceSettings();
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
   const [cameraOn, setCameraOn] = useState(false);
   const [screenOn, setScreenOn] = useState(false);
+
+  // Wait for the portal target in the sidebar to exist.
+  useEffect(() => {
+    let raf = 0;
+    const find = () => {
+      const el = document.getElementById('voice-extra-controls');
+      if (el) setSlot(el);
+      else raf = requestAnimationFrame(find);
+    };
+    find();
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   const toggleCamera = async () => {
     try {
@@ -93,29 +108,22 @@ function VoiceControlBar({ onLeave }: { onLeave: () => void }) {
     }
   };
 
-  const btn = 'w-9 h-9 rounded-full flex items-center justify-center transition-colors cursor-pointer border';
-  const idle = 'bg-zinc-800 border-white/10 text-zinc-300 hover:bg-zinc-700';
-  const active = 'bg-indigo-600 border-indigo-600 text-white';
-  const danger = 'bg-red-600 border-red-600 text-white';
+  if (!slot) return null;
 
-  return (
-    <div className="shrink-0 flex items-center justify-center gap-2.5 py-2.5 bg-zinc-900/60 border-t border-white/5 backdrop-blur-md select-none">
-      <button onClick={toggleMute} className={`${btn} ${isMuted ? danger : idle}`} title={isMuted ? 'Bật mic' : 'Tắt mic'}>
-        {isMuted ? <MicOff size={16} /> : <Mic size={16} />}
-      </button>
-      <button onClick={toggleDeafen} className={`${btn} ${isDeafened ? danger : idle}`} title={isDeafened ? 'Bật nghe' : 'Tắt nghe'}>
-        {isDeafened ? <VolumeX size={16} /> : <Volume2 size={16} />}
-      </button>
+  const btn = 'w-7 h-8 flex items-center justify-center rounded-md transition-colors cursor-pointer';
+  const idle = 'text-white/70 hover:text-white hover:bg-white/5';
+  const active = 'text-indigo-400 bg-indigo-500/15 hover:bg-indigo-500/25';
+
+  return createPortal(
+    <>
       <button onClick={toggleCamera} className={`${btn} ${cameraOn ? active : idle}`} title={cameraOn ? 'Tắt camera' : 'Bật camera'}>
-        {cameraOn ? <VideoIcon size={16} /> : <VideoOff size={16} />}
+        {cameraOn ? <VideoIcon size={15} /> : <VideoOff size={15} />}
       </button>
       <button onClick={toggleScreen} className={`${btn} ${screenOn ? active : idle}`} title={screenOn ? 'Dừng chia sẻ màn hình' : 'Chia sẻ màn hình'}>
-        {screenOn ? <MonitorOff size={16} /> : <Monitor size={16} />}
+        {screenOn ? <MonitorOff size={15} /> : <Monitor size={15} />}
       </button>
-      <button onClick={onLeave} className={`${btn} ${danger}`} title="Rời kênh thoại">
-        <PhoneOff size={16} />
-      </button>
-    </div>
+    </>,
+    slot
   );
 }
 
@@ -922,13 +930,7 @@ export function VoiceRoom({
         <LiveKitSync isMuted={isMuted} isDeafened={isDeafened} />
         <LiveKitActiveSpeakersSync setSpeakingUserIds={setSpeakingUserIds} />
         <VoiceStage />
-        <VoiceControlBar
-          onLeave={() => {
-            setActiveChannelId(null);
-            setWorkspaceId(null);
-            setDisconnected(true);
-          }}
-        />
+        <VoiceExtraControls />
         {!isDeafened && <RoomAudioRenderer />}
       </LiveKitRoom>
     </div>
