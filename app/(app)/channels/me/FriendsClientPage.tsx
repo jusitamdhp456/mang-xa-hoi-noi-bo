@@ -40,6 +40,7 @@ import {
   removeFriend,
   loadFriendsDashboardData
 } from '@/app/actions/friend';
+import { createGroupWorkspaceWithPartner } from '@/app/actions/workspace';
 
 interface FriendsClientPageProps {
   user: SupabaseUser;
@@ -233,6 +234,31 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
   const [isUploading, setIsUploading] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Context Menu & Sidebar states
+  const [isMoreDropdownOpen, setIsMoreDropdownOpen] = useState(false);
+  const [isArchiveOpen, setIsArchiveOpen] = useState(false);
+  const [isColorModalOpen, setIsColorModalOpen] = useState(false);
+  const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
+  const [groupNameInput, setGroupNameInput] = useState('');
+  const [chatThemeColor, setChatThemeColor] = useState<string>('indigo'); 
+  const [archiveActiveTab, setArchiveActiveTab] = useState<'media' | 'files' | 'links'>('media');
+
+  const themeStyles: Record<string, { bg: string; border: string; label: string; dot: string }> = {
+    indigo: { bg: 'bg-indigo-600', border: 'border-indigo-500', label: 'Indigo', dot: 'bg-indigo-500' },
+    emerald: { bg: 'bg-emerald-600', border: 'border-emerald-500', label: 'Xanh lục', dot: 'bg-emerald-500' },
+    pink: { bg: 'bg-pink-600', border: 'border-pink-500', label: 'Hồng', dot: 'bg-pink-500' },
+    amber: { bg: 'bg-amber-600', border: 'border-amber-500', label: 'Hổ phách', dot: 'bg-amber-500' },
+    rose: { bg: 'bg-rose-600', border: 'border-rose-500', label: 'Đỏ hồng', dot: 'bg-rose-500' },
+    violet: { bg: 'bg-violet-600', border: 'border-violet-500', label: 'Tím oải hương', dot: 'bg-violet-500' },
+  };
+
+  useEffect(() => {
+    if (selectedChatId) {
+      const savedTheme = localStorage.getItem(`chat-theme-${selectedChatId}`);
+      setChatThemeColor(savedTheme || 'indigo');
+    }
+  }, [selectedChatId]);
 
   const compressImage = (file: File): Promise<File> => {
     return new Promise((resolve) => {
@@ -1659,11 +1685,60 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                     >
                       <Video size={18} />
                     </button>
+
+                    <div className="relative">
+                      <button 
+                        onClick={() => setIsMoreDropdownOpen(!isMoreDropdownOpen)}
+                        className="hover:text-zinc-200 cursor-pointer p-1 rounded hover:bg-white/5 transition-all flex items-center justify-center" 
+                        title="Tiện ích khác"
+                      >
+                        <MoreVertical size={18} />
+                      </button>
+
+                      {isMoreDropdownOpen && (
+                        <div className="absolute right-0 mt-2 w-48 bg-[#1e1f22] border border-white/10 rounded-xl shadow-2xl p-1.5 z-50 animate-scale-in">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsMoreDropdownOpen(false);
+                              setIsArchiveOpen(true);
+                            }}
+                            className="w-full text-left px-3 py-2 text-xs font-bold text-zinc-300 hover:text-white hover:bg-indigo-600 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
+                          >
+                            📁 Tệp lưu trữ
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsMoreDropdownOpen(false);
+                              setIsColorModalOpen(true);
+                            }}
+                            className="w-full text-left px-3 py-2 text-xs font-bold text-zinc-300 hover:text-white hover:bg-indigo-600 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
+                          >
+                            🎨 Đổi màu tin nhắn
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsMoreDropdownOpen(false);
+                              setGroupNameInput(`Nhóm của Bạn & ${activeChatPartner?.display_name || 'Bạn bè'}`);
+                              setIsGroupModalOpen(true);
+                            }}
+                            className="w-full text-left px-3 py-2 text-xs font-bold text-zinc-300 hover:text-white hover:bg-indigo-600 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
+                          >
+                            👥 Tạo nhóm chat
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {/* Message Log */}
-                <div className="flex-1 p-6 overflow-y-auto space-y-4 flex flex-col">
+                {/* Side-by-side flex layout to support Right Archive Sidebar */}
+                <div className="flex-1 flex overflow-hidden relative">
+                  <div className="flex-1 flex flex-col h-full overflow-hidden">
+                    {/* Message Log */}
+                    <div className="flex-1 p-6 overflow-y-auto space-y-4 flex flex-col">
                   
                   <div className="text-center py-6 border-b border-white/5 mb-4 shrink-0">
                     <div className="w-16 h-16 rounded-full bg-zinc-800 flex items-center justify-center text-white text-3xl mx-auto mb-3 shadow-lg border border-white/5">👋</div>
@@ -1746,7 +1821,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                               <div 
                                 className={`px-4 py-2.5 rounded-2xl whitespace-pre-wrap leading-relaxed break-words text-[13.5px] sm:text-[14px] font-medium shadow-md border ${
                                   isMe 
-                                    ? 'bg-indigo-600 border-indigo-500 text-white rounded-br-none' 
+                                    ? `${themeStyles[chatThemeColor]?.bg || 'bg-indigo-600'} ${themeStyles[chatThemeColor]?.border || 'border-indigo-500'} text-white rounded-br-none` 
                                     : 'bg-zinc-800/90 border-white/5 text-zinc-200 rounded-bl-none'
                                 }`}
                               >
@@ -1876,7 +1951,150 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                     </button>
                   </div>
                 </form>
-              </>
+                </div>
+
+                {/* Right side: Archive Sidebar */}
+                {isArchiveOpen && (
+                  <div className="w-80 border-l border-white/10 bg-[#2b2d31] flex flex-col h-full z-20 animate-slide-in flex-shrink-0">
+                     {/* Sidebar Header */}
+                     <div className="p-4 border-b border-white/10 flex items-center justify-between">
+                       <span className="text-xs font-extrabold text-white uppercase tracking-wider">📁 Tệp lưu trữ</span>
+                       <button 
+                         type="button"
+                         onClick={() => setIsArchiveOpen(false)}
+                         className="text-zinc-400 hover:text-white text-lg font-bold cursor-pointer"
+                       >
+                         ×
+                       </button>
+                     </div>
+
+                     {/* Tabs */}
+                     <div className="flex border-b border-white/5 bg-[#1e1f22]/50 p-1 flex-shrink-0">
+                       {(['media', 'files', 'links'] as const).map((tab) => (
+                         <button
+                           key={tab}
+                           type="button"
+                           onClick={() => setArchiveActiveTab(tab)}
+                           className={`flex-1 text-[10px] font-extrabold py-1.5 rounded-lg transition-all cursor-pointer uppercase tracking-wider ${
+                             archiveActiveTab === tab 
+                               ? 'bg-indigo-600 text-white' 
+                               : 'text-zinc-400 hover:text-zinc-200'
+                           }`}
+                         >
+                           {tab === 'media' ? 'Ảnh' : tab === 'files' ? 'Tệp tin' : 'Links'}
+                         </button>
+                       ))}
+                     </div>
+
+                     {/* Content List */}
+                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                        {archiveActiveTab === 'media' && (() => {
+                          const mediaMsgs = dbMessages.filter(m => m.type === 'image');
+                          if (mediaMsgs.length === 0) return <p className="text-zinc-500 text-center text-xs mt-8 font-medium">Chưa chia sẻ hình ảnh nào</p>;
+                          return (
+                            <div className="grid grid-cols-2 gap-2">
+                              {mediaMsgs.map((m, idx) => {
+                                try {
+                                  const attachment = JSON.parse(m.content);
+                                  return (
+                                    <a 
+                                      key={idx} 
+                                      href={`/api/media/${attachment.objectKey}`} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer" 
+                                      className="aspect-square bg-black/20 rounded-lg overflow-hidden border border-white/5 hover:scale-[1.02] transition-all flex items-center justify-center"
+                                    >
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                      <img 
+                                        src={`/api/media/${attachment.objectKey}`} 
+                                        alt={attachment.fileName} 
+                                        className="w-full h-full object-cover" 
+                                      />
+                                    </a>
+                                  );
+                                } catch(e) {
+                                  return null;
+                                }
+                              })}
+                            </div>
+                          );
+                        })()}
+
+                        {archiveActiveTab === 'files' && (() => {
+                          const fileMsgs = dbMessages.filter(m => m.type === 'file');
+                          if (fileMsgs.length === 0) return <p className="text-zinc-500 text-center text-xs mt-8 font-medium">Chưa chia sẻ tệp tin nào</p>;
+                          return (
+                            <div className="space-y-2">
+                              {fileMsgs.map((m, idx) => {
+                                try {
+                                  const attachment = JSON.parse(m.content);
+                                  return (
+                                    <div key={idx} className="bg-black/20 p-2.5 rounded-xl border border-white/5 flex items-center gap-2">
+                                      <span className="text-lg shrink-0">📎</span>
+                                      <div className="min-w-0 flex-1">
+                                        <p className="text-[11px] font-bold text-zinc-200 truncate">{attachment.fileName}</p>
+                                        <p className="text-[9px] text-zinc-400 mt-0.5">{(attachment.sizeBytes / 1024).toFixed(1)} KB</p>
+                                      </div>
+                                      <a 
+                                        href={`/api/media/${attachment.objectKey}`} 
+                                        download={attachment.fileName}
+                                        className="text-[9px] font-bold bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-white shrink-0"
+                                      >
+                                        Tải
+                                      </a>
+                                    </div>
+                                  );
+                                } catch(e) {
+                                  return null;
+                                }
+                              })}
+                            </div>
+                          );
+                        })()}
+
+                        {archiveActiveTab === 'links' && (() => {
+                          const linkRegex = /(https?:\/\/[^\s]+)/g;
+                          const links: Array<{ url: string; sender: string; time: string }> = [];
+                          dbMessages.forEach(m => {
+                            const found = m.content.match(linkRegex);
+                            if (found) {
+                              found.forEach((url: string) => {
+                                links.push({
+                                  url,
+                                  sender: m.sender_id === user.id ? 'Bạn' : (activeChatPartner?.display_name || 'Đối tác'),
+                                  time: new Date(m.created_at).toLocaleDateString()
+                                });
+                              });
+                            }
+                          });
+
+                          if (links.length === 0) return <p className="text-zinc-500 text-center text-xs mt-8 font-medium">Chưa chia sẻ liên kết nào</p>;
+                          return (
+                            <div className="space-y-2">
+                              {links.map((lnk, idx) => (
+                                <div key={idx} className="bg-black/20 p-2.5 rounded-xl border border-white/5 space-y-1">
+                                  <a 
+                                    href={lnk.url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="text-xs text-indigo-400 hover:underline font-bold break-all block"
+                                  >
+                                    {lnk.url}
+                                  </a>
+                                  <div className="flex justify-between text-[9px] text-zinc-500 font-bold pt-1">
+                                    <span>Gửi bởi: {lnk.sender}</span>
+                                    <span>{lnk.time}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                     </div>
+                  </div>
+                )}
+              </div>
+            </>
             )}
           </div>
         )}
@@ -2113,6 +2331,97 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
           </div>
         ))}
       </div>
+
+      {/* Chat Bubble Theme Color Modal */}
+      {isColorModalOpen && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-[#2b2d31] border border-white/10 w-full max-w-sm rounded-2xl shadow-2xl p-6 animate-scale-in">
+            <h3 className="text-sm font-bold text-white mb-4">🎨 Chọn màu sắc tin nhắn</h3>
+            
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              {Object.entries(themeStyles).map(([key, value]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => {
+                    setChatThemeColor(key);
+                    localStorage.setItem(`chat-theme-${selectedChatId}`, key);
+                  }}
+                  className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                    chatThemeColor === key
+                      ? 'border-indigo-500 bg-indigo-600/10 text-white'
+                      : 'border-white/5 bg-white/5 text-zinc-400 hover:bg-white/10'
+                  }`}
+                >
+                  <span className={`w-3.5 h-3.5 rounded-full ${value.dot}`} />
+                  {value.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setIsColorModalOpen(false)}
+                className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 transition-colors text-white font-bold text-xs rounded-xl cursor-pointer"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Group Chat Modal */}
+      {isGroupModalOpen && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-[#2b2d31] border border-white/10 w-full max-w-sm rounded-2xl shadow-2xl p-6 animate-scale-in">
+            <h3 className="text-sm font-bold text-white mb-2">👥 Tạo nhóm chat mới</h3>
+            <p className="text-xs text-zinc-400 mb-4 font-medium leading-relaxed">Tạo không gian làm việc nhóm và tự động mời @{activeChatPartner?.display_name}.</p>
+
+            <div className="space-y-2 mb-6">
+              <label className="text-[9px] font-extrabold uppercase tracking-wider text-zinc-400 block">Tên nhóm</label>
+              <input
+                type="text"
+                value={groupNameInput}
+                onChange={(e) => setGroupNameInput(e.target.value)}
+                className="w-full bg-black/25 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500 transition-colors font-medium"
+                placeholder="Tên nhóm của bạn..."
+              />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setIsGroupModalOpen(false)}
+                className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 transition-colors text-white font-bold text-xs rounded-xl cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!groupNameInput.trim() || !activeChatPartner) return;
+                  setIsGroupModalOpen(false);
+                  const res = await createGroupWorkspaceWithPartner(
+                    activeChatPartner.id, 
+                    activeChatPartner.display_name || 'Đối tác', 
+                    groupNameInput.trim()
+                  );
+                  if (res.error) {
+                    alert(res.error);
+                  } else if (res.workspaceId) {
+                    window.location.href = `/workspace/${res.workspaceId}`;
+                  }
+                }}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 transition-colors text-white font-bold text-xs rounded-xl cursor-pointer"
+              >
+                Tạo ngay
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Incoming Call Overlay */}
       {incomingCallInvite && (

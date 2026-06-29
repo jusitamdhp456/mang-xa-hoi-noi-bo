@@ -1,6 +1,6 @@
 'use server'
 
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
 export async function createWorkspace(formData: FormData) {
@@ -78,4 +78,66 @@ export async function updateWorkspaceIcon(workspaceId: string, iconUrl: string) 
   }
 
   return { success: true }
+}
+
+export async function createGroupWorkspaceWithPartner(partnerId: string, partnerName: string, customGroupName: string) {
+  const supabase = await createSupabaseServerClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+  if (!user || authError) {
+    return { error: 'Bạn cần đăng nhập để thực hiện' }
+  }
+
+  const workspaceId = crypto.randomUUID()
+  const slug = customGroupName.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Math.floor(Math.random() * 10000)
+
+  // 1. Tạo workspace
+  const { error: wsError } = await supabase
+    .from('workspaces')
+    .insert({
+      id: workspaceId,
+      name: customGroupName,
+      slug,
+      owner_id: user.id
+    })
+
+  if (wsError) {
+    console.error('Error creating workspace:', wsError)
+    return { error: `Lỗi tạo nhóm: ${wsError.message}` }
+  }
+
+  // 2. Thêm người dùng hiện tại làm owner
+  await supabase.from('workspace_members').insert({
+    workspace_id: workspaceId,
+    user_id: user.id,
+    role: 'owner'
+  })
+
+  // 3. Thêm đối tác làm member
+  await supabase.from('workspace_members').insert({
+    workspace_id: workspaceId,
+    user_id: partnerId,
+    role: 'member'
+  })
+
+  // 4. Tạo kênh chữ mặc định "phòng-thoại-chung"
+  const serviceClient = createSupabaseServiceClient();
+  await serviceClient.from('channels').insert({
+    workspace_id: workspaceId,
+    name: 'phòng-thoại-chung',
+    type: 'text',
+    is_private: false,
+    created_by: user.id
+  })
+
+  // 5. Tạo kênh giọng nói mặc định "kênh-chơi-game"
+  await serviceClient.from('channels').insert({
+    workspace_id: workspaceId,
+    name: 'kênh-chơi-game',
+    type: 'voice',
+    is_private: false,
+    created_by: user.id
+  })
+
+  return { workspaceId }
 }
