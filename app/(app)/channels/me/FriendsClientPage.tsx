@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { UserPanel } from '@/components/workspace/UserPanel';
 import { User, MessageSquare, Plus, Search, HelpCircle, Compass, Gamepad2, Phone, Video, Send, Check } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
+import { VoiceRoom } from '@/components/workspace/VoiceRoom';
 
 interface FriendsClientPageProps {
   user: SupabaseUser;
@@ -22,6 +23,10 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
 
   // Selected direct chat state
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+
+  // Calling states
+  const [isCalling, setIsCalling] = useState(false);
+  const [callType, setCallType] = useState<'voice' | 'video'>('voice');
   
   // DM message logs (mocked for each user)
   const [chatMessages, setChatMessages] = useState<Record<string, Array<{ sender: 'me' | 'them', text: string, time: string }>>>({
@@ -282,8 +287,28 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
             </div>
             
             <div className="flex items-center gap-4 text-zinc-400">
-              <button className="hover:text-zinc-200" title="Bắt đầu cuộc gọi thoại"><Phone size={18} /></button>
-              <button className="hover:text-zinc-200" title="Bắt đầu cuộc gọi video"><Video size={18} /></button>
+              <button 
+                onClick={() => {
+                  setCallType('voice');
+                  setIsCalling(true);
+                }}
+                className="hover:text-zinc-200 animate-pulse-subtle" 
+                title="Bắt đầu cuộc gọi thoại"
+              >
+                <Phone size={18} />
+              </button>
+              
+              <button 
+                onClick={() => {
+                  setCallType('video');
+                  setIsCalling(true);
+                }}
+                className="hover:text-zinc-200 animate-pulse-subtle" 
+                title="Bắt đầu cuộc gọi video"
+              >
+                <Video size={18} />
+              </button>
+              
               <button className="hover:text-zinc-200" title="Thắc mắc"><HelpCircle size={18} /></button>
             </div>
           </div>
@@ -440,6 +465,35 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
             /* Direct Chat Panel Area */
             <div className="flex-1 flex flex-col h-full bg-[#313338] overflow-hidden">
               
+              {/* Voice/Video Call Interface */}
+              {isCalling && activeChatPartner && (
+                <div className="bg-[#1e1f22] p-4 border-b border-black/20 flex flex-col relative shrink-0" style={{ height: '350px' }}>
+                  <div className="absolute top-4 right-4 z-20 flex gap-2">
+                    <button 
+                      onClick={() => setIsCalling(false)}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all shadow-md hover:scale-105"
+                    >
+                      Gác máy (Đóng cuộc gọi)
+                    </button>
+                  </div>
+                  
+                  {(() => {
+                    const roomId = user.id < activeChatPartner.id 
+                      ? `dm-${user.id}-${activeChatPartner.id}`
+                      : `dm-${activeChatPartner.id}-${user.id}`;
+                    const currentUsername = profile?.display_name || user?.email?.split('@')[0] || 'User';
+
+                    return (
+                      <VoiceRoom 
+                        channelId={roomId} 
+                        username={currentUsername} 
+                        video={callType === 'video'} 
+                      />
+                    );
+                  })()}
+                </div>
+              )}
+              
               {/* Message Log */}
               <div className="flex-1 p-6 overflow-y-auto space-y-4 flex flex-col justify-end">
                 
@@ -513,57 +567,64 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
             <div className="w-80 flex-shrink-0 bg-[#313338] border-l border-white/5 p-4 flex flex-col gap-4 overflow-y-auto hidden lg:flex">
               <h3 className="text-white font-bold text-base">Đang Hoạt Động</h3>
               
-              {/* Activity Cards List */}
-              <div className="space-y-3">
-                {/* Activity 1 */}
-                <div className="bg-[#2b2d31] p-3.5 rounded-xl border border-white/5 hover:bg-white/5 transition-all cursor-pointer">
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <div className="w-10 h-10 rounded-full bg-pink-500 flex items-center justify-center font-bold text-white text-sm">
-                        N
-                      </div>
-                      <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-500 border-2 border-[#2b2d31]"></span>
+              {(() => {
+                const onlineFriends = profilesWithStatus.filter(p => p.status !== 'offline');
+                
+                if (onlineFriends.length === 0) {
+                  return (
+                    <div className="flex-1 flex flex-col items-center justify-center text-center p-4 text-zinc-500 gap-2 mt-12">
+                      <div className="w-16 h-16 rounded-full bg-[#2b2d31] flex items-center justify-center text-2xl mb-2">💤</div>
+                      <p className="text-sm font-semibold text-zinc-400">Bây giờ đang trống...</p>
+                      <p className="text-xs text-zinc-600 max-w-[200px]">Khi có bạn bè bắt đầu hoạt động, ví dụ như chơi game hoặc tham gia phòng thoại, chúng tôi sẽ hiển thị ở đây!</p>
                     </div>
-                    <div>
-                      <p className="text-white text-sm font-bold leading-tight">namcunguyenn</p>
-                      <p className="text-[11px] text-zinc-500 mt-0.5">League of Legends — 3 phút</p>
-                    </div>
-                  </div>
-                  <div className="bg-[#111214] p-3 rounded-lg mt-3 flex items-center gap-3 border border-white/5">
-                    <span className="text-2xl">🎮</span>
-                    <div>
-                      <p className="text-xs font-bold text-white leading-tight">ARAM: Mayhem</p>
-                      <p className="text-[10px] text-zinc-500 mt-0.5">Đang trong trận đấu</p>
-                    </div>
-                  </div>
-                </div>
+                  );
+                }
 
-                {/* Activity 2 */}
-                <div className="bg-[#2b2d31] p-3.5 rounded-xl border border-white/5 hover:bg-white/5 transition-all cursor-pointer">
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <div className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center font-bold text-white text-sm">
-                        D
-                      </div>
-                      <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-yellow-500 border-2 border-[#2b2d31]"></span>
-                    </div>
-                    <div>
-                      <p className="text-white text-sm font-bold leading-tight">ntdung98</p>
-                      <p className="text-[11px] text-zinc-500 mt-0.5">Visual Studio Code</p>
-                    </div>
+                return (
+                  <div className="space-y-3">
+                    {onlineFriends.map(p => {
+                      const avatar = p.avatar_key ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${p.avatar_key}` : null;
+                      const name = p.display_name || p.username || 'User';
+                      
+                      // Match mockup games/details based on activity presets or fallback to status
+                      const activity = p.activity || (p.status_text ? { game: 'Trạng thái', detail: p.status_text, icon: '💬' } : null);
+
+                      return (
+                        <div key={p.id} className="bg-[#2b2d31] p-3.5 rounded-xl border border-white/5 hover:bg-white/5 transition-all cursor-pointer">
+                          <div className="flex items-center gap-3">
+                            <div className="relative">
+                              {avatar ? (
+                                <img src={avatar} alt="Avatar" className="w-10 h-10 rounded-full object-cover" />
+                              ) : (
+                                <div className="w-10 h-10 rounded-full bg-indigo-900 flex items-center justify-center text-white text-sm font-bold uppercase">
+                                  {name.charAt(0)}
+                                </div>
+                              )}
+                              <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-500 border-2 border-[#2b2d31]"></span>
+                            </div>
+                            <div>
+                              <p className="text-white text-sm font-bold leading-tight">{name}</p>
+                              <p className="text-[11px] text-zinc-500 mt-0.5">
+                                {activity ? activity.game : 'Đang hoạt động'}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          {activity && (
+                            <div className="bg-[#111214] p-3 rounded-lg mt-3 flex items-center gap-3 border border-white/5">
+                              <span className="text-2xl">{activity.icon}</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-bold text-white leading-tight truncate">{activity.game}</p>
+                                <p className="text-[10px] text-zinc-500 mt-0.5 truncate">{activity.detail}</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div className="bg-[#111214] p-3 rounded-lg mt-3 flex items-center justify-between border border-white/5 group">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">💻</span>
-                      <div>
-                        <p className="text-xs font-bold text-white leading-tight">mang-xa-hoi-noi-bo</p>
-                        <p className="text-[10px] text-zinc-500 mt-0.5">Chỉnh sửa layout.tsx</p>
-                      </div>
-                    </div>
-                    <button className="text-[10px] font-bold text-white bg-zinc-800 group-hover:bg-[#5865f2] px-2 py-1 rounded transition-colors uppercase tracking-wider">Xem code</button>
-                  </div>
-                </div>
-              </div>
+                );
+              })()}
             </div>
           )}
 

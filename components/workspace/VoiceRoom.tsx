@@ -9,7 +9,7 @@ import {
 import { useEffect, useState } from 'react';
 import { useVoiceSettings } from '@/components/providers/VoiceSettingsProvider';
 
-export function VoiceRoom({ channelId, username }: { channelId: string; username: string }) {
+export function VoiceRoom({ channelId, username, video = false }: { channelId: string; username: string; video?: boolean }) {
   const [token, setToken] = useState('');
   const [disconnected, setDisconnected] = useState(false);
   const { isMuted, isDeafened } = useVoiceSettings();
@@ -70,7 +70,7 @@ export function VoiceRoom({ channelId, username }: { channelId: string; username
   return (
     <div className="flex-1 bg-black/40 overflow-hidden flex flex-col" data-lk-theme="default">
       <LiveKitRoom
-        video={false}
+        video={video}
         audio={!isMuted}
         token={token}
         serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL}

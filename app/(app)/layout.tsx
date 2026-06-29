@@ -14,14 +14,27 @@ export default async function AppLayout({
   
   // Fetch workspaces mà user này tham gia
   let userWorkspaces: { workspaces: { id: string, name: string } | null }[] = [];
+  let userProfile: any = null;
 
   if (user) {
+    // Fetch user profile
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+    if (profile) userProfile = profile;
+
+    // Fetch workspaces
     const { data } = await supabase
       .from('workspace_members')
       .select('workspaces(id, name)')
       .eq('user_id', user.id);
     if (data) userWorkspaces = data as unknown as { workspaces: { id: string, name: string } | null }[];
   }
+
+  const avatarUrl = userProfile?.avatar_key ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${userProfile.avatar_key}` : null;
+  const initial = (userProfile?.display_name || user?.email?.split('@')[0] || 'M').charAt(0).toUpperCase();
 
   return (
     // Xoá bg-gray-100 vì globals.css đã lo phần nền Gradient
@@ -31,12 +44,15 @@ export default async function AppLayout({
          {/* Home button (Direct Messages) */}
          <Link href="/channels/me" className="flex-shrink-0">
            <div 
-             className="w-12 h-12 bg-white/10 hover:bg-[#5865F2] backdrop-blur-md shadow-sm border border-white/10 text-white rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer hover:scale-105 transition-all duration-200"
+             className="w-12 h-12 bg-white/10 hover:bg-[#5865F2] backdrop-blur-md shadow-sm border border-white/10 text-white rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer hover:scale-105 transition-all duration-200 overflow-hidden"
              title="Tin nhắn trực tiếp & Bạn bè"
            >
-             <svg className="w-6 h-6 fill-current" viewBox="0 0 127.14 96.36">
-               <path d="M107.7,8.07A105.15,105.15,0,0,0,77.26,0a77.19,77.19,0,0,0-3.3,6.83A96.67,96.67,0,0,0,53.22,6.83,77.19,77.19,0,0,0,49.88,0,105.15,105.15,0,0,0,19.44,8.07C3.66,31.58-1.86,54.65,1,77.53A105.73,105.73,0,0,0,32,96.36a77.7,77.7,0,0,0,6.63-10.85,68.43,68.43,0,0,1-10.5-5c.89-.65,1.76-1.34,2.58-2.07a75.14,75.14,0,0,0,93.44,0c.82.73,1.69,1.42,2.58,2.07a68.43,68.43,0,0,1-10.5,5A77.7,77.7,0,0,0,111.72,85.5a105.73,105.73,0,0,0,31-18.83C143.74,50.85,137.63,28.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53S36.18,40.36,42.45,40.36,53.83,46,53.83,53,48.72,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.24,60,73.24,53S78.41,40.36,84.69,40.36,96.07,46,96.07,53,91,65.69,84.69,65.69Z"/>
-             </svg>
+             {avatarUrl ? (
+               // eslint-disable-next-line @next/next/no-img-element
+               <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+             ) : (
+               <span className="font-bold text-lg text-white">{initial}</span>
+             )}
            </div>
          </Link>
 
