@@ -22,7 +22,8 @@ import {
   ChevronRight, 
   Volume2, 
   Settings,
-  AlertCircle
+  AlertCircle,
+  MoreVertical
 } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { VoiceRoom } from '@/components/workspace/VoiceRoom';
@@ -34,7 +35,8 @@ import {
   getFriends, 
   getFriendRequests,
   sendDirectMessage,
-  getDirectMessages
+  getDirectMessages,
+  removeFriend
 } from '@/app/actions/friend';
 
 interface FriendsClientPageProps {
@@ -84,12 +86,35 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
   const [dbMessages, setDbMessages] = useState<any[]>([]);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
 
+  // Dropdown & Preview States
+  const [activeMenuFriendId, setActiveMenuFriendId] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
+  const [previewUser, setPreviewUser] = useState<any | null>(null);
+  const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
+
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Scroll to bottom of chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [dbMessages, selectedChatId]);
+
+  // Load blocked user IDs
+  useEffect(() => {
+    const saved = localStorage.getItem('blocked_user_ids');
+    if (saved) {
+      setBlockedUserIds(JSON.parse(saved));
+    }
+  }, []);
+
+  // Close context menu on outside click
+  useEffect(() => {
+    const handleCloseMenu = () => {
+      setActiveMenuFriendId(null);
+    };
+    window.addEventListener('click', handleCloseMenu);
+    return () => window.removeEventListener('click', handleCloseMenu);
+  }, []);
 
   // Load friends and pending requests from Supabase
   const loadFriendsData = async () => {
@@ -192,7 +217,10 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
     return { status, activity };
   };
 
-  const profilesWithStatus = friendsProfiles.map((p, idx) => ({
+  // Filter out blocked users
+  const friendsProfilesFiltered = friendsProfiles.filter(p => !blockedUserIds.includes(p.id));
+
+  const profilesWithStatus = friendsProfilesFiltered.map((p, idx) => ({
     ...p,
     ...mockStatusAndActivity(p.id, idx)
   }));
@@ -665,7 +693,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
             </div>
 
             <div className="flex-1 flex overflow-hidden">
-              <div className="flex-1 flex flex-col p-6 overflow-y-auto">
+              <div className="flex-1 flex flex-col p-6 overflow-y-auto font-sans">
                 
                 {/* TAB CONTENT: ADD FRIEND */}
                 {activeTab === 'add' && (
@@ -760,6 +788,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                                 <div className="flex items-center gap-3">
                                   <div className="relative">
                                     {avatar ? (
+                                      // eslint-disable-next-line @next/next/no-img-element
                                       <img src={avatar} alt="Avatar" className="w-9 h-9 rounded-full object-cover" />
                                     ) : (
                                       <div className="w-9 h-9 rounded-full bg-indigo-900 flex items-center justify-center text-white text-xs font-bold uppercase">
@@ -885,13 +914,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                           <div key={p.id} className="flex items-center justify-between p-2.5 rounded-xl hover:bg-white/5 transition-colors border border-transparent hover:border-white/5">
                             <div className="flex items-center gap-3">
                               <div className="relative">
-                                {avatar ? (
-                                  <img src={avatar} alt="Avatar" className="w-10 h-10 rounded-full object-cover" />
-                                ) : (
-                                  <div className="w-10 h-10 rounded-full bg-indigo-900 flex items-center justify-center text-white text-sm font-bold uppercase">
-                                    {name.charAt(0)}
-                                  </div>
-                                )}
+                                <img src={avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=80&h=80"} alt="Avatar" className="w-10 h-10 rounded-full object-cover" />
                                 <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#16133a] ${statusBg}`}></span>
                               </div>
                               <div>
@@ -900,7 +923,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                               </div>
                             </div>
 
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 items-center">
                               <button 
                                 onClick={() => {
                                   setSelectedChatId(p.threadId);
@@ -910,6 +933,20 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                                 title="Nhắn tin"
                               >
                                 <MessageSquare size={16} />
+                              </button>
+
+                              {/* Three Dots More Actions Menu Trigger */}
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  setMenuPosition({ x: rect.left, y: rect.bottom + window.scrollY });
+                                  setActiveMenuFriendId(p.id);
+                                }}
+                                className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+                                title="Thêm hành động"
+                              >
+                                <MoreVertical size={16} />
                               </button>
                             </div>
                           </div>
@@ -982,13 +1019,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                     return (
                       <div key={p.id} className="bg-white/5 border border-white/5 p-3 rounded-xl flex gap-3">
                         <div className="relative">
-                          {avatar ? (
-                            <img src={avatar} alt="Avatar" className="w-9 h-9 rounded-full object-cover shrink-0" />
-                          ) : (
-                            <div className="w-9 h-9 rounded-full bg-indigo-900 flex items-center justify-center text-white font-bold text-xs uppercase shrink-0">
-                              {name.charAt(0)}
-                            </div>
-                          )}
+                          <img src={avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=80&h=80"} alt="Avatar" className="w-9 h-9 rounded-full object-cover shrink-0" />
                           <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-slate-900 bg-green-500"></span>
                         </div>
                         <div className="min-w-0">
@@ -1163,6 +1194,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
 
       </div>
 
+      {/* Popovers & Modals */}
       {isCreateVoiceRoomOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[#313338] border border-white/10 w-[350px] p-5 rounded-2xl shadow-2xl space-y-4 animate-scale-in text-white">
@@ -1198,10 +1230,127 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                     setNewVoiceRoomName('');
                   }
                 }}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                className="px-4 py-2 bg-indigo-650 hover:bg-indigo-700 text-xs font-bold rounded-lg transition-colors cursor-pointer animate-pulse-subtle"
               >
                 Tạo
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Friends Row Context Action Menu */}
+      {activeMenuFriendId && menuPosition && (
+        <div 
+          style={{ top: menuPosition.y, left: menuPosition.x - 140 }}
+          className="fixed z-50 bg-[#1e1b4b]/95 border border-white/15 backdrop-blur-2xl rounded-xl p-1.5 shadow-2xl animate-scale-in text-white w-44"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => {
+              const friend = friendsProfiles.find(f => f.id === activeMenuFriendId);
+              setPreviewUser(friend);
+              setActiveMenuFriendId(null);
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-600 rounded-lg transition-colors cursor-pointer text-left"
+          >
+            <span>Xem hồ sơ</span>
+          </button>
+          
+          <button
+            onClick={async () => {
+              const friend = friendsProfiles.find(f => f.id === activeMenuFriendId);
+              if (friend && friend.threadId) {
+                if (confirm(`Bạn có chắc chắn muốn hủy kết bạn với "${friend.display_name || friend.username}"?`)) {
+                  try {
+                    await removeFriend(friend.threadId);
+                    await loadFriendsData();
+                  } catch (e) {
+                    console.error('Failed to unfriend:', e);
+                  }
+                }
+              }
+              setActiveMenuFriendId(null);
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-red-455 hover:bg-red-600 hover:text-white rounded-lg transition-colors cursor-pointer text-left border-t border-white/5 mt-1"
+          >
+            <span>Hủy kết bạn</span>
+          </button>
+          
+          <button
+            onClick={() => {
+              if (confirm("Bạn có chắc chắn muốn chặn người dùng này?")) {
+                const updated = [...blockedUserIds, activeMenuFriendId];
+                setBlockedUserIds(updated);
+                localStorage.setItem('blocked_user_ids', JSON.stringify(updated));
+              }
+              setActiveMenuFriendId(null);
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-red-455 hover:bg-red-650 hover:text-white rounded-lg transition-colors cursor-pointer text-left"
+          >
+            <span>Chặn người dùng</span>
+          </button>
+        </div>
+      )}
+
+      {/* User Profile Preview Card Modal */}
+      {previewUser && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#1e1f22]/95 border border-white/10 w-[350px] rounded-2xl shadow-2xl overflow-hidden animate-scale-in text-white font-sans">
+            <div className="h-20 bg-gradient-to-r from-indigo-600 to-purple-600 relative">
+              <button 
+                onClick={() => setPreviewUser(null)} 
+                className="absolute top-3 right-3 text-white/70 hover:text-white bg-black/20 hover:bg-black/40 p-1.5 rounded-full transition-all cursor-pointer border border-white/5"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            
+            <div className="px-5 pb-5 relative space-y-4">
+              <div className="-mt-10 relative inline-block">
+                {previewUser.avatar_key ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img 
+                    src={`https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${previewUser.avatar_key}`} 
+                    alt="" 
+                    className="w-20 h-20 rounded-full object-cover border-4 border-[#1e1f22] bg-zinc-800" 
+                  />
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-indigo-900 text-white font-black text-2xl flex items-center justify-center border-4 border-[#1e1f22]">
+                    {(previewUser.display_name || 'U').charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <span className="absolute bottom-1 right-1 w-4 h-4 rounded-full border-2 border-[#1e1f22] bg-green-500"></span>
+              </div>
+
+              <div>
+                <h3 className="font-black text-lg text-white leading-tight">{previewUser.display_name || previewUser.username}</h3>
+                <p className="text-xs text-zinc-400">@{previewUser.username || 'user'}</p>
+              </div>
+
+              <div className="border-t border-white/5 pt-3.5 space-y-3">
+                <div>
+                  <span className="text-[10px] text-zinc-500 uppercase font-black tracking-wider leading-none">Mã ID Người Dùng</span>
+                  <code className="text-xs text-cyan-400 font-mono font-bold block mt-1 bg-cyan-500/10 border border-cyan-500/10 px-2 py-0.5 rounded w-max select-all cursor-pointer">
+                    {getTenDigitId(previewUser.id)}
+                  </code>
+                </div>
+                <div>
+                  <span className="text-[10px] text-zinc-500 uppercase font-black tracking-wider leading-none">Mã ID UUID</span>
+                  <code className="text-[10px] text-zinc-400 font-mono block mt-1 select-all cursor-pointer">
+                    {previewUser.id}
+                  </code>
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <button 
+                  onClick={() => setPreviewUser(null)}
+                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-xs font-bold rounded-lg transition-colors cursor-pointer border border-white/5 text-zinc-200 hover:text-white"
+                >
+                  Đóng
+                </button>
+              </div>
             </div>
           </div>
         </div>

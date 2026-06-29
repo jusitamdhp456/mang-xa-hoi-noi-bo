@@ -363,3 +363,40 @@ export async function getDirectMessages(threadId: string) {
 
   return messages || [];
 }
+
+// Remove/Unfriend a user by deleting their one-to-one DM thread
+export async function removeFriend(threadId: string) {
+  const supabaseUserClient = await createSupabaseServerClient();
+  const { data: { user } } = await supabaseUserClient.auth.getUser();
+
+  if (!user) {
+    throw new Error('Unauthorized');
+  }
+
+  const supabaseAdmin = createSupabaseServiceClient();
+
+  // Verify the user belongs to the thread before deleting
+  const { data: membership, error: memErr } = await supabaseAdmin
+    .from('direct_thread_members')
+    .select('*')
+    .eq('thread_id', threadId)
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (memErr || !membership) {
+    throw new Error('Unauthorized thread deletion');
+  }
+
+  // Delete the thread (this will cascade delete thread members and messages)
+  const { error: delErr } = await supabaseAdmin
+    .from('direct_threads')
+    .delete()
+    .eq('id', threadId);
+
+  if (delErr) {
+    console.error('Error deleting thread:', delErr);
+    throw new Error(delErr.message);
+  }
+
+  return { success: true };
+}
