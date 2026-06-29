@@ -276,6 +276,30 @@ export function VoiceRoom({
     })();
   }, [channelId, username, customName, disconnected]);
 
+  // iOS standalone PWAs get suspended in the background, which drops the
+  // realtime/WebRTC connection. When the app returns to the foreground, auto
+  // re-join (refetch token + reconnect) instead of leaving the user stranded
+  // on the "you left the call" screen.
+  useEffect(() => {
+    const handleForeground = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (disconnected) {
+        setToken('');
+        setUseP2P(false);
+        setError('');
+        setDisconnected(false);
+      }
+    };
+    document.addEventListener('visibilitychange', handleForeground);
+    window.addEventListener('pageshow', handleForeground);
+    window.addEventListener('focus', handleForeground);
+    return () => {
+      document.removeEventListener('visibilitychange', handleForeground);
+      window.removeEventListener('pageshow', handleForeground);
+      window.removeEventListener('focus', handleForeground);
+    };
+  }, [disconnected]);
+
   // P2P WebRTC connection setup
   useEffect(() => {
     if (!useP2P || !myUserId || !matchedPartnerId) return;
