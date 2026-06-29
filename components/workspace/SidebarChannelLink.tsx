@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { Phone, Lock } from 'lucide-react'
+import { Phone, Lock, Edit3 } from 'lucide-react'
+import { useVoiceSettings } from '@/components/providers/VoiceSettingsProvider'
 
 interface ChannelItem {
   id: string
@@ -24,10 +25,17 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
   const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null)
   const [showHint, setShowHint] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+
+  const { activeParticipants, changeUserNickname, currentUser } = useVoiceSettings()
   
   const isVoice = channel.type === 'voice'
   const channelUrl = `/workspace/${workspaceId}/channel/${channel.id}`
   const isActive = pathname === channelUrl
+
+  // Filter participants currently connected to this voice channel
+  const participants = isVoice
+    ? activeParticipants.filter(p => p.voice_channel_id === channel.id)
+    : []
 
   // Handle right-click context menu
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -96,8 +104,62 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
   return (
     <>
       {isVoice ? (
-        // Voice channel: custom click behavior
-        linkContent
+        // Voice channel: custom click behavior & active user list
+        <div className="flex flex-col">
+          {linkContent}
+          
+          {participants.length > 0 && (
+            <div className="pl-8 pr-3 py-1 space-y-1 mb-1.5 animate-scale-in">
+              {participants.map(p => {
+                const isSelf = p.user_id === currentUser?.id
+                const displayName = p.custom_name || p.display_name
+                const initial = displayName.charAt(0).toUpperCase()
+
+                const handleRename = (e: React.MouseEvent) => {
+                  e.stopPropagation()
+                  const newName = prompt(`Nhập biệt danh mới cho "${displayName}":`, displayName)
+                  if (newName !== null) {
+                    changeUserNickname(p.user_id, newName.trim())
+                  }
+                }
+
+                return (
+                  <div key={p.user_id} className="flex items-center gap-2 group/user py-0.5 select-none">
+                    {/* Avatar */}
+                    {p.avatar_key ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img 
+                        src={`https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${p.avatar_key}`} 
+                        alt="" 
+                        className="w-4.5 h-4.5 rounded-full object-cover shrink-0" 
+                      />
+                    ) : (
+                      <div className="w-4.5 h-4.5 rounded-full bg-indigo-500/20 text-indigo-300 text-[9px] font-bold flex items-center justify-center border border-indigo-500/10 shrink-0">
+                        {initial}
+                      </div>
+                    )}
+                    
+                    {/* Display Name */}
+                    <span className="text-xs text-white/60 truncate flex-1 font-medium group-hover/user:text-white/80 transition-colors">
+                      {displayName} {isSelf && <span className="text-[9px] text-zinc-500 font-bold">(Bạn)</span>}
+                    </span>
+
+                    {/* Rename trigger (only shown for the user themselves in this view) */}
+                    {isSelf && (
+                      <button
+                        onClick={handleRename}
+                        className="opacity-0 group-hover/user:opacity-100 text-zinc-400 hover:text-white transition-opacity p-0.5 cursor-pointer shrink-0"
+                        title="Đổi biệt danh"
+                      >
+                        <Edit3 size={10} />
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
       ) : (
         // Text channel: standard Link navigation
         <Link href={channelUrl}>
