@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { Phone, Lock, Edit3, X, Search, UserPlus } from 'lucide-react'
+import { Phone, Lock, Edit3, X, Search, UserPlus, MicOff } from 'lucide-react'
 import { useVoiceSettings, playVoiceTone } from '@/components/providers/VoiceSettingsProvider'
 import { getFriends, sendDirectMessage } from '@/app/actions/friend'
 
@@ -165,7 +165,7 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
           {linkContent}
           
           {participants.length > 0 && (
-            <div className="pl-8 pr-3 py-1 space-y-1 mb-1.5 animate-scale-in">
+            <div className="pl-6 pr-3 py-1 space-y-1 mb-1 animate-scale-in">
               {participants.map(p => {
                 const isSelf = p.user_id === currentUser?.id
                 const displayName = p.custom_name || p.display_name
@@ -180,25 +180,30 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
                 }
 
                 return (
-                  <div key={p.user_id} className="flex items-center gap-2 group/user py-0.5 select-none">
+                  <div key={p.user_id} className="flex items-center gap-2 group/user py-0.5 select-none hover:bg-white/5 rounded-lg px-2 transition-colors">
                     {/* Avatar */}
                     {p.avatar_key ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img 
                         src={`https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${p.avatar_key}`} 
                         alt="" 
-                        className="w-4.5 h-4.5 rounded-full object-cover shrink-0" 
+                        className="w-6 h-6 rounded-full object-cover shrink-0" 
                       />
                     ) : (
-                      <div className="w-4.5 h-4.5 rounded-full bg-indigo-500/20 text-indigo-300 text-[9px] font-bold flex items-center justify-center border border-indigo-500/10 shrink-0">
+                      <div className="w-6 h-6 rounded-full bg-[#35363c] text-zinc-300 text-[10px] font-bold flex items-center justify-center border border-white/5 shrink-0">
                         {initial}
                       </div>
                     )}
                     
                     {/* Display Name */}
-                    <span className="text-xs text-white/60 truncate flex-1 font-medium group-hover/user:text-white/80 transition-colors">
+                    <span className="text-xs text-zinc-300 truncate flex-1 font-semibold group-hover/user:text-zinc-150 transition-colors">
                       {displayName} {isSelf && <span className="text-[9px] text-zinc-500 font-bold">(Bạn)</span>}
                     </span>
+
+                    {/* Mute status indicator on the right */}
+                    {(p.is_muted || p.is_deafened) && (
+                      <MicOff size={11} className="text-zinc-500 shrink-0 mr-1" />
+                    )}
 
                     {/* Rename trigger (only shown for the user themselves in this view) */}
                     {isSelf && (
@@ -213,6 +218,21 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
                   </div>
                 )
               })}
+
+              {/* Mời vào Kênh thoại row */}
+              <div 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsInviteModalOpen(true);
+                }}
+                className="flex items-center gap-2 py-1.5 px-2 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-white/5 cursor-pointer select-none transition-colors group/invite"
+              >
+                <div className="w-6 h-6 rounded-full bg-[#2b2d31]/80 border border-white/5 flex items-center justify-center shrink-0 text-zinc-400 group-hover/invite:bg-[#35363c] transition-colors">
+                  <UserPlus size={11} />
+                </div>
+                <span className="text-[11px] font-semibold flex-1">Mời vào Kênh thoại</span>
+                <span className="text-[10px] text-zinc-500 group-hover/invite:text-zinc-400 transition-colors">➔</span>
+              </div>
             </div>
           )}
         </div>

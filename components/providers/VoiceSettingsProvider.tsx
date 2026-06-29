@@ -9,6 +9,8 @@ interface Participant {
   avatar_key: string | null;
   voice_channel_id: string;
   custom_name: string | null;
+  is_muted?: boolean;
+  is_deafened?: boolean;
 }
 
 interface VoiceSettingsContextType {
@@ -174,6 +176,8 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
               avatar_key: presence.avatar_key,
               voice_channel_id: presence.voice_channel_id,
               custom_name: presence.custom_name,
+              is_muted: presence.is_muted,
+              is_deafened: presence.is_deafened,
             });
           }
         });
@@ -249,11 +253,13 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
         avatar_key: profile?.avatar_key || null,
         voice_channel_id: activeChannelId,
         custom_name: customName || null,
+        is_muted: isMuted,
+        is_deafened: isDeafened,
       }).catch((err: any) => {
         console.error("Presence track error:", err);
       });
     }
-  }, [activeChannelId, customName, user, profile, isSubscribed]);
+  }, [activeChannelId, customName, user, profile, isSubscribed, isMuted, isDeafened]);
 
   const toggleMute = () => {
     setIsMuted(prev => !prev);
