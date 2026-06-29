@@ -190,11 +190,11 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
       Object.keys(state).forEach((key) => {
         const presenceList = state[key] as any[];
         presenceList.forEach((presence) => {
-          if (presence.voice_channel_id && !seenUserIds.has(presence.user_id)) {
+          if (presence && presence.voice_channel_id && presence.user_id && !seenUserIds.has(presence.user_id)) {
             seenUserIds.add(presence.user_id);
             participantsList.push({
               user_id: presence.user_id,
-              display_name: presence.display_name,
+              display_name: presence.display_name || 'User',
               avatar_key: presence.avatar_key,
               voice_channel_id: presence.voice_channel_id,
               custom_name: presence.custom_name,
@@ -242,7 +242,7 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
       if (!newPresences) return;
 
       const someoneElseJoined = Object.values(newPresences).some((presenceList: any) => 
-        presenceList.some((p: any) => p.user_id !== user.id && p.voice_channel_id === activeChannelId)
+        presenceList.some((p: any) => p && p.user_id && p.user_id !== user.id && p.voice_channel_id === activeChannelId)
       );
 
       if (someoneElseJoined) {
@@ -255,7 +255,7 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
       if (!leftPresences) return;
 
       const someoneElseLeft = Object.values(leftPresences).some((presenceList: any) => 
-        presenceList.some((p: any) => p.user_id !== user.id && p.voice_channel_id === activeChannelId)
+        presenceList.some((p: any) => p && p.user_id && p.user_id !== user.id && p.voice_channel_id === activeChannelId)
       );
 
       if (someoneElseLeft) {
