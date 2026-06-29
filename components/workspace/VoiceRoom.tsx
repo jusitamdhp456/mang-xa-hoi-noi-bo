@@ -616,8 +616,8 @@ export function VoiceRoom({
                 .filter(p => p.voice_channel_id === channelId)
                 .map(p => {
                   const isSelf = p.user_id === myUserId;
-                  const displayName = p.custom_name || p.display_name;
-                  const initial = displayName.charAt(0).toUpperCase();
+                  const displayName = p.custom_name || p.display_name || 'User';
+                  const initial = (displayName.charAt(0) || 'U').toUpperCase();
                   const isMutedOrDeafened = p.is_muted || p.is_deafened;
                   const isSpeaking = speakingUserIds.includes(p.user_id);
 

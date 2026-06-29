@@ -221,7 +221,7 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
       .subscribe();
 
     return () => {
-      channel.unsubscribe();
+      supabase.removeChannel(channel);
     };
   }, [workspaceId, user, supabase]);
 
@@ -283,7 +283,7 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
       });
 
     return () => {
-      voiceChannel.unsubscribe();
+      supabase.removeChannel(voiceChannel);
     };
   }, [activeVoiceWorkspaceId, activeChannelId, user, profile, customName, isMuted, isDeafened, supabase]);
 
