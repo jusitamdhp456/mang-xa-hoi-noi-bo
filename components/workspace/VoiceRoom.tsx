@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState, useRef } from 'react';
 import '@livekit/components-styles';
 import {
   LiveKitRoom,
@@ -8,6 +9,9 @@ import {
   useLocalParticipant,
   useParticipants,
 } from '@livekit/components-react';
+import { useVoiceSettings } from '@/components/providers/VoiceSettingsProvider';
+import { Edit3, Check, X, Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Volume2, VolumeX, Settings } from 'lucide-react';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
 function LiveKitSync({ isMuted, isDeafened }: { isMuted: boolean; isDeafened: boolean }) {
   const { localParticipant } = useLocalParticipant();
@@ -36,10 +40,6 @@ function LiveKitActiveSpeakersSync({ setSpeakingUserIds }: { setSpeakingUserIds:
 
   return null;
 }
-import { useEffect, useState, useRef } from 'react';
-import { useVoiceSettings } from '@/components/providers/VoiceSettingsProvider';
-import { Edit3, Check, X, Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Volume2, VolumeX, Settings } from 'lucide-react';
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
 
 
