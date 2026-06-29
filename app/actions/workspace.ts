@@ -158,6 +158,43 @@ export async function joinWorkspaceIfInvited(workspaceId: string) {
     return { success: true }
   }
 
+  // Verify that at least one workspace member shares a DM thread with the current user.
+  // This ensures the caller was genuinely invited via an in-app voice invite message.
+  const serviceClient = createSupabaseServiceClient()
+
+  const { data: userThreads } = await serviceClient
+    .from('direct_thread_members')
+    .select('thread_id')
+    .eq('user_id', user.id)
+
+  if (!userThreads || userThreads.length === 0) {
+    return { error: 'Không có quyền gia nhập không gian làm việc này' }
+  }
+
+  const threadIds = userThreads.map(m => m.thread_id)
+
+  const { data: wsMembers } = await serviceClient
+    .from('workspace_members')
+    .select('user_id')
+    .eq('workspace_id', workspaceId)
+
+  if (!wsMembers || wsMembers.length === 0) {
+    return { error: 'Không tìm thấy không gian làm việc' }
+  }
+
+  const wsMemberIds = wsMembers.map(m => m.user_id)
+
+  const { data: sharedThread } = await serviceClient
+    .from('direct_thread_members')
+    .select('thread_id')
+    .in('thread_id', threadIds)
+    .in('user_id', wsMemberIds)
+    .limit(1)
+
+  if (!sharedThread || sharedThread.length === 0) {
+    return { error: 'Không có quyền gia nhập không gian làm việc này' }
+  }
+
   const { error } = await supabase.from('workspace_members').insert({
     workspace_id: workspaceId,
     user_id: user.id,
