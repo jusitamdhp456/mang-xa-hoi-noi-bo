@@ -143,7 +143,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
   const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [previewUser, setPreviewUser] = useState<any | null>(null);
   const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
-  const [toasts, setToasts] = useState<Array<{ id: string, title: string, content: string, avatar: string | null }>>([]);
+  const [toasts, setToasts] = useState<Array<{ id: string, title: string, content: string, avatar: string | null, threadId: string }>>([]);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
 
   // Load saved unread counts on mount
