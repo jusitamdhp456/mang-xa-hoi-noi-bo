@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useVoiceSettings } from '@/components/providers/VoiceSettingsProvider';
-import { Mic, MicOff, Headphones, Settings, PhoneOff, ChevronDown } from 'lucide-react';
-import { UserSettingsModal } from '@/components/auth/UserSettingsModal';
+import { Mic, MicOff, Headphones, PhoneOff, ChevronDown } from 'lucide-react';
 import { User } from '@supabase/supabase-js';
 
 interface UserPanelProps {
@@ -179,10 +178,7 @@ export function UserPanel({ user, profile, channels, workspaceName }: UserPanelP
             </button>
           </div>
 
-          {/* Settings button */}
-          <div className="w-7 h-8 flex items-center justify-center rounded-md text-white/70 hover:bg-white/5 hover:text-white transition-colors cursor-pointer">
-             <UserSettingsModal user={user} profile={profile} customTrigger={<Settings size={16} />} />
-          </div>
+
 
           {/* Mic dropdown menu */}
           {activeDropdown === 'mic' && (
