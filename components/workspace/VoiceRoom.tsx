@@ -347,26 +347,28 @@ export function VoiceRoom({
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       audioContext = new AudioContextClass();
       
-      localAnalyser = audioContext.createAnalyser();
-      localAnalyser.fftSize = 512;
-      localSource = audioContext.createMediaStreamSource(localStream);
-      localSource.connect(localAnalyser);
+      if (localStream.getAudioTracks().length > 0) {
+        localAnalyser = audioContext.createAnalyser();
+        localAnalyser.fftSize = 512;
+        localSource = audioContext.createMediaStreamSource(localStream);
+        localSource.connect(localAnalyser);
+      }
 
-      if (remoteStream) {
+      if (remoteStream && remoteStream.getAudioTracks().length > 0) {
         remoteAnalyser = audioContext.createAnalyser();
         remoteAnalyser.fftSize = 512;
         remoteSource = audioContext.createMediaStreamSource(remoteStream);
         remoteSource.connect(remoteAnalyser);
       }
 
-      const bufferLength = localAnalyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
+      const bufferLength = localAnalyser ? localAnalyser.frequencyBinCount : 0;
+      const dataArray = bufferLength > 0 ? new Uint8Array(bufferLength) : null;
 
       intervalId = setInterval(() => {
         const speakingList: string[] = [];
 
         // Check local mic volume
-        if (localAnalyser && !isMuted && !isDeafened) {
+        if (localAnalyser && dataArray && !isMuted && !isDeafened) {
           localAnalyser.getByteFrequencyData(dataArray);
           let sum = 0;
           for (let i = 0; i < bufferLength; i++) {
@@ -374,12 +376,12 @@ export function VoiceRoom({
           }
           const average = sum / bufferLength;
           if (average > 15) { // volume threshold
-            speakingList.push(userId);
+            speakingList.push(myUserId);
           }
         }
 
         // Check remote mic volume
-        if (remoteAnalyser && remoteStream && !isDeafened) {
+        if (remoteAnalyser && dataArray && remoteStream && !isDeafened) {
           remoteAnalyser.getByteFrequencyData(dataArray);
           let sum = 0;
           for (let i = 0; i < bufferLength; i++) {
@@ -387,8 +389,8 @@ export function VoiceRoom({
           }
           const average = sum / bufferLength;
           if (average > 15) { // volume threshold
-            if (partnerId) {
-              speakingList.push(partnerId);
+            if (matchedPartnerId) {
+              speakingList.push(matchedPartnerId);
             }
           }
         }
