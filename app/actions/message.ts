@@ -62,7 +62,7 @@ export async function sendMessage(
       content: content?.trim() || null,
       type: attachment ? (attachment.mimeType.startsWith('image/') ? 'image' : 'file') : 'text'
     })
-    .select('id')
+    .select('id, content, created_at, sender_id, type, profiles(display_name, avatar_key)')
     .single()
 
   if (error || !message) {
@@ -70,19 +70,25 @@ export async function sendMessage(
     return { error: `Không thể gửi tin nhắn: ${error?.message || 'Lỗi hệ thống'}` }
   }
 
+  // Build a full message object the client can render directly (no RLS re-read).
+  const fullMessage: Record<string, unknown> = { ...message, message_attachments: [], message_reactions: [] }
+
   // 2. Insert attachment nếu có
   if (attachment) {
-    const { error: attachError } = await supabase
+    const { data: attachRow, error: attachError } = await serviceClient
       .from('message_attachments')
       .insert({
-        message_id: message.id,
+        message_id: (message as { id: string }).id,
         object_key: attachment.objectKey,
         file_name: attachment.fileName,
         mime_type: attachment.mimeType,
         size_bytes: attachment.sizeBytes
       })
-      
+      .select('*')
+      .single()
+
     if (attachError) console.error('Error saving attachment:', attachError)
+    if (attachRow) fullMessage.message_attachments = [attachRow]
   }
 
   // 3. Xử lý Mention (Notifications)
@@ -118,5 +124,5 @@ export async function sendMessage(
     }
   }
 
-  return { success: true, messageId: message.id }
+  return { success: true, message: fullMessage }
 }

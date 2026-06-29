@@ -22,7 +22,7 @@ export function MessageInput({
   channelName: string,
   channelType: string,
   workspaceId: string,
-  onSent?: (messageId: string) => void
+  onSent?: (message: any) => void
 }) {
   const [content, setContent] = useState('')
   const [isSending, setIsSending] = useState(false)
@@ -176,7 +176,7 @@ export function MessageInput({
       
       const res = await sendMessage(channelId, workspaceId, currentContent, attachmentData)
       if (res?.error) throw new Error(res.error)
-      if (res?.messageId) onSent?.(res.messageId)
+      if (res?.message) onSent?.(res.message)
 
     } catch (err: unknown) {
       alert((err as Error).message || 'Có lỗi xảy ra khi gửi tin nhắn')

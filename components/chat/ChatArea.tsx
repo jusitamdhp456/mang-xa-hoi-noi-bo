@@ -110,15 +110,22 @@ export function ChatArea({
     })
   }, [currentUserId, refreshReactions])
 
-  // After a message is sent: show it locally and notify other clients.
-  const handleSent = useCallback(async (messageId: string) => {
-    await appendMessageById(messageId)
+  // Append a full message object if not already present.
+  const appendMessage = useCallback((msg: MessageRow) => {
+    if (!msg?.id) return
+    setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]))
+  }, [])
+
+  // After a message is sent: show it locally and notify other clients with the
+  // full payload so they render it directly (no RLS re-read needed).
+  const handleSent = useCallback((message: MessageRow) => {
+    appendMessage(message)
     channelRef.current?.send({
       type: 'broadcast',
       event: 'new_message',
-      payload: { messageId },
+      payload: { message },
     })
-  }, [appendMessageById])
+  }, [appendMessage])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -148,8 +155,8 @@ export function ChatArea({
         'broadcast',
         { event: 'new_message' },
         (payload) => {
-          const messageId = payload?.payload?.messageId
-          if (messageId) appendMessageById(messageId)
+          const msg = payload?.payload?.message as MessageRow | undefined
+          if (msg) appendMessage(msg)
         }
       )
       .on(
@@ -168,7 +175,7 @@ export function ChatArea({
       channelRef.current = null
       supabase.removeChannel(channel)
     }
-  }, [channelId, supabase, refreshReactions, appendMessageById])
+  }, [channelId, supabase, refreshReactions, appendMessageById, appendMessage])
 
   return (
     <>
