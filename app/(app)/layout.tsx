@@ -38,9 +38,9 @@ export default async function AppLayout({
 
   return (
     // Xoá bg-gray-100 vì globals.css đã lo phần nền Gradient
-    <div className="flex h-screen overflow-hidden p-2 sm:p-4 gap-2">
+    <div className="layout-container flex h-screen overflow-hidden p-2 sm:p-4 gap-2">
       {/* Sidebar Server - Glassmorphism (Dark) */}
-      <div className="w-[72px] bg-black/20 backdrop-blur-xl border border-white/10 shadow-lg rounded-3xl flex-shrink-0 flex flex-col items-center py-4 gap-3 overflow-y-auto hide-scrollbar z-10">
+      <div className="sidebar-server w-[72px] bg-black/20 backdrop-blur-xl border border-white/10 shadow-lg rounded-3xl flex-shrink-0 flex flex-col items-center py-4 gap-3 overflow-y-auto hide-scrollbar z-10 transition-all duration-200">
          {/* Home button (Direct Messages) */}
          <Link href="/channels/me" className="flex-shrink-0">
            <div 
@@ -58,10 +58,10 @@ export default async function AppLayout({
              </svg>
            </div>
          </Link>
-
+ 
          {/* Separator */}
          <div className="w-8 h-[2px] bg-white/20 flex-shrink-0 rounded-full"></div>
-
+ 
          {userWorkspaces.map((item, index) => {
            let ws = item.workspaces;
            if (Array.isArray(ws)) ws = ws[0];
@@ -91,7 +91,7 @@ export default async function AppLayout({
       </div>
       
       {/* Main Content (Dark) */}
-      <div className="flex-1 flex overflow-hidden rounded-3xl shadow-xl bg-black/20 backdrop-blur-xl border border-white/10 z-10 text-white">
+      <div className="main-content-wrapper flex-1 flex overflow-hidden rounded-3xl shadow-xl bg-black/20 backdrop-blur-xl border border-white/10 z-10 text-white">
         <VoiceSettingsProvider>
           {children}
         </VoiceSettingsProvider>

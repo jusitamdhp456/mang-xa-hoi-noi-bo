@@ -226,6 +226,23 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
   const [toasts, setToasts] = useState<Array<{ id: string, title: string, content: string, avatar: string | null, threadId: string }>>([]);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [incomingCallInvite, setIncomingCallInvite] = useState<any | null>(null);
+  const [mobileShowSidebar, setMobileShowSidebar] = useState(true);
+
+  // Toggle chat-active class on html node based on sidebar visibility
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (!mobileShowSidebar) {
+        document.documentElement.classList.add('chat-active');
+      } else {
+        document.documentElement.classList.remove('chat-active');
+      }
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        document.documentElement.classList.remove('chat-active');
+      }
+    };
+  }, [mobileShowSidebar]);
 
   // Load saved unread counts on mount
   useEffect(() => {
@@ -345,8 +362,14 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
 
     if (savedView) setActiveView(savedView as ViewType);
     if (savedTab) setActiveTab(savedTab as TabType);
-    if (savedChatId) setSelectedChatId(savedChatId);
-    if (savedVoiceRoomId) setActiveVoiceRoomId(savedVoiceRoomId);
+    if (savedChatId) {
+      setSelectedChatId(savedChatId);
+      setMobileShowSidebar(false);
+    }
+    if (savedVoiceRoomId) {
+      setActiveVoiceRoomId(savedVoiceRoomId);
+      setMobileShowSidebar(false);
+    }
   }, []);
 
   // Save navigation state on change
@@ -695,7 +718,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
     <div className="flex-1 flex h-full overflow-hidden bg-transparent">
       
       {/* COLUMN 1: SUB-SIDEBAR (Discord Settings & DM list) */}
-      <div className="w-60 bg-black/30 backdrop-blur-xl border-r border-white/10 flex-shrink-0 flex flex-col h-full text-white z-10 transition-all select-none">
+      <div className={`w-full md:w-60 bg-black/30 backdrop-blur-xl border-r border-white/10 flex-shrink-0 flex flex-col h-full text-white z-10 transition-all select-none ${mobileShowSidebar ? 'flex' : 'hidden md:flex'}`}>
         
         <div className="p-4 border-b border-white/10 flex items-center justify-between shrink-0 hover:bg-white/5 cursor-pointer transition-colors group">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -741,6 +764,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
               setActiveView('profile');
               setSelectedChatId(null);
               setActiveVoiceRoomId(null);
+              setMobileShowSidebar(false);
             }}
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-bold transition-all text-left ${activeView === 'profile' ? 'bg-white/15 text-white shadow-sm' : 'hover:bg-white/5 text-zinc-400 hover:text-zinc-200'}`}
           >
@@ -753,6 +777,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
               setActiveView('friends');
               setSelectedChatId(null);
               setActiveVoiceRoomId(null);
+              setMobileShowSidebar(false);
             }}
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-bold transition-all text-left ${activeView === 'friends' ? 'bg-white/15 text-white shadow-sm' : 'hover:bg-white/5 text-zinc-400 hover:text-zinc-200'}`}
           >
@@ -780,6 +805,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                     setSelectedChatId(null);
                     setActiveVoiceRoomId(room.id);
                     setActiveView('voice');
+                    setMobileShowSidebar(false);
                   }}
                   className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-bold transition-all text-left ${activeView === 'voice' && activeVoiceRoomId === room.id ? 'bg-white/15 text-white shadow-sm' : 'hover:bg-white/5 text-zinc-400 hover:text-zinc-200'}`}
                 >
@@ -811,6 +837,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                     setSelectedChatId(p.threadId);
                     setActiveVoiceRoomId(null);
                     setActiveView('chat');
+                    setMobileShowSidebar(false);
                   }}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold transition-all text-left ${activeView === 'chat' && isSelected ? 'bg-white/15 text-white shadow-sm' : 'hover:bg-white/5 text-zinc-400 hover:text-zinc-200'}`}
                 >
@@ -849,12 +876,22 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
       </div>
 
       {/* COLUMN 2: MAIN PANEL */}
-      <div className="flex-1 flex flex-col h-full bg-[#313338]/15 animate-scale-in overflow-hidden relative">
+      <div className={`flex-1 flex flex-col h-full bg-[#313338]/15 animate-scale-in overflow-hidden relative ${!mobileShowSidebar ? 'flex' : 'hidden md:flex'}`}>
         
         {/* VIEW 1: USER ACCOUNT SETTINGS */}
         {activeView === 'profile' && (
           <div className="flex-1 flex flex-col overflow-y-auto bg-zinc-900/40 p-6 md:p-8 scrollbar-thin scrollbar-thumb-white/10 select-none">
             <div className="max-w-3xl space-y-6">
+              {/* Mobile Back Button */}
+              <div className="flex items-center gap-3 md:hidden mb-4">
+                <button 
+                  onClick={() => setMobileShowSidebar(true)}
+                  className="p-2 bg-white/5 rounded-xl hover:bg-white/10 text-white cursor-pointer flex items-center justify-center"
+                >
+                  <ChevronRight className="rotate-180" size={16} />
+                </button>
+                <span className="text-zinc-400 text-xs font-bold">Quay lại danh sách</span>
+              </div>
               
               <div>
                 <h2 className="text-xl md:text-2xl font-black text-white tracking-tight">Thông Tin Tài Khoản</h2>
@@ -1000,14 +1037,20 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
         {activeView === 'friends' && (
           <div className="flex-1 flex flex-col h-full overflow-hidden select-none">
             
-            <div className="h-16 border-b border-white/10 flex items-center px-6 justify-between flex-shrink-0 bg-white/5 backdrop-blur-md">
-              <div className="flex items-center gap-3">
+            <div className="h-16 border-b border-white/10 flex items-center px-4 sm:px-6 justify-between flex-shrink-0 bg-white/5 backdrop-blur-md">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <button 
+                  onClick={() => setMobileShowSidebar(true)}
+                  className="md:hidden p-2 bg-white/5 rounded-xl hover:bg-white/10 text-white cursor-pointer mr-1 flex items-center justify-center"
+                >
+                  <ChevronRight className="rotate-180" size={16} />
+                </button>
                 <div className="flex items-center gap-2 border-r border-white/15 pr-4 text-white">
                   <Users size={20} className="text-zinc-400" />
                   <span className="font-extrabold text-sm tracking-tight">Bạn bè</span>
                 </div>
                 
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 overflow-x-auto hide-scrollbar shrink-0 max-w-[calc(100vw-150px)] sm:max-w-none">
                   <button 
                     onClick={() => setActiveTab('online')}
                     className={`px-3 py-1.5 rounded font-bold text-xs transition-all cursor-pointer ${activeTab === 'online' ? 'bg-white/10 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}`}
@@ -1428,8 +1471,14 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
             ) : (
               /* Normal text chat interface */
               <>
-                <div className="h-16 border-b border-white/10 flex items-center px-6 justify-between flex-shrink-0 bg-white/5 backdrop-blur-md">
-                  <div className="flex items-center gap-3">
+                <div className="h-16 border-b border-white/10 flex items-center px-4 sm:px-6 justify-between flex-shrink-0 bg-white/5 backdrop-blur-md">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <button 
+                      onClick={() => setMobileShowSidebar(true)}
+                      className="md:hidden p-2 bg-white/5 rounded-xl hover:bg-white/10 text-white cursor-pointer mr-1 flex items-center justify-center"
+                    >
+                      <ChevronRight className="rotate-180" size={16} />
+                    </button>
                     <div className="relative">
                       {activeChatPartner?.avatar_key ? (
                         <img src={`https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${activeChatPartner.avatar_key}`} alt="avatar" className="w-8 h-8 rounded-full object-cover" />
@@ -1533,8 +1582,14 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
         {/* VIEW 4: GROUP VOICE ROOM */}
         {activeView === 'voice' && activeVoiceRoomId && (
           <div className="flex-1 flex flex-col h-full bg-transparent overflow-hidden">
-            <div className="h-16 border-b border-white/10 flex items-center px-6 justify-between flex-shrink-0 bg-white/5 backdrop-blur-md">
-              <div className="flex items-center gap-3">
+            <div className="h-16 border-b border-white/10 flex items-center px-4 sm:px-6 justify-between flex-shrink-0 bg-white/5 backdrop-blur-md">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <button 
+                  onClick={() => setMobileShowSidebar(true)}
+                  className="md:hidden p-2 bg-white/5 rounded-xl hover:bg-white/10 text-white cursor-pointer mr-1 flex items-center justify-center"
+                >
+                  <ChevronRight className="rotate-180" size={16} />
+                </button>
                 <span className="text-cyan-400 text-2xl">🔊</span>
                 <div>
                   <h4 className="text-white font-bold text-sm leading-none">

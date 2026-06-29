@@ -112,3 +112,18 @@ body::before {
   90% { opacity: 1; }
   100% { transform: translateY(118px); opacity: 0; }
 }
+
+/* Responsive mobile view tweaks when active chat/profile is open */
+@media (max-width: 767px) {
+  html.chat-active .sidebar-server {
+    display: none !important;
+  }
+  html.chat-active .layout-container {
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+  html.chat-active .main-content-wrapper {
+    border-radius: 0 !important;
+    border: none !important;
+  }
+}
