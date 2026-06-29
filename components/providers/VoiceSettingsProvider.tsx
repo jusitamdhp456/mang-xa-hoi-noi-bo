@@ -98,6 +98,14 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
 
   const supabase = createSupabaseBrowserClient();
 
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const channelRef = useRef<any>(null);
+  const activeChannelIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    activeChannelIdRef.current = activeChannelId;
+  }, [activeChannelId]);
+
   // Load basic audio settings from localStorage
   useEffect(() => {
     const savedMuted = localStorage.getItem('voice_muted');
@@ -133,10 +141,12 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
     });
   }, [supabase]);
 
-  // Subscribe to Workspace Presence Channel
+  // Subscribe to Workspace Presence Channel (Only once per workspace/user/profile)
   useEffect(() => {
     if (!workspaceId || !user) {
       setActiveParticipants([]);
+      setIsSubscribed(false);
+      channelRef.current = null;
       return;
     }
 
@@ -147,6 +157,8 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
         },
       },
     });
+
+    channelRef.current = channel;
 
     const onSync = () => {
       const state = channel.presenceState();
@@ -170,12 +182,13 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
     };
 
     const onJoin = (payload: any) => {
-      if (!activeChannelId) return;
+      const currentActiveId = activeChannelIdRef.current;
+      if (!currentActiveId) return;
       const { newPresences } = payload;
       if (!newPresences) return;
 
       const someoneElseJoined = Object.values(newPresences).some((presenceList: any) => 
-        presenceList.some((p: any) => p.user_id !== user.id && p.voice_channel_id === activeChannelId)
+        presenceList.some((p: any) => p.user_id !== user.id && p.voice_channel_id === currentActiveId)
       );
 
       if (someoneElseJoined) {
@@ -184,12 +197,13 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
     };
 
     const onLeave = (payload: any) => {
-      if (!activeChannelId) return;
+      const currentActiveId = activeChannelIdRef.current;
+      if (!currentActiveId) return;
       const { leftPresences } = payload;
       if (!leftPresences) return;
 
       const someoneElseLeft = Object.values(leftPresences).some((presenceList: any) => 
-        presenceList.some((p: any) => p.user_id !== user.id && p.voice_channel_id === activeChannelId)
+        presenceList.some((p: any) => p.user_id !== user.id && p.voice_channel_id === currentActiveId)
       );
 
       if (someoneElseLeft) {
@@ -212,21 +226,34 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
       .on('broadcast', { event: 'change_nickname' }, onNicknameChange)
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          // Track current user voice connection presence state
-          await channel.track({
-            user_id: user.id,
-            display_name: profile?.display_name || user.email?.split('@')[0] || 'User',
-            avatar_key: profile?.avatar_key || null,
-            voice_channel_id: activeChannelId,
-            custom_name: customName || null,
-          });
+          setIsSubscribed(true);
+        } else {
+          setIsSubscribed(false);
         }
       });
 
     return () => {
+      setIsSubscribed(false);
       channel.unsubscribe();
+      channelRef.current = null;
     };
-  }, [workspaceId, activeChannelId, customName, user, profile, supabase]);
+  }, [workspaceId, user, profile, supabase]);
+
+  // Dynamically track user presence state on channel when activeChannelId or profile details update
+  useEffect(() => {
+    const channel = channelRef.current;
+    if (channel && isSubscribed && user) {
+      channel.track({
+        user_id: user.id,
+        display_name: profile?.display_name || user.email?.split('@')[0] || 'User',
+        avatar_key: profile?.avatar_key || null,
+        voice_channel_id: activeChannelId,
+        custom_name: customName || null,
+      }).catch((err: any) => {
+        console.error("Presence track error:", err);
+      });
+    }
+  }, [activeChannelId, customName, user, profile, isSubscribed]);
 
   const toggleMute = () => {
     setIsMuted(prev => !prev);
