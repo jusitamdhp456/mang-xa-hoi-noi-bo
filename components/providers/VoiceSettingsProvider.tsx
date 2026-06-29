@@ -125,18 +125,14 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
 
   const supabase = createSupabaseBrowserClient();
 
-  const [activeVoiceWorkspaceId, setActiveVoiceWorkspaceId] = useState<string | null>(null);
+  // Refs let the long-lived realtime handlers read the latest values
+  // without forcing the presence channel to re-subscribe.
+  const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const activeChannelIdRef = useRef<string | null>(null);
 
-  // Sync active voice workspace ID
   useEffect(() => {
-    if (activeChannelId) {
-      if (workspaceId && !activeVoiceWorkspaceId) {
-        setActiveVoiceWorkspaceId(workspaceId);
-      }
-    } else {
-      setActiveVoiceWorkspaceId(null);
-    }
-  }, [activeChannelId, workspaceId, activeVoiceWorkspaceId]);
+    activeChannelIdRef.current = activeChannelId;
+  }, [activeChannelId]);
 
   // Load basic audio settings from localStorage
   useEffect(() => {
@@ -173,20 +169,30 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
     });
   }, [supabase]);
 
-  // 1. Subscribe to currently browsed Workspace Presence Channel to show participant list in sidebar
+  // Single presence channel per workspace (spec: workspace:{id}:presence).
+  // ALL presence/broadcast handlers must be registered BEFORE subscribe();
+  // calling .on('presence', ...) on an already-subscribed channel throws.
   useEffect(() => {
     if (!workspaceId || !user) {
       setActiveParticipants([]);
+      presenceChannelRef.current = null;
       return;
     }
 
-    const channel = supabase.channel(`workspace_presence:${workspaceId}`);
+    const channel = supabase.channel(`workspace_presence:${workspaceId}`, {
+      config: {
+        presence: {
+          key: user.id,
+        },
+      },
+    });
+    presenceChannelRef.current = channel;
 
     const onSync = () => {
       const state = channel.presenceState();
       const participantsList: Participant[] = [];
       const seenUserIds = new Set<string>(); // Deduplicate users!
-      
+
       Object.keys(state).forEach((key) => {
         const presenceList = state[key] as any[];
         presenceList.forEach((presence) => {
@@ -207,6 +213,26 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
       setActiveParticipants(participantsList);
     };
 
+    // Audio chimes when someone else joins/leaves the voice channel we are in.
+    // Read the live channel id from a ref so this handler never goes stale.
+    const onJoin = (payload: any) => {
+      const { newPresences } = payload;
+      if (!newPresences) return;
+      const someoneElseJoined = Object.values(newPresences).some((presenceList: any) =>
+        presenceList.some((p: any) => p && p.user_id && p.user_id !== user.id && p.voice_channel_id === activeChannelIdRef.current)
+      );
+      if (someoneElseJoined) playVoiceTone('join');
+    };
+
+    const onLeave = (payload: any) => {
+      const { leftPresences } = payload;
+      if (!leftPresences) return;
+      const someoneElseLeft = Object.values(leftPresences).some((presenceList: any) =>
+        presenceList.some((p: any) => p && p.user_id && p.user_id !== user.id && p.voice_channel_id === activeChannelIdRef.current)
+      );
+      if (someoneElseLeft) playVoiceTone('leave');
+    };
+
     // Listen for broadcasted nickname updates from other users (e.g. workspace owner)
     const onNicknameChange = (payload: any) => {
       const { target_user_id, new_name } = payload.payload || {};
@@ -217,75 +243,53 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
 
     channel
       .on('presence', { event: 'sync' }, onSync)
-      .on('broadcast', { event: 'change_nickname' }, onNicknameChange)
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [workspaceId, user, supabase]);
-
-  // 2. Voice Presence Tracking and audio chimes trigger (Always active in background for the call workspace)
-  useEffect(() => {
-    if (!activeVoiceWorkspaceId || !activeChannelId || !user) return;
-
-    const voiceChannel = supabase.channel(`workspace_presence:${activeVoiceWorkspaceId}`, {
-      config: {
-        presence: {
-          key: user.id,
-        },
-      },
-    });
-
-    const onJoin = (payload: any) => {
-      const { newPresences } = payload;
-      if (!newPresences) return;
-
-      const someoneElseJoined = Object.values(newPresences).some((presenceList: any) => 
-        presenceList.some((p: any) => p && p.user_id && p.user_id !== user.id && p.voice_channel_id === activeChannelId)
-      );
-
-      if (someoneElseJoined) {
-        playVoiceTone('join');
-      }
-    };
-
-    const onLeave = (payload: any) => {
-      const { leftPresences } = payload;
-      if (!leftPresences) return;
-
-      const someoneElseLeft = Object.values(leftPresences).some((presenceList: any) => 
-        presenceList.some((p: any) => p && p.user_id && p.user_id !== user.id && p.voice_channel_id === activeChannelId)
-      );
-
-      if (someoneElseLeft) {
-        playVoiceTone('leave');
-      }
-    };
-
-    voiceChannel
       .on('presence', { event: 'join' }, onJoin)
       .on('presence', { event: 'leave' }, onLeave)
+      .on('broadcast', { event: 'change_nickname' }, onNicknameChange)
       .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await voiceChannel.track({
+        if (status === 'SUBSCRIBED' && activeChannelIdRef.current) {
+          await channel.track({
             user_id: user.id,
             display_name: profile?.display_name || user.email?.split('@')[0] || 'User',
             avatar_key: profile?.avatar_key || null,
-            voice_channel_id: activeChannelId,
+            voice_channel_id: activeChannelIdRef.current,
             custom_name: customName || null,
             is_muted: isMuted,
             is_deafened: isDeafened,
           }).catch((err: any) => {
-            console.error("Voice track error:", err);
+            console.error('Voice track error:', err);
           });
         }
       });
 
     return () => {
-      supabase.removeChannel(voiceChannel);
+      presenceChannelRef.current = null;
+      supabase.removeChannel(channel);
     };
-  }, [activeVoiceWorkspaceId, activeChannelId, user, profile, customName, isMuted, isDeafened, supabase]);
+  }, [workspaceId, user, profile, supabase]);
+
+  // Update our own presence payload whenever voice state changes.
+  // track()/untrack() are valid AFTER subscribe(), so reuse the existing channel.
+  useEffect(() => {
+    const channel = presenceChannelRef.current;
+    if (!channel || !user) return;
+
+    if (activeChannelId) {
+      channel.track({
+        user_id: user.id,
+        display_name: profile?.display_name || user.email?.split('@')[0] || 'User',
+        avatar_key: profile?.avatar_key || null,
+        voice_channel_id: activeChannelId,
+        custom_name: customName || null,
+        is_muted: isMuted,
+        is_deafened: isDeafened,
+      }).catch((err: any) => {
+        console.error('Voice track update error:', err);
+      });
+    } else {
+      channel.untrack().catch(() => {});
+    }
+  }, [activeChannelId, customName, isMuted, isDeafened, profile, user]);
 
   const toggleMute = () => {
     setIsMuted(prev => !prev);
