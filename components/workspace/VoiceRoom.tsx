@@ -6,26 +6,42 @@ import {
   VideoConference,
   RoomAudioRenderer,
 } from '@livekit/components-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useVoiceSettings } from '@/components/providers/VoiceSettingsProvider';
 import { Edit3, Check, X } from 'lucide-react';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
 export function VoiceRoom({ 
   channelId, 
   workspaceId = null, 
   username, 
-  video = false 
+  video = false,
+  partnerId = '',
+  userId = ''
 }: { 
   channelId: string; 
   workspaceId?: string | null; 
   username: string; 
-  video?: boolean 
+  video?: boolean;
+  partnerId?: string;
+  userId?: string;
 }) {
   const [token, setToken] = useState('');
   const [disconnected, setDisconnected] = useState(false);
   const [error, setError] = useState('');
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempName, setTempName] = useState('');
+
+  // P2P WebRTC Fallback States
+  const [useP2P, setUseP2P] = useState(false);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const [p2pMuted, setP2PMuted] = useState(false);
+  const [p2pVideoOff, setP2PVideoOff] = useState(false);
+
+  const localVideoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const { 
     isMuted, 
@@ -46,9 +62,9 @@ export function VoiceRoom({
     };
   }, [channelId, workspaceId, setActiveChannelId, setWorkspaceId]);
 
-  // Fetch LiveKit Token
+  // Fetch LiveKit Token - switch to P2P fallback on failure or missing keys
   useEffect(() => {
-    if (disconnected) return;
+    if (disconnected || useP2P) return;
 
     (async () => {
       try {
@@ -61,20 +77,180 @@ export function VoiceRoom({
         if (data.token) {
           setToken(data.token);
         } else {
-          setError(data.error || 'Không thể lấy mã thông báo phòng thoại.');
+          // If LiveKit API keys are missing on server, fall back to P2P calling!
+          if (data.error && data.error.includes('Missing LiveKit API keys')) {
+            console.log('LiveKit keys are missing. Switching to P2P WebRTC Fallback...');
+            setUseP2P(true);
+          } else {
+            setError(data.error || 'Không thể lấy mã thông báo phòng thoại.');
+          }
         }
       } catch (e) {
         console.error('Lỗi khi fetch token:', e);
-        setError('Có lỗi xảy ra khi thiết lập kết nối phòng thoại.');
+        // Fall back to P2P calling as a general failure fallback
+        setUseP2P(true);
       }
     })();
-  }, [channelId, username, customName, disconnected]);
+  }, [channelId, username, customName, disconnected, useP2P]);
+
+  // P2P WebRTC connection setup
+  useEffect(() => {
+    if (!useP2P || !userId || !partnerId) return;
+
+    const supabase = createSupabaseBrowserClient();
+    const signalChannel = supabase.channel(`call-sig-${channelId}`);
+
+    let localMediaStream: MediaStream | null = null;
+    let peerConnection: RTCPeerConnection | null = null;
+
+    const startP2P = async () => {
+      try {
+        setError('');
+        // Request microphone and camera (if video is enabled)
+        localMediaStream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: video ? { width: 640, height: 480 } : false
+        });
+        setLocalStream(localMediaStream);
+
+        // Initialize Peer Connection with Google Stun Servers
+        peerConnection = new RTCPeerConnection({
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' }
+          ]
+        });
+
+        // Add local tracks to peer connection
+        localMediaStream.getTracks().forEach(track => {
+          peerConnection!.addTrack(track, localMediaStream!);
+        });
+
+        // Receive remote tracks
+        peerConnection.ontrack = (event) => {
+          if (event.streams && event.streams[0]) {
+            setRemoteStream(event.streams[0]);
+          }
+        };
+
+        // Gather ICE Candidates and broadcast to peer
+        peerConnection.onicecandidate = (event) => {
+          if (event.candidate) {
+            signalChannel.send({
+              type: 'broadcast',
+              event: 'ice-candidate',
+              payload: { candidate: event.candidate, senderId: userId }
+            });
+          }
+        };
+
+        // Listen for signaling broadcasts
+        signalChannel
+          .on('broadcast', { event: 'sdp-offer' }, async (payload) => {
+            if (payload.payload.senderId === userId || !peerConnection) return;
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.payload.offer));
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            
+            signalChannel.send({
+              type: 'broadcast',
+              event: 'sdp-answer',
+              payload: { answer, senderId: userId }
+            });
+          })
+          .on('broadcast', { event: 'sdp-answer' }, async (payload) => {
+            if (payload.payload.senderId === userId || !peerConnection) return;
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.payload.answer));
+          })
+          .on('broadcast', { event: 'ice-candidate' }, async (payload) => {
+            if (payload.payload.senderId === userId || !peerConnection) return;
+            if (payload.payload.candidate) {
+              try {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(payload.payload.candidate));
+              } catch (e) {
+                console.warn('Error adding ICE candidate:', e);
+              }
+            }
+          })
+          .subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+              // Tie breaker: Alphabetically smaller UUID initiates the connection offer
+              const isOfferCreator = userId < partnerId;
+              if (isOfferCreator) {
+                setTimeout(async () => {
+                  if (!peerConnection) return;
+                  const offer = await peerConnection.createOffer();
+                  await peerConnection.setLocalDescription(offer);
+                  signalChannel.send({
+                    type: 'broadcast',
+                    event: 'sdp-offer',
+                    payload: { offer, senderId: userId }
+                  });
+                }, 1000);
+              }
+            }
+          });
+
+      } catch (err) {
+        console.error('Failed to get media devices / WebRTC:', err);
+        setError('Không thể truy cập Microphone hoặc Camera của bạn. Vui lòng cấp quyền truy cập thiết bị.');
+      }
+    };
+
+    startP2P();
+
+    return () => {
+      if (localMediaStream) {
+        localMediaStream.getTracks().forEach(track => track.stop());
+      }
+      if (peerConnection) {
+        peerConnection.close();
+      }
+      supabase.removeChannel(signalChannel);
+    };
+  }, [useP2P, channelId, video, userId, partnerId]);
+
+  // Bind local/remote source objects to visual video/audio tags
+  useEffect(() => {
+    if (localVideoRef.current && localStream) {
+      localVideoRef.current.srcObject = localStream;
+    }
+  }, [localStream]);
+
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+    if (remoteAudioRef.current && remoteStream) {
+      remoteAudioRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
+
+  const toggleMute = () => {
+    if (localStream) {
+      const audioTrack = localStream.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        setP2PMuted(!audioTrack.enabled);
+      }
+    }
+  };
+
+  const toggleVideo = () => {
+    if (localStream) {
+      const videoTrack = localStream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled;
+        setP2PVideoOff(!videoTrack.enabled);
+      }
+    }
+  };
 
   const handleSaveName = () => {
     const trimmed = tempName.trim();
     if (trimmed) {
       setCustomName(trimmed);
-      // Re-trigger token fetch with new username
       setToken(''); 
     } else {
       setCustomName(null);
@@ -89,12 +265,13 @@ export function VoiceRoom({
         <div className="w-20 h-20 bg-zinc-800 rounded-full flex items-center justify-center text-4xl mb-6 shadow-lg border border-white/5">
           👋
         </div>
-        <h2 className="text-xl font-bold mb-2 text-white">Bạn đã rời phòng</h2>
-        <p className="text-zinc-400 text-sm mb-8">Bạn đã ngắt kết nối khỏi kênh thoại này.</p>
+        <h2 className="text-xl font-bold mb-2 text-white">Bạn đã rời cuộc gọi</h2>
+        <p className="text-zinc-400 text-sm mb-8">Bạn đã ngắt kết nối.</p>
         <button 
           onClick={() => {
             setToken('');
             setDisconnected(false);
+            setUseP2P(false);
           }}
           className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-sm font-bold text-white rounded-xl transition-colors cursor-pointer"
         >
@@ -140,11 +317,75 @@ export function VoiceRoom({
             setError('');
             setDisconnected(false);
             setToken('');
+            setUseP2P(false);
           }}
           className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-xs font-bold text-white rounded-lg transition-colors cursor-pointer shrink-0"
         >
           Thử kết nối lại
         </button>
+      </div>
+    );
+  }
+
+  if (useP2P) {
+    return (
+      <div className="flex-1 w-full h-full relative bg-zinc-950 flex flex-col justify-between p-4 overflow-hidden rounded-xl select-none">
+        {/* WebRTC Video/Audio Render Frame */}
+        <div className="flex-1 w-full h-full flex items-center justify-center relative rounded-xl overflow-hidden bg-zinc-900 border border-white/5">
+          {video ? (
+            remoteStream ? (
+              <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
+            ) : (
+              <div className="flex flex-col items-center gap-2 text-zinc-500">
+                <div className="w-8 h-8 border-4 border-zinc-800 border-t-indigo-500 rounded-full animate-spin"></div>
+                <p className="text-xs">Đang kết nối camera đối phương...</p>
+              </div>
+            )
+          ) : (
+            <div className="flex flex-col items-center justify-center p-8 select-none text-center">
+              <div className="w-20 h-20 rounded-full bg-indigo-600/10 text-indigo-400 flex items-center justify-center border border-indigo-500/20 text-4xl mb-4 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400/10 opacity-75"></span>
+                🎙️
+              </div>
+              <h4 className="font-extrabold text-sm text-white">Đang gọi thoại</h4>
+              <p className="text-[10px] text-emerald-400 font-black uppercase tracking-wider mt-1.5 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                Kết nối thiết bị trực tiếp (P2P WebRTC)
+              </p>
+              <audio ref={remoteAudioRef} autoPlay playsInline />
+            </div>
+          )}
+
+          {/* Local Camera PIP Overlay */}
+          {video && localStream && !p2pVideoOff && (
+            <video 
+              ref={localVideoRef} 
+              autoPlay 
+              playsInline 
+              muted 
+              className="w-32 h-24 object-cover rounded-lg border border-white/20 absolute top-4 right-4 z-10 bg-zinc-950 shadow-2xl" 
+            />
+          )}
+        </div>
+
+        {/* Action Toggle controls */}
+        <div className="mt-4 flex items-center justify-center gap-3 shrink-0">
+          <button
+            onClick={toggleMute}
+            className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer border ${p2pMuted ? 'bg-red-600 border-red-600 text-white' : 'bg-zinc-800 border-white/5 text-zinc-300 hover:bg-zinc-700'}`}
+          >
+            {p2pMuted ? 'Bỏ tắt Mic 🎙️' : 'Tắt tiếng 🎙️'}
+          </button>
+
+          {video && (
+            <button
+              onClick={toggleVideo}
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer border ${p2pVideoOff ? 'bg-red-600 border-red-600 text-white' : 'bg-zinc-800 border-white/5 text-zinc-300 hover:bg-zinc-700'}`}
+            >
+              {p2pVideoOff ? 'Bật Camera 📷' : 'Tắt Camera 📷'}
+            </button>
+          )}
+        </div>
       </div>
     );
   }
@@ -207,7 +448,7 @@ export function VoiceRoom({
                 setTempName(customName || username);
                 setIsEditingName(true);
               }}
-              className="px-3 py-1.5 bg-indigo-600/80 hover:bg-indigo-600 transition-colors text-xs font-bold text-white rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm"
+              className="px-3 py-1.5 bg-indigo-650 hover:bg-indigo-600 transition-colors text-xs font-bold text-white rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm"
             >
               <Edit3 size={12} />
               Đổi biệt danh

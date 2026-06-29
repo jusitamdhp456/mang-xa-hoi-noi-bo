@@ -110,6 +110,43 @@ const playReceiveSound = () => {
   }
 };
 
+let ringtoneInterval: any = null;
+
+const playIncomingCallRingtone = () => {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const playRing = () => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(480, ctx.currentTime);
+      osc.frequency.setValueAtTime(440, ctx.currentTime + 0.15);
+      
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.005, ctx.currentTime + 1.2);
+      
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 1.2);
+    };
+
+    playRing();
+    if (ringtoneInterval) clearInterval(ringtoneInterval);
+    ringtoneInterval = setInterval(playRing, 2000);
+  } catch (e) {
+    console.warn('Ringtone failed:', e);
+  }
+};
+
+const stopCallSounds = () => {
+  if (ringtoneInterval) {
+    clearInterval(ringtoneInterval);
+    ringtoneInterval = null;
+  }
+};
+
 export default function FriendsClientPage({ user, profile, otherProfiles }: FriendsClientPageProps) {
   const [activeView, setActiveView] = useState<ViewType>('profile');
   const [activeTab, setActiveTab] = useState<TabType>('online');
@@ -145,6 +182,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
   const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
   const [toasts, setToasts] = useState<Array<{ id: string, title: string, content: string, avatar: string | null, threadId: string }>>([]);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [incomingCallInvite, setIncomingCallInvite] = useState<any | null>(null);
 
   // Load saved unread counts on mount
   useEffect(() => {
@@ -166,6 +204,73 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
       });
     }
   }, [selectedChatId]);
+
+  const handleAnswerCall = () => {
+    if (!incomingCallInvite) return;
+    
+    stopCallSounds();
+    const info = incomingCallInvite;
+    setIncomingCallInvite(null);
+
+    setCallType(info.callType);
+    setSelectedChatId(info.threadId);
+    setActiveVoiceRoomId(null);
+    setActiveView('chat');
+    setIsCalling(true);
+  };
+
+  const handleDeclineCall = () => {
+    if (!incomingCallInvite) return;
+    
+    stopCallSounds();
+    const info = incomingCallInvite;
+    setIncomingCallInvite(null);
+
+    const supabase = createSupabaseBrowserClient();
+    supabase.channel(`room-dm-${info.threadId}`).send({
+      type: 'broadcast',
+      event: 'call_declined',
+      payload: {
+        receiverId: info.senderId
+      }
+    });
+  };
+
+  const handleHangUp = () => {
+    setIsCalling(false);
+    stopCallSounds();
+    
+    if (activeChatPartner) {
+      const supabase = createSupabaseBrowserClient();
+      supabase.channel(`room-dm-${selectedChatId}`).send({
+        type: 'broadcast',
+        event: 'call_declined',
+        payload: {
+          receiverId: activeChatPartner.id
+        }
+      });
+    }
+  };
+
+  const initiateCall = (type: 'voice' | 'video') => {
+    setCallType(type);
+    setIsCalling(true);
+    
+    if (activeChatPartner) {
+      const supabase = createSupabaseBrowserClient();
+      supabase.channel(`room-dm-${selectedChatId}`).send({
+        type: 'broadcast',
+        event: 'incoming_call_invite',
+        payload: {
+          threadId: selectedChatId,
+          callType: type,
+          senderName: displayName,
+          senderId: user.id,
+          senderAvatar: profile?.avatar_key || null
+        }
+      });
+    }
+  };
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const isMounted = useRef(false);
@@ -323,6 +428,19 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                 return updated;
               });
             }
+          }
+        })
+        .on('broadcast', { event: 'incoming_call_invite' }, (payload) => {
+          const info = payload.payload;
+          if (info.senderId !== user.id) {
+            setIncomingCallInvite(info);
+            playIncomingCallRingtone();
+          }
+        })
+        .on('broadcast', { event: 'call_declined' }, (payload) => {
+          if (payload.payload.receiverId === user.id) {
+            setIsCalling(false);
+            stopCallSounds();
           }
         })
         .subscribe();
@@ -1243,20 +1361,14 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
 
               <div className="flex items-center gap-4 text-zinc-400">
                 <button 
-                  onClick={() => {
-                    setCallType('voice');
-                    setIsCalling(true);
-                  }}
+                  onClick={() => initiateCall('voice')}
                   className="hover:text-zinc-200 animate-pulse-subtle cursor-pointer" 
                   title="Bắt đầu cuộc gọi thoại"
                 >
                   <Phone size={18} />
                 </button>
                 <button 
-                  onClick={() => {
-                    setCallType('video');
-                    setIsCalling(true);
-                  }}
+                  onClick={() => initiateCall('video')}
                   className="hover:text-zinc-200 animate-pulse-subtle cursor-pointer" 
                   title="Bắt đầu cuộc gọi video"
                 >
@@ -1269,7 +1381,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
               <div className="bg-black/30 p-4 border-b border-white/10 flex flex-col relative shrink-0" style={{ height: '350px' }}>
                 <div className="absolute top-4 right-4 z-20 flex gap-2">
                   <button 
-                    onClick={() => setIsCalling(false)}
+                    onClick={handleHangUp}
                     className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all shadow-md hover:scale-105 cursor-pointer"
                   >
                     Gác máy (Đóng cuộc gọi)
@@ -1280,6 +1392,8 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                   channelId={selectedChatId || ''} 
                   username={displayName} 
                   video={callType === 'video'} 
+                  userId={user.id}
+                  partnerId={activeChatPartner.id}
                 />
               </div>
             )}
@@ -1574,6 +1688,48 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
           </div>
         ))}
       </div>
+
+      {/* Incoming Call Overlay */}
+      {incomingCallInvite && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#1e1f22]/95 border border-white/10 w-[320px] rounded-2xl shadow-2xl p-6 text-center text-white space-y-5 animate-scale-in">
+            <div className="relative inline-block">
+              {incomingCallInvite.senderAvatar ? (
+                <img 
+                  src={`https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${incomingCallInvite.senderAvatar}`} 
+                  alt="" 
+                  className="w-20 h-20 rounded-full object-cover border-4 border-indigo-600 mx-auto" 
+                />
+              ) : (
+                <div className="w-20 h-20 rounded-full bg-indigo-600 text-white font-black text-2xl flex items-center justify-center border-4 border-indigo-600 mx-auto">
+                  {incomingCallInvite.senderName.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <span className="absolute bottom-1 right-1 w-4.5 h-4.5 bg-green-500 rounded-full border-4 border-[#1e1f22] animate-ping"></span>
+            </div>
+
+            <div>
+              <h3 className="font-extrabold text-base text-white">{incomingCallInvite.senderName}</h3>
+              <p className="text-xs text-zinc-400 mt-1">Đang gọi {incomingCallInvite.callType === 'video' ? 'video' : 'thoại'} cho bạn...</p>
+            </div>
+
+            <div className="flex justify-center gap-3.5 pt-2">
+              <button
+                onClick={handleDeclineCall}
+                className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md flex items-center gap-1.5"
+              >
+                Từ chối 📞
+              </button>
+              <button
+                onClick={handleAnswerCall}
+                className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md flex items-center gap-1.5 animate-pulse-subtle"
+              >
+                Nhận cuộc gọi 📞
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
