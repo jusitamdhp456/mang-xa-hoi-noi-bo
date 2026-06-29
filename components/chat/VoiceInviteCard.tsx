@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Phone } from 'lucide-react';
 import { useVoiceSettings } from '@/components/providers/VoiceSettingsProvider';
+import { joinWorkspaceIfInvited } from '@/app/actions/workspace';
 
 interface VoiceInviteCardProps {
   payload: string;
@@ -28,6 +29,12 @@ export function VoiceInviteCard({ payload }: VoiceInviteCardProps) {
   const handleJoin = async () => {
     setJoining(true);
     try {
+      // Register membership to the workspace
+      const res = await joinWorkspaceIfInvited(data.workspaceId);
+      if (res.error) {
+        console.error(res.error);
+      }
+
       setActiveChannelId(data.channelId);
       setWorkspaceId(data.workspaceId);
       router.push(`/workspace/${data.workspaceId}/channel/${data.channelId}`);

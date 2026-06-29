@@ -141,3 +141,33 @@ export async function createGroupWorkspaceWithPartner(partnerId: string, partner
 
   return { workspaceId }
 }
+
+export async function joinWorkspaceIfInvited(workspaceId: string) {
+  const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Chưa đăng nhập' }
+
+  const { data: existingMember } = await supabase
+    .from('workspace_members')
+    .select('*')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (existingMember) {
+    return { success: true }
+  }
+
+  const { error } = await supabase.from('workspace_members').insert({
+    workspace_id: workspaceId,
+    user_id: user.id,
+    role: 'member'
+  })
+
+  if (error) {
+    console.error('Error joining workspace:', error)
+    return { error: 'Không thể gia nhập không gian làm việc' }
+  }
+
+  return { success: true }
+}
