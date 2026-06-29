@@ -22,7 +22,7 @@ export default async function ChannelSidebar({ workspaceId }: { workspaceId: str
       .single(),
     supabase
       .from('channel_categories')
-      .select('*')
+      .select('id, name')
       .eq('workspace_id', workspaceId)
       .order('sort_order', { ascending: true }),
     supabase
@@ -34,16 +34,25 @@ export default async function ChannelSidebar({ workspaceId }: { workspaceId: str
 
   const profile = profileResult.data;
   const workspace = workspaceResult.data;
-  const categories = categoriesResult.data;
+  const categories = categoriesResult.data || [];
   const channels = channelsResult.data;
 
   const channelsWithoutCategory = channels?.filter(c => !c.category_id) || []
 
   return (
     <div className="w-64 bg-black/20 backdrop-blur-xl border-r border-white/10 flex-shrink-0 flex flex-col h-full text-white z-10 transition-all">
-      <div className="h-16 flex items-center px-5 font-bold text-lg text-white border-b border-white/10 shadow-sm shrink-0 hover:bg-white/5 cursor-pointer transition-colors">
-        {workspace?.name || 'Không gian làm việc'}
+      {/* Workspace Header - Clicking it returns to Dashboard */}
+      <div className="h-16 flex items-center justify-between px-5 font-bold text-lg text-white border-b border-white/10 shadow-sm shrink-0 hover:bg-white/5 cursor-pointer transition-colors group/header">
+        <Link href={`/workspace/${workspaceId}`} className="truncate flex-1 py-4" title="Trang tổng quan không gian làm việc">
+          {workspace?.name || 'Không gian làm việc'}
+        </Link>
+        <CreateChannelModal 
+          workspaceId={workspaceId} 
+          categories={categories} 
+          triggerType="header" 
+        />
       </div>
+
       <div className="flex-1 overflow-y-auto p-3 scrollbar-thin scrollbar-thumb-white/20">
         
         {channelsWithoutCategory.map(channel => (
@@ -61,7 +70,12 @@ export default async function ChannelSidebar({ workspaceId }: { workspaceId: str
             <div key={category.id} className="mt-6">
               <div className="flex items-center justify-between px-3 mb-2 group">
                 <p className="text-xs font-bold text-white/50 uppercase tracking-wider flex-1">{category.name}</p>
-                <CreateChannelModal workspaceId={workspaceId} categoryId={category.id} />
+                <CreateChannelModal 
+                  workspaceId={workspaceId} 
+                  categoryId={category.id} 
+                  categories={categories}
+                  triggerType="icon"
+                />
               </div>
               {categoryChannels.map(channel => (
                 <Link key={channel.id} href={`/workspace/${workspaceId}/channel/${channel.id}`}>

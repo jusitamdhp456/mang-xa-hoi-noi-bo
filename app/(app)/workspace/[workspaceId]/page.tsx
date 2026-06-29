@@ -1,18 +1,54 @@
-export default async function WorkspacePage() {
+import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { notFound } from 'next/navigation'
+import { WorkspaceDashboard } from '@/components/workspace/WorkspaceDashboard'
+
+export default async function WorkspacePage({
+  params
+}: {
+  params: Promise<{ workspaceId: string }>
+}) {
+  const { workspaceId } = await params
+  const supabase = await createSupabaseServerClient()
+
+  // Run database fetches in parallel to optimize loading times
+  const [workspaceResult, categoriesResult, channelsResult, membersResult] = await Promise.all([
+    supabase
+      .from('workspaces')
+      .select('name')
+      .eq('id', workspaceId)
+      .single(),
+    supabase
+      .from('channel_categories')
+      .select('id, name')
+      .eq('workspace_id', workspaceId)
+      .order('sort_order', { ascending: true }),
+    supabase
+      .from('channels')
+      .select('id, name, type, topic, is_private, category_id')
+      .eq('workspace_id', workspaceId)
+      .order('sort_order', { ascending: true }),
+    supabase
+      .from('workspace_members')
+      .select('role, profiles(id, display_name, avatar_key, status_text)')
+      .eq('workspace_id', workspaceId)
+  ])
+
+  const workspace = workspaceResult.data
+  if (!workspace) {
+    notFound()
+  }
+
+  const categories = categoriesResult.data || []
+  const channels = channelsResult.data || []
+  const members = membersResult.data || []
+
   return (
-    <div className="flex-1 bg-white flex flex-col h-full">
-       <div className="h-12 border-b flex items-center px-6 font-semibold text-gray-800 shadow-sm shrink-0">
-          Tổng quan
-       </div>
-       <div className="flex-1 p-6 flex flex-col items-center justify-center text-gray-500 bg-gray-50">
-          <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mb-4">
-             <span className="text-3xl text-indigo-500">👋</span>
-          </div>
-          <h2 className="text-xl font-bold text-gray-800 mb-2">Chào mừng đến với Không gian làm việc</h2>
-          <p className="text-center max-w-md">
-            Hãy chọn một kênh bên trái để bắt đầu trò chuyện, hoặc tạo một danh mục và kênh mới nếu bạn là quản trị viên.
-          </p>
-       </div>
-    </div>
-  );
+    <WorkspaceDashboard
+      workspaceId={workspaceId}
+      workspaceName={workspace.name}
+      categories={categories}
+      channels={channels}
+      members={members as any}
+    />
+  )
 }
