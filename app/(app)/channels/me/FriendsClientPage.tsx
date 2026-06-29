@@ -144,6 +144,28 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
   const [previewUser, setPreviewUser] = useState<any | null>(null);
   const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
   const [toasts, setToasts] = useState<Array<{ id: string, title: string, content: string, avatar: string | null }>>([]);
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+
+  // Load saved unread counts on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('friends_unread_counts');
+    if (saved) {
+      setUnreadCounts(JSON.parse(saved));
+    }
+  }, []);
+
+  // Clear unread count when chat is opened
+  useEffect(() => {
+    if (selectedChatId) {
+      setUnreadCounts(prev => {
+        if (!prev[selectedChatId]) return prev;
+        const updated = { ...prev };
+        delete updated[selectedChatId];
+        localStorage.setItem('friends_unread_counts', JSON.stringify(updated));
+        return updated;
+      });
+    }
+  }, [selectedChatId]);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const isMounted = useRef(false);
@@ -291,6 +313,13 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
         } else {
           // 3. Otherwise, show a toast notification in the bottom right corner
           showToast(senderName, content, senderAvatar);
+          // Increment unread count for this thread
+          setUnreadCounts(prev => {
+            const nextCount = (prev[threadId] || 0) + 1;
+            const updated = { ...prev, [threadId]: nextCount };
+            localStorage.setItem('friends_unread_counts', JSON.stringify(updated));
+            return updated;
+          });
         }
 
         // 4. Update the dashboard statuses
@@ -611,24 +640,33 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                     setActiveVoiceRoomId(null);
                     setActiveView('chat');
                   }}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-bold transition-all text-left ${activeView === 'chat' && isSelected ? 'bg-white/15 text-white shadow-sm' : 'hover:bg-white/5 text-zinc-400 hover:text-zinc-200'}`}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold transition-all text-left ${activeView === 'chat' && isSelected ? 'bg-white/15 text-white shadow-sm' : 'hover:bg-white/5 text-zinc-400 hover:text-zinc-200'}`}
                 >
-                  <div className="relative flex-shrink-0">
-                    {avatar ? (
-                      <img src={avatar} alt="Avatar" className="w-7 h-7 rounded-full object-cover" />
-                    ) : (
-                      <div className="w-7 h-7 rounded-full bg-indigo-900 flex items-center justify-center text-white text-[10px] font-bold uppercase">
-                        {name.charAt(0)}
-                      </div>
-                    )}
-                    <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-slate-900 ${statusBg}`}></span>
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <div className="relative flex-shrink-0">
+                      {avatar ? (
+                        <img src={avatar} alt="Avatar" className="w-7 h-7 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-7 h-7 rounded-full bg-indigo-900 flex items-center justify-center text-white text-[10px] font-bold uppercase">
+                          {name.charAt(0)}
+                        </div>
+                      )}
+                      <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-slate-900 ${statusBg}`}></span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="truncate">{name}</p>
+                      {p.status_text && (
+                        <p className="text-[10px] text-zinc-500 truncate leading-none mt-0.5">{p.status_text}</p>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="truncate">{name}</p>
-                    {p.status_text && (
-                      <p className="text-[10px] text-zinc-500 truncate leading-none mt-0.5">{p.status_text}</p>
-                    )}
-                  </div>
+
+                  {/* Red Unread Count Badge */}
+                  {unreadCounts[p.threadId] && unreadCounts[p.threadId] > 0 && (
+                    <span className="shrink-0 bg-red-650 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase leading-none shadow-md ml-1.5 animate-pulse-subtle">
+                      {unreadCounts[p.threadId] > 5 ? '5+' : unreadCounts[p.threadId]}
+                    </span>
+                  )}
                 </button>
               );
             })}
