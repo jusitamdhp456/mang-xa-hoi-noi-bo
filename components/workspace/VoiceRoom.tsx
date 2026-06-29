@@ -105,22 +105,46 @@ export function VoiceRoom({
   }
 
   if (error) {
+    const isMissingKeys = error.includes("Missing LiveKit API keys");
+
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-[#121214] text-zinc-300 p-6 select-none">
+      <div className="flex-1 flex flex-col items-center justify-center bg-[#121214] text-zinc-300 p-6 select-none max-w-2xl mx-auto">
         <div className="w-16 h-16 bg-red-500/10 text-red-400 rounded-full flex items-center justify-center text-2xl mb-4 border border-red-500/20">
           ⚠️
         </div>
-        <h2 className="text-base font-bold mb-2 text-white">Lỗi kết nối phòng thoại</h2>
-        <p className="text-xs text-zinc-400 mb-6 text-center max-w-sm">{error}</p>
+        <h2 className="text-base font-bold mb-2 text-white">
+          {isMissingKeys ? "Chưa cấu hình API Key cho Đàm thoại" : "Lỗi kết nối phòng thoại"}
+        </h2>
+        
+        {isMissingKeys ? (
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4 text-left w-full text-xs leading-relaxed max-w-md my-4 animate-scale-in">
+            <p className="text-zinc-300">
+              Hệ thống sử dụng <strong>LiveKit (WebRTC)</strong> để kết nối âm thanh & video trực tiếp giữa các thiết bị của người dùng. Để kích hoạt tính năng này, bạn cần điền 3 biến môi trường sau:
+            </p>
+            <div className="space-y-2 bg-black/40 p-3.5 rounded-xl border border-white/5 font-mono text-[10px] text-cyan-400 select-all cursor-pointer">
+              <div>LIVEKIT_API_KEY=your_api_key</div>
+              <div>LIVEKIT_API_SECRET=your_api_secret</div>
+              <div>NEXT_PUBLIC_LIVEKIT_URL=wss://your-project.livekit.cloud</div>
+            </div>
+            <div className="text-zinc-400 space-y-1.5 pl-1.5">
+              <p>• Bước 1: Truy cập <strong><a href="https://cloud.livekit.io/" target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline">LiveKit Cloud</a></strong> và đăng ký tài khoản (Miễn phí).</p>
+              <p>• Bước 2: Tạo project mới và copy các mã API keys.</p>
+              <p>• Bước 3: Thêm vào <strong>Environment Variables</strong> trên <strong>Vercel Settings</strong> (hoặc file local <strong>.env.local</strong>) rồi redeploy.</p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-zinc-400 mb-6 text-center max-w-sm">{error}</p>
+        )}
+
         <button 
           onClick={() => {
             setError('');
             setDisconnected(false);
             setToken('');
           }}
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-xs font-bold text-white rounded-lg transition-colors cursor-pointer"
+          className="px-5 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-xs font-bold text-white rounded-xl transition-colors cursor-pointer"
         >
-          Thử lại
+          Thử kết nối lại
         </button>
       </div>
     );
