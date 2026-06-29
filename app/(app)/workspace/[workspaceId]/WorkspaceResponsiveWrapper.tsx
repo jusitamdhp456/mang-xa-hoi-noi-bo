@@ -2,16 +2,29 @@
 
 import React, { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
+import { useVoiceSettings } from '@/components/providers/VoiceSettingsProvider';
 
 export default function WorkspaceResponsiveWrapper({
+  workspaceId,
   sidebar,
   children
 }: {
+  workspaceId: string;
   sidebar: React.ReactNode;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const isChannelView = pathname.includes('/channel/');
+  const { setWorkspaceId } = useVoiceSettings();
+
+  useEffect(() => {
+    if (workspaceId) {
+      setWorkspaceId(workspaceId);
+    }
+    return () => {
+      setWorkspaceId(null);
+    };
+  }, [workspaceId, setWorkspaceId]);
 
   // Sync document root class for server sidebar hiding on mobile
   useEffect(() => {

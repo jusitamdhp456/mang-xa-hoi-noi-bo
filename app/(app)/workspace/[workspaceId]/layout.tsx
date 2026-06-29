@@ -12,7 +12,7 @@ export default async function WorkspaceLayout({
   const { workspaceId } = await params;
   
   return (
-    <WorkspaceResponsiveWrapper sidebar={<ChannelSidebar workspaceId={workspaceId} />}>
+    <WorkspaceResponsiveWrapper workspaceId={workspaceId} sidebar={<ChannelSidebar workspaceId={workspaceId} />}>
       {children}
     </WorkspaceResponsiveWrapper>
   );
