@@ -982,9 +982,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
               const name = p.display_name || p.username || 'User';
               const isSelected = selectedChatId === p.threadId;
               
-              let statusBg = 'bg-zinc-500';
-              if (p.status === 'online') statusBg = 'bg-green-500';
-              else if (p.status === 'idle') statusBg = 'bg-yellow-500';
+              let statusBg = (p.status === 'online' || p.status === 'idle') ? 'bg-green-500' : 'bg-zinc-500';
 
               return (
                 <button
@@ -1446,16 +1444,8 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                       {(activeTab === 'online' ? friendsList : allList).map(p => {
                         const avatar = p.avatar_key ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${p.avatar_key}` : null;
                         const name = p.display_name || p.username || 'User';
-                        let statusBg = 'bg-zinc-500';
-                        let statusTextDesc = 'Ngoại tuyến';
-
-                        if (p.status === 'online') {
-                          statusBg = 'bg-green-500';
-                          statusTextDesc = 'Trực tuyến';
-                        } else if (p.status === 'idle') {
-                          statusBg = 'bg-yellow-500';
-                          statusTextDesc = 'Đang chờ';
-                        }
+                        let statusBg = (p.status === 'online' || p.status === 'idle') ? 'bg-green-500' : 'bg-zinc-500';
+                        let statusTextDesc = (p.status === 'online' || p.status === 'idle') ? 'Trực tuyến' : 'Ngoại tuyến';
 
                         return (
                           <div key={p.id} className="flex items-center justify-between p-2.5 rounded-xl hover:bg-white/5 transition-colors border border-transparent hover:border-white/5">
@@ -1663,7 +1653,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                           {activeChatPartner?.display_name?.charAt(0)}
                         </div>
                       )}
-                      <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-slate-900 ${activeChatPartner?.status === 'online' ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
+                      <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-slate-900 ${(activeChatPartner?.status === 'online' || activeChatPartner?.status === 'idle') ? 'bg-green-500' : 'bg-zinc-500'}`}></span>
                     </div>
                     <div>
                       <h4 className="text-white font-bold text-sm leading-none">{activeChatPartner?.display_name}</h4>
