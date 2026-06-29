@@ -92,7 +92,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
     if (savedFriends) {
       setFriendIds(JSON.parse(savedFriends));
     } else {
-      const seed = otherProfiles.slice(0, 3).map(p => p.id);
+      const seed: string[] = [];
       setFriendIds(seed);
       localStorage.setItem('friends_ids', JSON.stringify(seed));
     }
@@ -708,6 +708,38 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                     </h3>
 
                     <div className="space-y-1">
+                      {activeTab === 'online' && friendsList.length === 0 && (
+                        <div className="flex flex-col items-center justify-center py-20 text-center animate-scale-in">
+                          <div className="w-20 h-20 rounded-full bg-zinc-800/40 flex items-center justify-center text-3xl mb-4 border border-white/5 shadow-md">
+                            👽
+                          </div>
+                          <h4 className="text-white font-bold text-sm">Không có ai trực tuyến cả</h4>
+                          <p className="text-xs text-zinc-500 mt-1 max-w-xs">Không có ai ở đây cả. Bạn có muốn thêm bạn mới?</p>
+                          <button 
+                            onClick={() => setActiveTab('add')}
+                            className="mt-5 px-5 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-xs font-bold text-white rounded-xl transition-all shadow-md cursor-pointer hover:scale-105"
+                          >
+                            Thêm Bạn Bè
+                          </button>
+                        </div>
+                      )}
+
+                      {activeTab === 'all' && allList.length === 0 && (
+                        <div className="flex flex-col items-center justify-center py-20 text-center animate-scale-in">
+                          <div className="w-20 h-20 rounded-full bg-zinc-800/40 flex items-center justify-center text-3xl mb-4 border border-white/5 shadow-md">
+                            👾
+                          </div>
+                          <h4 className="text-white font-bold text-sm">Bạn không có bạn bè</h4>
+                          <p className="text-xs text-zinc-500 mt-1 max-w-xs">Hãy thêm bạn bè mới để trò chuyện trực tiếp và gọi thoại nhé!</p>
+                          <button 
+                            onClick={() => setActiveTab('add')}
+                            className="mt-5 px-5 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-xs font-bold text-white rounded-xl transition-all shadow-md cursor-pointer hover:scale-105"
+                          >
+                            Thêm Bạn Bè
+                          </button>
+                        </div>
+                      )}
+
                       {(activeTab === 'online' ? friendsList : activeTab === 'all' ? allList : []).map(p => {
                         const avatar = p.avatar_key ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${p.avatar_key}` : null;
                         const name = p.display_name || p.username || 'User';
