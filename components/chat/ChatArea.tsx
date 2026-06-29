@@ -54,6 +54,8 @@ export function ChatArea({
   const [activeLightboxImg, setActiveLightboxImg] = useState<string | null>(null)
   const supabase = createSupabaseBrowserClient()
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const initializedRef = useRef(false)
   const channelRef = useRef<RealtimeChannel | null>(null)
 
   // Fetch a single message (with author, attachments, reactions) and append it
@@ -141,12 +143,19 @@ export function ChatArea({
     })
   }, [])
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
-
+  // Auto-scroll to bottom on first load and on new messages, but only when the
+  // user is already near the bottom — so scrolling up to read history isn't
+  // yanked back down.
   useEffect(() => {
-    scrollToBottom()
+    const el = scrollContainerRef.current
+    if (!el) return
+    if (!initializedRef.current) {
+      initializedRef.current = true
+      el.scrollTop = el.scrollHeight
+      return
+    }
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 150
+    if (nearBottom) el.scrollTop = el.scrollHeight
   }, [messages])
 
   useEffect(() => {
@@ -193,29 +202,30 @@ export function ChatArea({
 
   return (
     <>
-      <div className="flex-1 p-4 overflow-y-auto bg-gray-50 flex flex-col scrollbar-thin scrollbar-thumb-gray-300">
-        <div className="mt-auto flex flex-col justify-end min-h-full">
-          {messages.length === 0 ? (
-            <div className="text-center text-gray-500 my-8">
-               <div className="w-16 h-16 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center text-2xl text-gray-500">
-                 {channelType === 'voice' ? '🔊' : '#'}
-               </div>
-               <h3 className="text-lg font-bold text-gray-800 mb-1">Chào mừng bạn đến với {channelName}</h3>
-               <p className="text-sm">Đây là sự khởi đầu của kênh <strong>{channelName}</strong>.</p>
-            </div>
-          ) : (
-            messages.map((msg) => (
-              <MessageItem
-                key={msg.id}
-                message={msg}
-                onImageClick={setActiveLightboxImg}
-                currentUserId={currentUserId}
-                onToggleReaction={handleToggleReaction}
-              />
-            ))
-          )}
-          <div ref={messagesEndRef} />
-        </div>
+      <div ref={scrollContainerRef} className="flex-1 p-4 overflow-y-auto bg-gray-50 flex flex-col scrollbar-thin scrollbar-thumb-gray-300">
+        {/* Spacer keeps messages bottom-aligned when few, collapses when many so
+            the overflow scrolls normally. */}
+        <div className="flex-1 min-h-0" aria-hidden />
+        {messages.length === 0 ? (
+          <div className="text-center text-gray-500 my-8">
+             <div className="w-16 h-16 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center text-2xl text-gray-500">
+               {channelType === 'voice' ? '🔊' : '#'}
+             </div>
+             <h3 className="text-lg font-bold text-gray-800 mb-1">Chào mừng bạn đến với {channelName}</h3>
+             <p className="text-sm">Đây là sự khởi đầu của kênh <strong>{channelName}</strong>.</p>
+          </div>
+        ) : (
+          messages.map((msg) => (
+            <MessageItem
+              key={msg.id}
+              message={msg}
+              onImageClick={setActiveLightboxImg}
+              currentUserId={currentUserId}
+              onToggleReaction={handleToggleReaction}
+            />
+          ))
+        )}
+        <div ref={messagesEndRef} />
       </div>
       
       <MessageInput
