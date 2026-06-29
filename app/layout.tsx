@@ -11,6 +11,11 @@ const barlow = Barlow({
 export const metadata: Metadata = {
   title: "Mạng Xã Hội Nội Bộ",
   description: "Mạng xã hội giao tiếp nội bộ",
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({
