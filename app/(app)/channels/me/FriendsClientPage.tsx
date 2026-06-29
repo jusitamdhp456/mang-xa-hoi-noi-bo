@@ -26,6 +26,16 @@ import {
 } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { VoiceRoom } from '@/components/workspace/VoiceRoom';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { 
+  sendFriendRequest, 
+  acceptFriendRequest, 
+  declineFriendRequest, 
+  getFriends, 
+  getFriendRequests,
+  sendDirectMessage,
+  getDirectMessages
+} from '@/app/actions/friend';
 
 interface FriendsClientPageProps {
   user: SupabaseUser;
@@ -36,7 +46,6 @@ interface FriendsClientPageProps {
 type ViewType = 'profile' | 'friends' | 'chat' | 'voice';
 type TabType = 'online' | 'all' | 'pending' | 'add';
 
-// Generate a consistent 10-digit random-looking number from UUID
 const getTenDigitId = (uuid: string) => {
   if (!uuid) return '3829104829';
   let hash = 0;
@@ -48,7 +57,6 @@ const getTenDigitId = (uuid: string) => {
 };
 
 export default function FriendsClientPage({ user, profile, otherProfiles }: FriendsClientPageProps) {
-  // Views: profile (Thông tin tài khoản), friends (Quản lý bạn bè), chat (DM chat), voice (Kênh thoại)
   const [activeView, setActiveView] = useState<ViewType>('profile');
   const [activeTab, setActiveTab] = useState<TabType>('online');
   const [dmSearch, setDmSearch] = useState('');
@@ -59,11 +67,9 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
   const [isCalling, setIsCalling] = useState(false);
   const [callType, setCallType] = useState<'voice' | 'video'>('voice');
 
-  // Obfuscation states for privacy toggle
   const [showEmail, setShowEmail] = useState(false);
   const [showPhone, setShowPhone] = useState(false);
 
-  // Group Voice Rooms states
   const [voiceRooms, setVoiceRooms] = useState([
     { id: 'general-lobby', name: 'Phòng thoại chung' },
     { id: 'gaming-lounge', name: 'Kênh chơi game' }
@@ -72,11 +78,10 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
   const [isCreateVoiceRoomOpen, setIsCreateVoiceRoomOpen] = useState(false);
   const [newVoiceRoomName, setNewVoiceRoomName] = useState('');
   
-  // Persistent Friends State (loads and saves from/to localStorage)
-  const [friendIds, setFriendIds] = useState<string[]>([]);
-  
-  // Persistent Direct Messages State
-  const [chatMessages, setChatMessages] = useState<Record<string, Array<{ sender: 'me' | 'them', text: string, time: string }>>>({});
+  // Real database-backed States
+  const [friendsProfiles, setFriendsProfiles] = useState<any[]>([]);
+  const [friendRequests, setFriendRequests] = useState<any[]>([]);
+  const [dbMessages, setDbMessages] = useState<any[]>([]);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
 
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -84,34 +89,89 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
   // Scroll to bottom of chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages, selectedChatId]);
+  }, [dbMessages, selectedChatId]);
 
-  // Initialize persistent friends and DMs list
+  // Load friends and pending requests from Supabase
+  const loadFriendsData = async () => {
+    const list = await getFriends();
+    setFriendsProfiles(list);
+  };
+
+  const loadRequestsData = async () => {
+    const list = await getFriendRequests();
+    setFriendRequests(list);
+  };
+
   useEffect(() => {
-    const savedFriends = localStorage.getItem('friends_ids_v3');
-    if (savedFriends) {
-      setFriendIds(JSON.parse(savedFriends));
-    } else {
-      const seed: string[] = [];
-      setFriendIds(seed);
-      localStorage.setItem('friends_ids_v3', JSON.stringify(seed));
+    loadFriendsData();
+    loadRequestsData();
+  }, []);
+
+  // Real-time updates subscription for requests and friends
+  useEffect(() => {
+    const supabase = createSupabaseBrowserClient();
+    
+    const channel1 = supabase
+      .channel('friend-requests-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        () => {
+          loadRequestsData();
+        }
+      )
+      .subscribe();
+
+    const channel2 = supabase
+      .channel('thread-members-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'direct_thread_members', filter: `user_id=eq.${user.id}` },
+        () => {
+          loadFriendsData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel1);
+      supabase.removeChannel(channel2);
+    };
+  }, [user.id]);
+
+  // Load and listen to direct messages when a thread is selected
+  useEffect(() => {
+    if (!selectedChatId) {
+      setDbMessages([]);
+      return;
     }
 
-    const savedMessages = localStorage.getItem('chat_messages');
-    if (savedMessages) {
-      setChatMessages(JSON.parse(savedMessages));
-    } else {
-      const initialLogs = {
-        default: [
-          { sender: 'them' as const, text: 'Chào cậu! Cậu khoẻ không?', time: '10:15 AM' },
-          { sender: 'me' as const, text: 'Tớ khoẻ, cảm ơn cậu! Còn cậu?', time: '10:16 AM' },
-          { sender: 'them' as const, text: 'Tớ cũng ổn, đang code giao diện nè haha.', time: '10:18 AM' }
-        ]
-      };
-      setChatMessages(initialLogs);
-      localStorage.setItem('chat_messages', JSON.stringify(initialLogs));
-    }
-  }, [otherProfiles]);
+    const loadMessages = async () => {
+      const msgs = await getDirectMessages(selectedChatId);
+      setDbMessages(msgs);
+    };
+
+    loadMessages();
+
+    const supabase = createSupabaseBrowserClient();
+    const channel = supabase
+      .channel(`thread-messages-${selectedChatId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'direct_messages', filter: `thread_id=eq.${selectedChatId}` },
+        (payload) => {
+          setDbMessages(prev => {
+            if (prev.some(m => m.id === payload.new.id)) return prev;
+            return [...prev, payload.new];
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedChatId]);
 
   // Assign mock online status & activities to profiles for high fidelity
   const mockStatusAndActivity = (id: string, index: number) => {
@@ -136,83 +196,46 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
     return { status, activity };
   };
 
-  const profilesWithStatus = otherProfiles.map((p, idx) => ({
+  const profilesWithStatus = friendsProfiles.map((p, idx) => ({
     ...p,
     ...mockStatusAndActivity(p.id, idx)
   }));
 
-  // Filter profiles based on established friendships
-  const friendsProfiles = profilesWithStatus.filter(p => friendIds.includes(p.id));
-
   // Filtering lists
-  const filteredDMs = friendsProfiles.filter(p => 
+  const filteredDMs = profilesWithStatus.filter(p => 
     (p.display_name || '').toLowerCase().includes(dmSearch.toLowerCase())
   );
 
-  const friendsList = friendsProfiles.filter(p => 
+  const friendsList = profilesWithStatus.filter(p => 
     p.status !== 'offline' && 
     (p.display_name || '').toLowerCase().includes(friendSearch.toLowerCase())
   );
 
-  const allList = friendsProfiles.filter(p => 
+  const allList = profilesWithStatus.filter(p => 
     (p.display_name || '').toLowerCase().includes(friendSearch.toLowerCase())
   );
 
-  const activeChatPartner = profilesWithStatus.find(p => p.id === selectedChatId);
+  const activeChatPartner = profilesWithStatus.find(p => p.threadId === selectedChatId);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentMessageInput.trim() || !selectedChatId) return;
 
-    const partnerMessages = chatMessages[selectedChatId] || [];
-    const newMsg = {
-      sender: 'me' as const,
-      text: currentMessageInput.trim(),
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-
-    const updatedMessages = {
-      ...chatMessages,
-      [selectedChatId]: [...partnerMessages, newMsg]
-    };
-
-    setChatMessages(updatedMessages);
-    localStorage.setItem('chat_messages', JSON.stringify(updatedMessages));
+    const content = currentMessageInput.trim();
     setCurrentMessageInput('');
 
-    // Simulate reply from the partner after 1.5 seconds
-    const replyTexts = [
-      "Nghe tuyệt đấy!",
-      "Tớ đồng ý nha.",
-      "Chờ tớ một chút nhé.",
-      "Haha ok luôn!",
-      "Để tớ xem lại đã.",
-      "Giao diện đẹp thật sự!"
-    ];
-    setTimeout(() => {
-      setChatMessages(prev => {
-        const partnerMsgs = prev[selectedChatId] || [];
-        const replyMsg = {
-          sender: 'them' as const,
-          text: replyTexts[Math.floor(Math.random() * replyTexts.length)],
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-        const finalMessages = {
-          ...prev,
-          [selectedChatId]: [...partnerMsgs, replyMsg]
-        };
-        localStorage.setItem('chat_messages', JSON.stringify(finalMessages));
-        return finalMessages;
-      });
-    }, 1500);
+    try {
+      await sendDirectMessage(selectedChatId, content);
+    } catch (err) {
+      console.error('Failed to send DM:', err);
+    }
   };
 
-  const handleAddFriendSubmit = (e: React.FormEvent) => {
+  const handleAddFriendSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const query = addFriendInput.trim();
     if (!query) return;
 
-    // Search for user in database profiles by username, UUID, or 10-digit ID
     const foundUser = otherProfiles.find(p => 
       p.username?.toLowerCase() === query.toLowerCase() ||
       p.id === query ||
@@ -220,13 +243,21 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
     );
 
     if (foundUser) {
-      if (friendIds.includes(foundUser.id)) {
+      const isAlreadyFriend = friendsProfiles.some(f => f.id === foundUser.id);
+      if (isAlreadyFriend) {
         setAddFriendStatus(`Bạn và "${foundUser.display_name}" đã kết bạn từ trước.`);
       } else {
-        const updatedFriends = [...friendIds, foundUser.id];
-        setFriendIds(updatedFriends);
-        localStorage.setItem('friends_ids_v3', JSON.stringify(updatedFriends));
-        setAddFriendStatus(`Thành công! Đã kết bạn với "${foundUser.display_name}".`);
+        try {
+          const res = await sendFriendRequest(foundUser.id);
+          if (res?.message) {
+            setAddFriendStatus(res.message);
+          } else {
+            setAddFriendStatus(`Đã gửi yêu cầu kết bạn đến "${foundUser.display_name}". Chờ họ chấp nhận.`);
+          }
+        } catch (e) {
+          console.error(e);
+          setAddFriendStatus('Có lỗi xảy ra khi gửi yêu cầu kết bạn.');
+        }
       }
     } else {
       setAddFriendStatus(`Không tìm thấy người dùng có Tên/ID: "${query}".`);
@@ -236,7 +267,25 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
     setTimeout(() => setAddFriendStatus(''), 4000);
   };
 
-  // Helper to obfuscate email
+  const handleAcceptRequest = async (requestId: string) => {
+    try {
+      await acceptFriendRequest(requestId);
+      await loadRequestsData();
+      await loadFriendsData();
+    } catch (e) {
+      console.error('Failed to accept request:', e);
+    }
+  };
+
+  const handleDeclineRequest = async (requestId: string) => {
+    try {
+      await declineFriendRequest(requestId);
+      await loadRequestsData();
+    } catch (e) {
+      console.error('Failed to decline request:', e);
+    }
+  };
+
   const getObfuscatedEmail = () => {
     const email = user?.email || 'user@example.com';
     const [name, domain] = email.split('@');
@@ -244,7 +293,6 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
     return '*'.repeat(name.length) + '@' + domain;
   };
 
-  // Helper to obfuscate phone
   const getObfuscatedPhone = () => {
     if (showPhone) return '0987658842';
     return '********8842';
@@ -261,7 +309,6 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
       {/* COLUMN 1: SUB-SIDEBAR (Discord Settings & DM list) */}
       <div className="w-60 bg-black/30 backdrop-blur-xl border-r border-white/10 flex-shrink-0 flex flex-col h-full text-white z-10 transition-all select-none">
         
-        {/* Profile Card Header */}
         <div className="p-4 border-b border-white/10 flex items-center justify-between shrink-0 hover:bg-white/5 cursor-pointer transition-colors group">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="relative shrink-0">
@@ -284,7 +331,6 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
           </div>
         </div>
 
-        {/* Search DM input */}
         <div className="p-3 shrink-0">
           <div className="relative">
             <input 
@@ -298,7 +344,6 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
           </div>
         </div>
 
-        {/* Menu Navigation Links */}
         <div className="flex-1 overflow-y-auto p-2 space-y-0.5 scrollbar-thin scrollbar-thumb-white/10">
           
           <div className="pb-1 px-3 text-[10px] font-black text-zinc-500 uppercase tracking-wider">Tài khoản</div>
@@ -327,7 +372,6 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
             <span>Bạn bè</span>
           </button>
 
-          {/* Group Voice Rooms Section */}
           <div className="pt-4 pb-1 px-3 flex items-center justify-between text-[10px] font-black text-zinc-500 tracking-wider uppercase group">
             <span>Kênh thoại nhóm</span>
             <button 
@@ -341,7 +385,6 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
 
           <div className="space-y-0.5">
             {voiceRooms.map(room => {
-              const isSelected = activeVoiceRoomId === room.id;
               return (
                 <button
                   key={room.id}
@@ -359,17 +402,15 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
             })}
           </div>
 
-          {/* DM Users List Header */}
           <div className="pt-4 pb-1 px-3 flex items-center justify-between text-[10px] font-black text-zinc-500 tracking-wider uppercase group border-t border-white/5 mt-3">
             <span>Tin nhắn trực tiếp</span>
           </div>
 
-          {/* DM Users */}
           <div className="space-y-0.5">
             {filteredDMs.map(p => {
               const avatar = p.avatar_key ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${p.avatar_key}` : null;
               const name = p.display_name || p.username || 'User';
-              const isSelected = selectedChatId === p.id;
+              const isSelected = selectedChatId === p.threadId;
               
               let statusBg = 'bg-zinc-500';
               if (p.status === 'online') statusBg = 'bg-green-500';
@@ -379,7 +420,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                 <button
                   key={p.id}
                   onClick={() => {
-                    setSelectedChatId(p.id);
+                    setSelectedChatId(p.threadId);
                     setActiveVoiceRoomId(null);
                     setActiveView('chat');
                   }}
@@ -407,25 +448,22 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
           </div>
         </div>
 
-        {/* User panel */}
         <UserPanel user={user} profile={profile} />
       </div>
 
       {/* COLUMN 2: MAIN PANEL */}
       <div className="flex-1 flex flex-col h-full bg-[#313338]/15 animate-scale-in overflow-hidden relative">
         
-        {/* VIEW 1: USER ACCOUNT SETTINGS (Exactly like Discord screenshot) */}
+        {/* VIEW 1: USER ACCOUNT SETTINGS */}
         {activeView === 'profile' && (
           <div className="flex-1 flex flex-col overflow-y-auto bg-zinc-900/40 p-6 md:p-8 scrollbar-thin scrollbar-thumb-white/10 select-none">
             <div className="max-w-3xl space-y-6">
               
-              {/* Profile Card Header Title */}
               <div>
                 <h2 className="text-xl md:text-2xl font-black text-white tracking-tight">Thông Tin Tài Khoản</h2>
                 <p className="text-xs text-zinc-400 mt-1">Quản lý và cập nhật hồ sơ bảo mật thông tin tài khoản của bạn.</p>
               </div>
 
-              {/* Box 1: Account Information details */}
               <div className="bg-[#2b2d31]/80 rounded-2xl border border-white/5 p-5 space-y-5">
                 <div className="flex items-center gap-4 border-b border-white/5 pb-4">
                   <div className="relative">
@@ -445,7 +483,6 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                 </div>
 
                 <div className="space-y-4">
-                  {/* Item 1: Username */}
                   <div className="flex items-center justify-between gap-4 py-1">
                     <div>
                       <p className="text-[10px] text-zinc-400 uppercase font-black tracking-wider leading-none">Tên đăng nhập</p>
@@ -456,7 +493,6 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                     </button>
                   </div>
 
-                  {/* Item 2: Email */}
                   <div className="flex items-center justify-between gap-4 py-1 border-t border-white/5 pt-4">
                     <div>
                       <p className="text-[10px] text-zinc-400 uppercase font-black tracking-wider leading-none">Email</p>
@@ -475,7 +511,6 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                     </button>
                   </div>
 
-                  {/* Item 3: Phone Number */}
                   <div className="flex items-center justify-between gap-4 py-1 border-t border-white/5 pt-4">
                     <div>
                       <p className="text-[10px] text-zinc-400 uppercase font-black tracking-wider leading-none">Số Điện Thoại</p>
@@ -494,7 +529,6 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                     </button>
                   </div>
 
-                  {/* Item 4: Unique 10 Digit User ID */}
                   <div className="flex items-center justify-between gap-4 py-1 border-t border-white/5 pt-4">
                     <div>
                       <p className="text-[10px] text-zinc-400 uppercase font-black tracking-wider leading-none">Mã ID Người Dùng</p>
@@ -509,7 +543,6 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                 </div>
               </div>
 
-              {/* Box 2: Password and security settings */}
               <div className="bg-[#2b2d31]/80 rounded-2xl border border-white/5 p-5 space-y-5">
                 <h3 className="font-extrabold text-white text-sm">Mật khẩu & Bảo Mật</h3>
                 
@@ -546,7 +579,6 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                 </div>
               </div>
 
-              {/* Box 3: Account status */}
               <div className="bg-[#2b2d31]/80 rounded-2xl border border-white/5 p-5 space-y-4">
                 <h3 className="font-extrabold text-white text-sm">Trạng thái tài khoản</h3>
                 
@@ -563,42 +595,14 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                 </div>
               </div>
 
-              {/* Box 4: Family Center */}
-              <div className="bg-[#2b2d31]/80 rounded-2xl border border-white/5 p-5 flex justify-between items-center gap-4">
-                <div>
-                  <h3 className="font-extrabold text-white text-sm">Trung Tâm Gia Đình</h3>
-                  <p className="text-[11px] text-zinc-400 mt-1">Nhận cập nhật về trải nghiệm của thanh thiếu niên trên hệ thống, quản lý an toàn gia đình.</p>
-                </div>
-                <button className="text-xs font-bold text-zinc-400 hover:text-white flex items-center gap-0.5 cursor-pointer">
-                  Thiết lập <ChevronRight size={14} />
-                </button>
-              </div>
-
-              {/* Box 5: Delete actions */}
-              <div className="bg-red-500/5 rounded-2xl border border-red-500/10 p-5 space-y-4">
-                <div>
-                  <h3 className="font-extrabold text-red-400 text-sm">Vùng nguy hiểm</h3>
-                  <p className="text-[11px] text-zinc-400 mt-1">Vô hiệu hóa hoặc xóa bỏ vĩnh viễn tài khoản của bạn khỏi hệ thống.</p>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  <button className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-zinc-300 rounded-lg transition-colors cursor-pointer border border-white/5">
-                    Vô Hiệu Hóa Tài Khoản
-                  </button>
-                  <button className="px-4 py-2 bg-red-600 hover:bg-red-700 text-xs font-bold text-white rounded-lg transition-colors cursor-pointer">
-                    Xóa Tài Khoản
-                  </button>
-                </div>
-              </div>
-
             </div>
           </div>
         )}
 
-        {/* VIEW 2: FRIENDS DIRECTORY (Standard Discord Friend view) */}
+        {/* VIEW 2: FRIENDS DIRECTORY */}
         {activeView === 'friends' && (
           <div className="flex-1 flex flex-col h-full overflow-hidden select-none">
             
-            {/* Friends Header Tab Bar */}
             <div className="h-16 border-b border-white/10 flex items-center px-6 justify-between flex-shrink-0 bg-white/5 backdrop-blur-md">
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 border-r border-white/15 pr-4 text-white">
@@ -624,7 +628,11 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                     className={`px-3 py-1.5 rounded font-bold text-xs transition-all cursor-pointer ${activeTab === 'pending' ? 'bg-white/10 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}`}
                   >
                     Chờ xử lý
-                    <span className="ml-1.5 bg-red-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase leading-none">1</span>
+                    {friendRequests.length > 0 && (
+                      <span className="ml-1.5 bg-red-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase leading-none">
+                        {friendRequests.length}
+                      </span>
+                    )}
                   </button>
                   <button 
                     onClick={() => setActiveTab('add')}
@@ -636,7 +644,6 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
               </div>
             </div>
 
-            {/* Friends Main Listing View */}
             <div className="flex-1 flex overflow-hidden">
               <div className="flex-1 flex flex-col p-6 overflow-y-auto">
                 
@@ -647,7 +654,6 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                       <h3 className="text-white font-bold uppercase text-xs tracking-wider mb-2">Thêm Bạn</h3>
                       <p className="text-xs text-zinc-400">Bạn có thể kết bạn với người dùng khác bằng cách nhập chính xác Tên tài khoản hoặc mã ID của họ.</p>
                       
-                      {/* User credentials share box */}
                       <div className="mt-3 p-3 bg-white/5 border border-white/5 rounded-2xl flex flex-col gap-1.5 max-w-lg animate-scale-in">
                         <span className="text-[10px] text-zinc-500 uppercase font-black tracking-wider leading-none">Thông tin tài khoản của bạn</span>
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs font-semibold text-zinc-300">
@@ -661,7 +667,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                           <div className="flex items-center gap-1">
                             <span>Mã ID:</span>
                             <code className="text-cyan-400 font-mono font-bold bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/10 select-all cursor-pointer" title="Click đúp để copy">
-                              {user.id}
+                              {user10DigitId}
                             </code>
                           </div>
                         </div>
@@ -709,16 +715,24 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                             p.id === addFriendInput.trim() ||
                             getTenDigitId(p.id).includes(addFriendInput.trim())
                           ).slice(0, 5).map(p => {
-                            const isAlreadyFriend = friendIds.includes(p.id);
+                            const isAlreadyFriend = friendsProfiles.some(f => f.id === p.id);
                             const avatar = p.avatar_key ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${p.avatar_key}` : null;
                             const name = p.display_name || p.username || 'User';
 
-                            const handleAddClick = () => {
-                              const updatedFriends = [...friendIds, p.id];
-                              setFriendIds(updatedFriends);
-                              localStorage.setItem('friends_ids_v3', JSON.stringify(updatedFriends));
-                              setAddFriendStatus(`Thành công! Đã kết bạn với "${name}". Giờ hai bạn đã có thể nhắn tin trực tiếp và đàm thoại!`);
-                              setTimeout(() => setAddFriendStatus(''), 6000);
+                            const handleAddClick = async () => {
+                              try {
+                                const res = await sendFriendRequest(p.id);
+                                if (res?.message) {
+                                  setAddFriendStatus(res.message);
+                                } else {
+                                  setAddFriendStatus(`Đã gửi lời mời kết bạn đến "${name}". Chờ đối phương chấp nhận.`);
+                                }
+                                loadRequestsData();
+                                setTimeout(() => setAddFriendStatus(''), 6000);
+                              } catch (e) {
+                                console.error(e);
+                                setAddFriendStatus('Có lỗi xảy ra khi gửi kết bạn.');
+                              }
                             };
 
                             return (
@@ -726,7 +740,6 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                                 <div className="flex items-center gap-3">
                                   <div className="relative">
                                     {avatar ? (
-                                      // eslint-disable-next-line @next/next/no-img-element
                                       <img src={avatar} alt="Avatar" className="w-9 h-9 rounded-full object-cover" />
                                     ) : (
                                       <div className="w-9 h-9 rounded-full bg-indigo-900 flex items-center justify-center text-white text-xs font-bold uppercase">
@@ -748,7 +761,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                                       </span>
                                       <button
                                         onClick={() => {
-                                          setSelectedChatId(p.id);
+                                          setSelectedChatId(p.threadId);
                                           setActiveView('chat');
                                         }}
                                         className="px-3 py-1.5 bg-indigo-650 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black transition-colors cursor-pointer"
@@ -783,8 +796,8 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                   </div>
                 )}
 
-                {/* TAB CONTENT: ONLINE OR ALL OR PENDING */}
-                {activeTab !== 'add' && (
+                {/* TAB CONTENT: ONLINE OR ALL */}
+                {activeTab !== 'add' && activeTab !== 'pending' && (
                   <div className="space-y-4 flex-1 flex flex-col">
                     <div className="relative">
                       <input 
@@ -798,7 +811,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                     </div>
 
                     <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mt-4">
-                      {activeTab === 'online' ? `Trực tuyến — ${friendsList.length}` : activeTab === 'all' ? `Tất cả bạn bè — ${allList.length}` : 'Đang chờ xử lý'}
+                      {activeTab === 'online' ? `Trực tuyến — ${friendsList.length}` : `Tất cả bạn bè — ${allList.length}`}
                     </h3>
 
                     <div className="space-y-1">
@@ -834,7 +847,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                         </div>
                       )}
 
-                      {(activeTab === 'online' ? friendsList : activeTab === 'all' ? allList : []).map(p => {
+                      {(activeTab === 'online' ? friendsList : allList).map(p => {
                         const avatar = p.avatar_key ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${p.avatar_key}` : null;
                         const name = p.display_name || p.username || 'User';
                         let statusBg = 'bg-zinc-500';
@@ -870,7 +883,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                             <div className="flex gap-2">
                               <button 
                                 onClick={() => {
-                                  setSelectedChatId(p.id);
+                                  setSelectedChatId(p.threadId);
                                   setActiveView('chat');
                                 }}
                                 className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
@@ -882,36 +895,67 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                           </div>
                         );
                       })}
+                    </div>
+                  </div>
+                )}
 
-                      {/* Pending Request Mock for fidelity */}
-                      {activeTab === 'pending' && (
-                        <div className="flex items-center justify-between p-2.5 rounded-xl border border-white/10 bg-white/5 max-w-xl">
-                          <div className="flex items-center gap-3">
-                            <div className="relative w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">
-                              N
+                {/* TAB CONTENT: PENDING REQUESTS LIST */}
+                {activeTab === 'pending' && (
+                  <div className="space-y-4 max-w-xl">
+                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                      Lời mời kết bạn đang chờ — {friendRequests.length}
+                    </h3>
+                    
+                    <div className="space-y-2">
+                      {friendRequests.map(req => {
+                        const initial = (req.sender_name || 'U').charAt(0).toUpperCase();
+                        return (
+                          <div key={req.id} className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/5 hover:border-white/10 transition-all">
+                            <div className="flex items-center gap-3">
+                              <div className="relative w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">
+                                {req.sender_avatar ? (
+                                  <img src={`https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${req.sender_avatar}`} alt="" className="w-full h-full rounded-full object-cover" />
+                                ) : (
+                                  initial
+                                )}
+                              </div>
+                              <div>
+                                <p className="text-white text-sm font-bold leading-tight">{req.sender_name}</p>
+                                <p className="text-[10px] text-zinc-400 mt-0.5">@{req.sender_username} • Lời mời kết bạn</p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-white text-sm font-bold leading-tight">nguyena2000</p>
-                              <p className="text-xs text-zinc-500">Yêu cầu kết bạn đến • 1 ngày trước</p>
+
+                            <div className="flex gap-2">
+                              <button 
+                                onClick={() => handleAcceptRequest(req.id)}
+                                className="px-3.5 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-all shadow-md cursor-pointer"
+                              >
+                                Chấp nhận
+                              </button>
+                              <button 
+                                onClick={() => handleDeclineRequest(req.id)}
+                                className="px-3.5 py-1.5 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                              >
+                                Từ chối
+                              </button>
                             </div>
                           </div>
+                        );
+                      })}
 
-                          <div className="flex gap-2">
-                            <button className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer">Chấp nhận</button>
-                            <button className="px-3 py-1.5 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-lg text-xs font-bold transition-colors cursor-pointer">Từ chối</button>
-                          </div>
-                        </div>
+                      {friendRequests.length === 0 && (
+                        <p className="text-xs text-zinc-500 italic py-2">Không có lời mời kết bạn nào đang chờ xử lý.</p>
                       )}
                     </div>
                   </div>
                 )}
+
               </div>
 
-              {/* Activity widget */}
               <div className="w-72 border-l border-white/10 p-6 hidden lg:flex flex-col gap-4 overflow-y-auto shrink-0 select-none">
                 <h3 className="text-xs font-black text-zinc-400 uppercase tracking-wider">Đang Hoạt Động</h3>
                 <div className="space-y-4">
-                  {friendsList.slice(0, 2).map((p, idx) => {
+                  {friendsList.slice(0, 2).map((p) => {
                     const avatar = p.avatar_key ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${p.avatar_key}` : null;
                     const name = p.display_name || p.username || 'User';
 
@@ -945,10 +989,9 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
           </div>
         )}
 
-        {/* VIEW 3: DIRECT CHAT PANEL (With direct messaging logs) */}
+        {/* VIEW 3: DIRECT CHAT PANEL */}
         {activeView === 'chat' && activeChatPartner && (
           <div className="flex-1 flex flex-col h-full bg-transparent overflow-hidden">
-            {/* Chat partner header bar */}
             <div className="h-16 border-b border-white/10 flex items-center px-6 justify-between flex-shrink-0 bg-white/5 backdrop-blur-md">
               <div className="flex items-center gap-3">
                 <div className="relative">
@@ -991,7 +1034,6 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
               </div>
             </div>
 
-            {/* Voice/Video Call Window (Direct connection VoiceRoom) */}
             {isCalling && (
               <div className="bg-black/30 p-4 border-b border-white/10 flex flex-col relative shrink-0" style={{ height: '350px' }}>
                 <div className="absolute top-4 right-4 z-20 flex gap-2">
@@ -1003,20 +1045,11 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                   </button>
                 </div>
                 
-                {(() => {
-                  const roomId = user.id < activeChatPartner.id 
-                    ? `dm-${user.id}-${activeChatPartner.id}`
-                    : `dm-${activeChatPartner.id}-${user.id}`;
-                  const currentUsername = profile?.display_name || user?.email?.split('@')[0] || 'User';
-
-                  return (
-                    <VoiceRoom 
-                      channelId={roomId} 
-                      username={currentUsername} 
-                      video={callType === 'video'} 
-                    />
-                  );
-                })()}
+                <VoiceRoom 
+                  channelId={selectedChatId || ''} 
+                  username={displayName} 
+                  video={callType === 'video'} 
+                />
               </div>
             )}
 
@@ -1030,13 +1063,14 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
               </div>
 
               <div className="flex-1 space-y-4">
-                {(chatMessages[selectedChatId || ''] || chatMessages.default || []).map((msg, index) => {
-                  const isMe = msg.sender === 'me';
+                {dbMessages.map((msg, index) => {
+                  const isMe = msg.sender_id === user.id;
                   const partnerName = activeChatPartner?.display_name || 'Bạn';
                   const partnerAvatar = activeChatPartner?.avatar_key ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${activeChatPartner.avatar_key}` : null;
+                  const timeStr = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
                   return (
-                    <div key={index} className="flex gap-4 items-start hover:bg-white/5 -mx-6 px-6 py-1 transition-all">
+                    <div key={msg.id || index} className="flex gap-4 items-start hover:bg-white/5 -mx-6 px-6 py-1 transition-all">
                       <div className="relative flex-shrink-0 mt-0.5">
                         {isMe ? (
                           avatarUrl ? (
@@ -1060,9 +1094,9 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                       <div className="flex-1 min-w-0">
                         <div className="flex items-baseline gap-2">
                           <span className="text-white font-bold text-xs leading-none hover:underline cursor-pointer">{isMe ? 'Bạn' : partnerName}</span>
-                          <span className="text-[9px] text-zinc-500 font-medium">{msg.time}</span>
+                          <span className="text-[9px] text-zinc-500 font-medium">{timeStr}</span>
                         </div>
-                        <p className="text-xs text-zinc-300 mt-1.5 leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                        <p className="text-xs text-zinc-300 mt-1.5 leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                       </div>
                     </div>
                   );
@@ -1071,7 +1105,6 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
               </div>
             </div>
 
-            {/* Chat Input form */}
             <form onSubmit={handleSendMessage} className="p-4 bg-transparent border-t border-white/10 flex gap-2 flex-shrink-0">
               <input 
                 type="text" 
@@ -1084,7 +1117,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
           </div>
         )}
 
-        {/* VIEW 4: GROUP VOICE ROOM (Direct LiveKit connection) */}
+        {/* VIEW 4: GROUP VOICE ROOM */}
         {activeView === 'voice' && activeVoiceRoomId && (
           <div className="flex-1 flex flex-col h-full bg-transparent overflow-hidden">
             <div className="h-16 border-b border-white/10 flex items-center px-6 justify-between flex-shrink-0 bg-white/5 backdrop-blur-md">
@@ -1100,22 +1133,16 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
             </div>
 
             <div className="flex-1 flex flex-col relative overflow-hidden bg-[#121214]">
-              {(() => {
-                const currentUsername = profile?.display_name || user?.email?.split('@')[0] || 'User';
-                return (
-                  <VoiceRoom 
-                    channelId={activeVoiceRoomId} 
-                    username={currentUsername} 
-                  />
-                );
-              })()}
+              <VoiceRoom 
+                channelId={activeVoiceRoomId} 
+                username={displayName} 
+              />
             </div>
           </div>
         )}
 
       </div>
 
-      {/* Popups & Modals */}
       {isCreateVoiceRoomOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[#313338] border border-white/10 w-[350px] p-5 rounded-2xl shadow-2xl space-y-4 animate-scale-in text-white">
