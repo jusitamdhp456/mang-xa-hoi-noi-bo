@@ -155,17 +155,13 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
 
     const supabase = createSupabaseBrowserClient();
     const channel = supabase
-      .channel(`thread-messages-${selectedChatId}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'direct_messages', filter: `thread_id=eq.${selectedChatId}` },
-        (payload) => {
-          setDbMessages(prev => {
-            if (prev.some(m => m.id === payload.new.id)) return prev;
-            return [...prev, payload.new];
-          });
-        }
-      )
+      .channel(`room-dm-${selectedChatId}`)
+      .on('broadcast', { event: 'new_message' }, (payload) => {
+        setDbMessages(prev => {
+          if (prev.some(m => m.id === payload.payload.id)) return prev;
+          return [...prev, payload.payload];
+        });
+      })
       .subscribe();
 
     return () => {
@@ -224,8 +220,32 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
     const content = currentMessageInput.trim();
     setCurrentMessageInput('');
 
+    const tempMessageId = `msg-temp-${Date.now()}`;
+    const messagePayload = {
+      id: tempMessageId,
+      thread_id: selectedChatId,
+      sender_id: user.id,
+      content: content,
+      type: 'text',
+      created_at: new Date().toISOString()
+    };
+
+    // 1. Render immediately on sender's screen
+    setDbMessages(prev => [...prev, messagePayload]);
+
     try {
+      // 2. Save in database
       await sendDirectMessage(selectedChatId, content);
+
+      // 3. Broadcast to peer
+      const supabase = createSupabaseBrowserClient();
+      await supabase
+        .channel(`room-dm-${selectedChatId}`)
+        .send({
+          type: 'broadcast',
+          event: 'new_message',
+          payload: messagePayload
+        });
     } catch (err) {
       console.error('Failed to send DM:', err);
     }
