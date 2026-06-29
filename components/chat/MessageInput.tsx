@@ -117,23 +117,42 @@ export function MessageInput({
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         {selectedFile && (
-          <div className="flex items-center gap-3 bg-[#2b2d31] p-3 rounded-2xl border border-white/5 shadow-md w-max max-w-sm ml-4 animate-scale-in">
-            <div className="text-xl">
-              {selectedFile.type.startsWith('image/') ? '🖼️' : '📁'}
+          selectedFile.type.startsWith('image/') ? (
+            /* Staging Image Preview */
+            <div className="relative w-28 h-28 ml-4 rounded-xl border border-white/10 overflow-hidden group shadow-md animate-scale-in flex-shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img 
+                src={URL.createObjectURL(selectedFile)} 
+                alt="Preview" 
+                className="w-full h-full object-cover" 
+              />
+              <button 
+                type="button" 
+                onClick={() => setSelectedFile(null)} 
+                className="absolute top-1.5 right-1.5 bg-black/70 hover:bg-black/90 text-white rounded-full w-5 h-5 flex items-center justify-center cursor-pointer shadow-sm text-xs font-bold transition-all border border-white/10"
+                title="Hủy ảnh"
+              >
+                ×
+              </button>
             </div>
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-zinc-200 truncate max-w-[200px]">{selectedFile.name}</p>
-              <p className="text-[10px] text-zinc-400 mt-0.5">{(selectedFile.size / 1024).toFixed(1)} KB</p>
+          ) : (
+            /* Staging File Card Preview */
+            <div className="flex items-center gap-3 bg-[#2b2d31] p-3 rounded-2xl border border-white/5 shadow-md w-max max-w-sm ml-4 animate-scale-in">
+              <div className="text-xl">📁</div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-zinc-200 truncate max-w-[200px]">{selectedFile.name}</p>
+                <p className="text-[10px] text-zinc-400 mt-0.5">{(selectedFile.size / 1024).toFixed(1)} KB</p>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setSelectedFile(null)} 
+                className="text-zinc-400 hover:text-white transition-colors text-base font-bold bg-white/5 hover:bg-white/10 rounded-full w-6 h-6 flex items-center justify-center cursor-pointer shadow-sm"
+                title="Hủy tệp"
+              >
+                ×
+              </button>
             </div>
-            <button 
-              type="button" 
-              onClick={() => setSelectedFile(null)} 
-              className="text-zinc-400 hover:text-white transition-colors text-base font-bold bg-white/5 hover:bg-white/10 rounded-full w-6 h-6 flex items-center justify-center cursor-pointer shadow-sm"
-              title="Hủy tệp"
-            >
-              ×
-            </button>
-          </div>
+          )
         )}
 
         {isSending && selectedFile && (
