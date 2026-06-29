@@ -8,7 +8,7 @@ import {
 } from '@livekit/components-react';
 import { useEffect, useState, useRef } from 'react';
 import { useVoiceSettings } from '@/components/providers/VoiceSettingsProvider';
-import { Edit3, Check, X, Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff } from 'lucide-react';
+import { Edit3, Check, X, Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Volume2, VolumeX } from 'lucide-react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
 export function VoiceRoom({ 
@@ -269,9 +269,11 @@ export function VoiceRoom({
   useEffect(() => {
     if (remoteAudioRef.current) {
       remoteAudioRef.current.volume = isDeafened ? 0 : 1;
+      remoteAudioRef.current.muted = isDeafened;
     }
     if (remoteVideoRef.current) {
       remoteVideoRef.current.volume = isDeafened ? 0 : 1;
+      remoteVideoRef.current.muted = isDeafened;
     }
   }, [isDeafened, remoteStream]);
 
@@ -467,19 +469,27 @@ export function VoiceRoom({
             className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer border ${p2pMuted ? 'bg-red-600 border-red-600 text-white' : 'bg-zinc-800 border-white/10 text-zinc-300 hover:bg-zinc-700'}`}
             title={p2pMuted ? 'Mở khóa Micro' : 'Tắt tiếng Micro'}
           >
-            {p2pMuted ? <MicOff size={18} /> : <Mic size={18} />}
-          </button>
+        {p2pMuted ? <MicOff size={18} /> : <Mic size={18} />}
+      </button>
 
-          {video && (
-            <button
-              onClick={toggleVideo}
-              className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer border ${p2pVideoOff ? 'bg-red-600 border-red-600 text-white' : 'bg-zinc-800 border-white/10 text-zinc-300 hover:bg-zinc-700'}`}
-              title={p2pVideoOff ? 'Bật Camera' : 'Tắt Camera'}
-            >
-              {p2pVideoOff ? <VideoOff size={18} /> : <VideoIcon size={18} />}
-            </button>
-          )}
-        </div>
+      <button
+        onClick={toggleDeafen}
+        className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer border ${isDeafened ? 'bg-red-600 border-red-600 text-white' : 'bg-zinc-800 border-white/10 text-zinc-300 hover:bg-zinc-700'}`}
+        title={isDeafened ? 'Bật âm thanh (Nghe)' : 'Tắt âm thanh (Deafen)'}
+      >
+        {isDeafened ? <VolumeX size={18} /> : <Volume2 size={18} />}
+      </button>
+
+      {video && (
+        <button
+          onClick={toggleVideo}
+          className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer border ${p2pVideoOff ? 'bg-red-600 border-red-600 text-white' : 'bg-zinc-800 border-white/10 text-zinc-300 hover:bg-zinc-700'}`}
+          title={p2pVideoOff ? 'Bật Camera' : 'Tắt Camera'}
+        >
+          {p2pVideoOff ? <VideoOff size={18} /> : <VideoIcon size={18} />}
+        </button>
+      )}
+    </div>
       </div>
     );
   }
