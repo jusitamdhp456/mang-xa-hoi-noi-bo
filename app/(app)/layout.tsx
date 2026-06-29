@@ -44,15 +44,18 @@ export default async function AppLayout({
          {/* Home button (Direct Messages) */}
          <Link href="/channels/me" className="flex-shrink-0">
            <div 
-             className="w-12 h-12 bg-white/10 hover:bg-[#5865F2] backdrop-blur-md shadow-sm border border-white/10 text-white rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer hover:scale-105 transition-all duration-200 overflow-hidden"
+             className="w-12 h-12 bg-white/10 hover:bg-[#5865F2] backdrop-blur-md shadow-sm border border-white/10 text-white rounded-full hover:rounded-2xl flex items-center justify-center cursor-pointer hover:scale-105 transition-all duration-200 overflow-hidden group"
              title="Tin nhắn trực tiếp & Bạn bè"
            >
-             {avatarUrl ? (
-               // eslint-disable-next-line @next/next/no-img-element
-               <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-             ) : (
-               <span className="font-bold text-lg text-white">{initial}</span>
-             )}
+             <svg 
+               width="24" 
+               height="24" 
+               viewBox="0 0 127.14 96.36" 
+               fill="currentColor"
+               className="w-6 h-6 transition-transform group-hover:scale-110"
+             >
+               <path d="M107.7,8.07A105.15,105.15,0,0,0,77.26,0a77.19,77.19,0,0,0-3.3,6.83A96.67,96.67,0,0,0,52.8,6.83,77.19,77.19,0,0,0,49.5,0,105.15,105.15,0,0,0,19.06,8.07C3.12,31.78-1.25,54.91,1,77.78a105.62,105.62,0,0,0,32,16.29,81.16,81.16,0,0,0,6.77-11,68.6,68.6,0,0,1-10.74-5.12c.91-.66,1.8-1.34,2.65-2a75.58,75.58,0,0,0,62,0c.85.69,1.74,1.37,2.65,2a68.6,68.6,0,0,1-10.74,5.12,81.16,81.16,0,0,0,6.77,11,105.62,105.62,0,0,0,32-16.29C128.82,54.91,124.08,31.78,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53S36.18,40.36,42.45,40.36,53.86,46,53.86,53,48.72,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.24,60,73.24,53S78.41,40.36,84.69,40.36,96.1,46,96.1,53,91,65.69,84.69,65.69Z"/>
+             </svg>
            </div>
          </Link>
 
