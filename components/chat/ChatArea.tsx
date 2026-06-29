@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { toggleReaction } from '@/app/actions/reaction'
+import { Volume2, Download } from 'lucide-react'
 import { MessageItem } from './MessageItem'
 import { MessageInput } from './MessageInput'
 
@@ -208,8 +209,8 @@ export function ChatArea({
         <div className="flex-1 min-h-0" aria-hidden />
         {messages.length === 0 ? (
           <div className="text-center text-gray-500 my-8">
-             <div className="w-16 h-16 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center text-2xl text-gray-500">
-               {channelType === 'voice' ? '🔊' : '#'}
+             <div className="w-16 h-16 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center text-gray-500">
+               {channelType === 'voice' ? <Volume2 size={26} /> : <span className="text-2xl">#</span>}
              </div>
              <h3 className="text-lg font-bold text-gray-800 mb-1">Chào mừng bạn đến với {channelName}</h3>
              <p className="text-sm">Đây là sự khởi đầu của kênh <strong>{channelName}</strong>.</p>
@@ -253,7 +254,7 @@ export function ChatArea({
               className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border border-white/10"
               title="Tải ảnh gốc"
             >
-              📥 Tải ảnh
+              <Download size={14} /> Tải ảnh
             </a>
             <button
               type="button"

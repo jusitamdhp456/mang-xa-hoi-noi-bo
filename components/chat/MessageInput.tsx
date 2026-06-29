@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { sendMessage } from '@/app/actions/message'
-import { Send, Smile } from 'lucide-react'
+import { Send, Smile, File as FileIcon } from 'lucide-react'
 
 const EMOJI_LIST = [
   '😀', '😁', '😂', '🤣', '😊', '😍', '😘', '😎',
@@ -262,7 +262,7 @@ export function MessageInput({
           ) : (
             /* Staging File Card Preview */
             <div className="flex items-center gap-3 bg-[#2b2d31] p-3 rounded-2xl border border-white/5 shadow-md w-max max-w-sm ml-4 animate-scale-in">
-              <div className="text-xl">📁</div>
+              <div className="text-zinc-300"><FileIcon size={20} /></div>
               <div className="min-w-0">
                 <p className="text-xs font-bold text-zinc-200 truncate max-w-[200px]">{selectedFile.name}</p>
                 <p className="text-[10px] text-zinc-400 mt-0.5">{(selectedFile.size / 1024).toFixed(1)} KB</p>
@@ -312,7 +312,7 @@ export function MessageInput({
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
               disabled={isSending}
-              placeholder={isSending ? "Vui lòng đợi..." : `Nhắn tin vào ${channelType === 'voice' ? '🔊' : '#'} ${channelName}...`}
+              placeholder={isSending ? "Vui lòng đợi..." : `Nhắn tin vào ${channelType === 'voice' ? '' : '#'}${channelName}...`}
               className="bg-transparent w-full outline-none text-xs text-white disabled:opacity-50 placeholder:text-zinc-500 font-medium mr-2"
            />
            {/* Emoji picker */}

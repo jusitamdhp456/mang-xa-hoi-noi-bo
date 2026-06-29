@@ -100,7 +100,7 @@ export function IntroSplash() {
           onClick={handleStart}
           className="px-8 py-3 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white text-base font-extrabold tracking-wide backdrop-blur-md shadow-lg transition-all hover:scale-105 active:scale-95 cursor-pointer animate-pulse"
         >
-          👆 Chạm để mở
+          Chạm để mở
         </button>
       )}
     </div>

@@ -13,7 +13,7 @@ import {
   useParticipants,
 } from '@livekit/components-react';
 import { Track } from 'livekit-client';
-import { Monitor, MonitorOff } from 'lucide-react';
+import { Monitor, MonitorOff, AlertTriangle } from 'lucide-react';
 import { useVoiceSettings, playVoiceTone } from '@/components/providers/VoiceSettingsProvider';
 import { useRouter } from 'next/navigation';
 import { Edit3, Check, X, Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Volume2, VolumeX, Settings } from 'lucide-react';
@@ -669,8 +669,8 @@ export function VoiceRoom({
   if (disconnected) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-[#121214] text-zinc-300 p-6 select-none">
-        <div className="w-20 h-20 bg-zinc-800 rounded-full flex items-center justify-center text-4xl mb-6 shadow-lg border border-white/5">
-          👋
+        <div className="w-20 h-20 bg-zinc-800 rounded-full flex items-center justify-center text-zinc-400 mb-6 shadow-lg border border-white/5">
+          <PhoneOff size={32} />
         </div>
         <h2 className="text-xl font-bold mb-2 text-white">Bạn đã rời cuộc gọi</h2>
         <p className="text-zinc-400 text-sm mb-8">Bạn đã ngắt kết nối.</p>
@@ -693,8 +693,8 @@ export function VoiceRoom({
 
     return (
       <div className="absolute inset-0 z-40 bg-zinc-950/95 backdrop-blur-md flex flex-col items-center justify-center text-zinc-300 p-4 select-none overflow-y-auto scrollbar-thin scrollbar-thumb-white/10">
-        <div className="w-12 h-12 bg-red-500/10 text-red-400 rounded-full flex items-center justify-center text-xl mb-3 border border-red-500/20 shrink-0">
-          ⚠️
+        <div className="w-12 h-12 bg-red-500/10 text-red-400 rounded-full flex items-center justify-center mb-3 border border-red-500/20 shrink-0">
+          <AlertTriangle size={20} />
         </div>
         <h2 className="text-sm font-bold mb-1 text-white shrink-0">
           {isMissingKeys ? "Chưa cấu hình API Key cho Đàm thoại" : "Lỗi kết nối phòng thoại"}
@@ -866,7 +866,7 @@ export function VoiceRoom({
               <h4 className="font-extrabold text-[11px] text-zinc-400 uppercase tracking-wider">Cấu hình Thiết bị</h4>
               
               <div className="space-y-1.5">
-                <label className="text-[10px] text-zinc-400 font-bold">🎙️ Đầu vào (Microphone)</label>
+                <label className="text-[10px] text-zinc-400 font-bold flex items-center gap-1.5"><Mic size={11} /> Đầu vào (Microphone)</label>
                 <select
                   value={selectedMicId}
                   onChange={(e) => changeMicrophone(e.target.value)}
@@ -882,7 +882,7 @@ export function VoiceRoom({
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] text-zinc-400 font-bold">🔊 Đầu ra (Loa / Tai nghe)</label>
+                <label className="text-[10px] text-zinc-400 font-bold flex items-center gap-1.5"><Volume2 size={11} /> Đầu ra (Loa / Tai nghe)</label>
                 <select
                   value={selectedOutputId}
                   onChange={(e) => changeAudioOutput(e.target.value)}
@@ -919,8 +919,8 @@ export function VoiceRoom({
       {/* Voice Room Nickname Control Bar (hidden on mobile to save space) */}
       <div className="bg-zinc-900/60 border-b border-white/5 px-6 py-3.5 hidden md:flex items-center justify-between gap-4 backdrop-blur-md shrink-0 select-none">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center border border-cyan-500/15 text-sm font-bold shadow-sm">
-            🔊
+          <div className="w-8 h-8 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center border border-cyan-500/15 shadow-sm">
+            <Volume2 size={16} />
           </div>
           <div>
             <h3 className="font-bold text-white text-xs">Phòng đàm thoại</h3>

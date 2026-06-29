@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { SmilePlus } from 'lucide-react'
+import { SmilePlus, FileText } from 'lucide-react'
 import { type MessageRow } from './ChatArea'
 import { VoiceInviteCard } from './VoiceInviteCard'
 
@@ -97,7 +97,7 @@ export function MessageItem({
                    rel="noopener noreferrer"
                    className="flex items-center gap-3 bg-white/70 backdrop-blur-md border border-white rounded-2xl p-4 w-max hover:bg-white transition-all shadow-sm hover:shadow-md"
                  >
-                   <div className="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center text-xl">📄</div>
+                   <div className="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center text-pink-600"><FileText size={18} /></div>
                    <div>
                      <p className="text-sm font-bold text-pink-600 hover:underline">{attachment.file_name}</p>
                      <p className="text-xs font-medium text-zinc-500 mt-0.5">{(attachment.size_bytes / 1024).toFixed(1)} KB</p>

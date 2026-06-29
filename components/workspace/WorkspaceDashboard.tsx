@@ -16,7 +16,8 @@ import {
   ChevronRight, 
   Grid,
   FolderOpen,
-  Phone
+  Phone,
+  Inbox
 } from 'lucide-react'
 
 interface CategoryItem {
@@ -206,8 +207,8 @@ export function WorkspaceDashboard({
           <div className="flex-1 flex flex-col gap-6 min-h-0">
             {filteredChannels.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-white/5 border border-white/5 rounded-3xl">
-                <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-zinc-400 mb-4 text-xl">
-                  📭
+                <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-zinc-400 mb-4">
+                  <Inbox size={26} />
                 </div>
                 <h3 className="text-white font-bold text-base mb-1">Không tìm thấy kênh nào</h3>
                 <p className="text-zinc-400 text-xs max-w-xs mb-4">
@@ -288,7 +289,7 @@ export function WorkspaceDashboard({
                     )}
                     {/* Role badge */}
                     <span className="absolute -bottom-1 -right-1 bg-indigo-600 text-[8px] font-extrabold uppercase px-1 rounded-sm text-white scale-90 border border-slate-900">
-                      {member.role === 'owner' ? '👑' : member.role === 'admin' ? 'AD' : 'MB'}
+                      {member.role === 'owner' ? 'CHỦ' : member.role === 'admin' ? 'AD' : 'MB'}
                     </span>
                   </div>
                   
@@ -371,8 +372,8 @@ function ChannelCard({ channel, workspaceId }: { channel: ChannelItem; workspace
 
       {/* Double click hint for voice channels */}
       {isVoice && showHint && (
-        <div className="absolute inset-0 rounded-2xl bg-indigo-950/80 backdrop-blur-xs flex items-center justify-center text-xs font-bold text-cyan-300 animate-scale-in border border-indigo-500/30">
-          🔊 Nhấp đúp (Double-click) để tham gia thoại
+        <div className="absolute inset-0 rounded-2xl bg-indigo-950/80 backdrop-blur-xs flex items-center justify-center gap-1.5 text-xs font-bold text-cyan-300 animate-scale-in border border-indigo-500/30">
+          <Volume2 size={14} /> Nhấp đúp để tham gia thoại
         </div>
       )}
 

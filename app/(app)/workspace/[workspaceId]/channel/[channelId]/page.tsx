@@ -4,6 +4,7 @@ import { ChatArea } from '@/components/chat/ChatArea'
 import { VoiceRoom } from '@/components/workspace/VoiceRoom'
 import { NotificationBell } from '@/components/workspace/NotificationBell'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { Volume2 } from 'lucide-react'
 
 export default async function ChannelPage({ params }: { params: Promise<{ workspaceId: string, channelId: string }> }) {
   const { workspaceId, channelId } = await params;
@@ -55,7 +56,7 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
               </svg>
             </Link>
 
-            <span className="text-cyan-400 mr-2 sm:mr-3 text-2xl drop-shadow-sm">{channel?.type === 'voice' ? '🔊' : '#'}</span>
+            <span className="text-cyan-400 mr-2 sm:mr-3 flex items-center drop-shadow-sm">{channel?.type === 'voice' ? <Volume2 size={22} /> : <span className="text-2xl">#</span>}</span>
             <span className="truncate">{channel?.name || channelId}</span>
             {channel?.topic && <span className="ml-4 pl-4 border-l border-white/20 text-sm text-white/70 font-medium hidden md:block truncate">{channel.topic}</span>}
             
