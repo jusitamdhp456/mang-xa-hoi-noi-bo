@@ -25,13 +25,25 @@ function ringMelody(ctx: AudioContext) {
 function playIntroSound() {
   try {
     const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    if (!AC) return;
-    const ctx = new AC();
+    const ctx = AC ? new AC() : null;
+
+    // Real intro audio file (plays alongside the synthesized chime).
+    const audio = new Audio('/alovua.mp3');
+    audio.volume = 0.9;
 
     const fire = () => {
-      ctx.resume().catch(() => {});
-      ringMelody(ctx);
+      if (ctx) {
+        ctx.resume().catch(() => {});
+        ringMelody(ctx);
+      }
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
     };
+
+    if (!ctx) {
+      fire();
+      return;
+    }
 
     if (ctx.state === 'suspended') {
       // Autoplay is blocked until a gesture — play on the first interaction.
@@ -59,8 +71,8 @@ export function IntroSplash() {
 
   useEffect(() => {
     playIntroSound();
-    const t1 = setTimeout(() => setPhase('hiding'), 1900);
-    const t2 = setTimeout(() => setPhase('gone'), 2400);
+    const t1 = setTimeout(() => setPhase('hiding'), 2500);
+    const t2 = setTimeout(() => setPhase('gone'), 3000);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
