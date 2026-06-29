@@ -5,7 +5,23 @@ import {
   LiveKitRoom,
   VideoConference,
   RoomAudioRenderer,
+  useLocalParticipant,
 } from '@livekit/components-react';
+
+function LiveKitSync({ isMuted, isDeafened }: { isMuted: boolean; isDeafened: boolean }) {
+  const { localParticipant } = useLocalParticipant();
+
+  useEffect(() => {
+    if (localParticipant) {
+      const isMicEnabled = !isMuted && !isDeafened;
+      localParticipant.setMicrophoneEnabled(isMicEnabled).catch(err => {
+        console.warn('Failed to sync microphone state with LiveKit:', err);
+      });
+    }
+  }, [isMuted, isDeafened, localParticipant]);
+
+  return null;
+}
 import { useEffect, useState, useRef } from 'react';
 import { useVoiceSettings } from '@/components/providers/VoiceSettingsProvider';
 import { Edit3, Check, X, Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Volume2, VolumeX, Settings } from 'lucide-react';
@@ -715,6 +731,7 @@ export function VoiceRoom({
         onDisconnected={() => setDisconnected(true)}
         className="h-full w-full flex flex-col flex-1"
       >
+        <LiveKitSync isMuted={isMuted} isDeafened={isDeafened} />
         <VideoConference />
         {!isDeafened && <RoomAudioRenderer />}
       </LiveKitRoom>
