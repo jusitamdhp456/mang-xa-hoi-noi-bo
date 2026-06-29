@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { sendMessage } from '@/app/actions/message'
+import { Send } from 'lucide-react'
 
 export function MessageInput({ 
   channelId, 
@@ -188,8 +189,16 @@ export function MessageInput({
               onPaste={handlePaste}
               disabled={isSending}
               placeholder={isSending ? "Vui lòng đợi..." : `Nhắn tin vào ${channelType === 'voice' ? '🔊' : '#'} ${channelName}...`} 
-              className="bg-transparent w-full outline-none text-xs text-white disabled:opacity-50 placeholder:text-zinc-500 font-medium"
+              className="bg-transparent w-full outline-none text-xs text-white disabled:opacity-50 placeholder:text-zinc-500 font-medium mr-2"
            />
+           <button 
+             type="submit" 
+             disabled={isSending || (!content.trim() && !selectedFile)}
+             className="text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0 disabled:opacity-30 disabled:hover:text-zinc-400 p-1 hover:bg-white/5 rounded-lg flex items-center justify-center"
+             title="Gửi tin nhắn"
+           >
+             <Send size={16} />
+           </button>
         </div>
       </form>
     </div>
