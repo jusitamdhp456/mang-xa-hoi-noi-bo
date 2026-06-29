@@ -212,10 +212,11 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
     const query = addFriendInput.trim();
     if (!query) return;
 
-    // Search for user in database profiles by username or UUID
+    // Search for user in database profiles by username, UUID, or 10-digit ID
     const foundUser = otherProfiles.find(p => 
       p.username?.toLowerCase() === query.toLowerCase() ||
-      p.id === query
+      p.id === query ||
+      getTenDigitId(p.id) === query
     );
 
     if (foundUser) {
@@ -695,7 +696,8 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                             otherProfiles.filter(p => 
                               p.username?.toLowerCase().includes(addFriendInput.trim().toLowerCase()) ||
                               p.display_name?.toLowerCase().includes(addFriendInput.trim().toLowerCase()) ||
-                              p.id === addFriendInput.trim()
+                              p.id === addFriendInput.trim() ||
+                              getTenDigitId(p.id).includes(addFriendInput.trim())
                             ).length
                           })
                         </h4>
@@ -704,7 +706,8 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                           {otherProfiles.filter(p => 
                             p.username?.toLowerCase().includes(addFriendInput.trim().toLowerCase()) ||
                             p.display_name?.toLowerCase().includes(addFriendInput.trim().toLowerCase()) ||
-                            p.id === addFriendInput.trim()
+                            p.id === addFriendInput.trim() ||
+                            getTenDigitId(p.id).includes(addFriendInput.trim())
                           ).slice(0, 5).map(p => {
                             const isAlreadyFriend = friendIds.includes(p.id);
                             const avatar = p.avatar_key ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${p.avatar_key}` : null;
@@ -769,7 +772,8 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                           {otherProfiles.filter(p => 
                             p.username?.toLowerCase().includes(addFriendInput.trim().toLowerCase()) ||
                             p.display_name?.toLowerCase().includes(addFriendInput.trim().toLowerCase()) ||
-                            p.id === addFriendInput.trim()
+                            p.id === addFriendInput.trim() ||
+                            getTenDigitId(p.id).includes(addFriendInput.trim())
                           ).length === 0 && (
                             <p className="text-xs text-zinc-500 italic py-2">Không tìm thấy người dùng có Tên/ID: "{addFriendInput}"</p>
                           )}
