@@ -2,7 +2,14 @@
 
 import { useState, useRef } from 'react'
 import { sendMessage } from '@/app/actions/message'
-import { Send } from 'lucide-react'
+import { Send, Smile } from 'lucide-react'
+
+const EMOJI_LIST = [
+  '😀', '😁', '😂', '🤣', '😊', '😍', '😘', '😎',
+  '🤩', '😢', '😭', '😡', '😱', '🤔', '🙄', '😴',
+  '👍', '👎', '👏', '🙏', '💪', '🤝', '👀', '🎉',
+  '❤️', '🔥', '⭐', '✅', '❌', '💯', '🚀', '☕',
+]
 
 export function MessageInput({ 
   channelId, 
@@ -19,7 +26,29 @@ export function MessageInput({
   const [isSending, setIsSending] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
+  const [emojiOpen, setEmojiOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const textInputRef = useRef<HTMLInputElement>(null)
+
+  // Insert an emoji at the caret position (or append if no selection).
+  const insertEmoji = (emoji: string) => {
+    const input = textInputRef.current
+    if (!input) {
+      setContent((prev) => prev + emoji)
+    } else {
+      const start = input.selectionStart ?? content.length
+      const end = input.selectionEnd ?? content.length
+      const next = content.slice(0, start) + emoji + content.slice(end)
+      setContent(next)
+      // Restore caret right after the inserted emoji.
+      requestAnimationFrame(() => {
+        input.focus()
+        const pos = start + emoji.length
+        input.setSelectionRange(pos, pos)
+      })
+    }
+    setEmojiOpen(false)
+  }
 
   const compressImage = (file: File): Promise<File> => {
     return new Promise((resolve) => {
@@ -249,17 +278,47 @@ export function MessageInput({
                if (e.target.files?.[0]) handleFileSelection(e.target.files[0])
              }}
            />
-           <input 
-              type="text" 
+           <input
+              type="text"
+              ref={textInputRef}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
               disabled={isSending}
-              placeholder={isSending ? "Vui lòng đợi..." : `Nhắn tin vào ${channelType === 'voice' ? '🔊' : '#'} ${channelName}...`} 
+              placeholder={isSending ? "Vui lòng đợi..." : `Nhắn tin vào ${channelType === 'voice' ? '🔊' : '#'} ${channelName}...`}
               className="bg-transparent w-full outline-none text-xs text-white disabled:opacity-50 placeholder:text-zinc-500 font-medium mr-2"
            />
-           <button 
+           {/* Emoji picker */}
+           <div className="relative shrink-0 mr-1">
+             <button
+               type="button"
+               onClick={() => setEmojiOpen((v) => !v)}
+               disabled={isSending}
+               className="text-zinc-400 hover:text-white transition-colors cursor-pointer p-1 hover:bg-white/5 rounded-lg flex items-center justify-center disabled:opacity-30"
+               title="Chèn emoji"
+             >
+               <Smile size={16} />
+             </button>
+             {emojiOpen && (
+               <>
+                 <div className="fixed inset-0 z-10" onClick={() => setEmojiOpen(false)} />
+                 <div className="absolute z-20 bottom-10 right-0 bg-[#2b2d31] border border-white/10 rounded-2xl shadow-2xl p-2 grid grid-cols-8 gap-0.5 w-72 animate-scale-in">
+                   {EMOJI_LIST.map((e) => (
+                     <button
+                       key={e}
+                       type="button"
+                       onClick={() => insertEmoji(e)}
+                       className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-lg transition-colors cursor-pointer"
+                     >
+                       {e}
+                     </button>
+                   ))}
+                 </div>
+               </>
+             )}
+           </div>
+           <button
              type="submit" 
              disabled={isSending || (!content.trim() && !selectedFile)}
              className="text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0 disabled:opacity-30 disabled:hover:text-zinc-400 p-1 hover:bg-white/5 rounded-lg flex items-center justify-center"
