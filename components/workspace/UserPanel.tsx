@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useVoiceSettings } from '@/components/providers/VoiceSettingsProvider';
+import { useVoiceSettings, playVoiceTone } from '@/components/providers/VoiceSettingsProvider';
 import { Mic, MicOff, Headphones, PhoneOff, ChevronDown } from 'lucide-react';
 import { User } from '@supabase/supabase-js';
+import { useRouter } from 'next/navigation';
 
 interface UserPanelProps {
   user: User | null;
@@ -13,6 +14,7 @@ interface UserPanelProps {
 }
 
 export function UserPanel({ user, profile, channels, workspaceName }: UserPanelProps) {
+  const router = useRouter();
   const { isMuted, isDeafened, toggleMute, toggleDeafen, activeChannelId, setActiveChannelId } = useVoiceSettings();
 
   const [micDevices, setMicDevices] = useState<MediaDeviceInfo[]>([]);
@@ -85,12 +87,11 @@ export function UserPanel({ user, profile, channels, workspaceName }: UserPanelP
           <div className="flex items-center gap-1 shrink-0">
             <button
               onClick={() => {
+                playVoiceTone('leave');
                 setActiveChannelId(null);
-                if (typeof window !== 'undefined') {
-                  const currentWorkspaceId = window.location.pathname.split('/workspace/')[1]?.split('/')[0];
-                  if (currentWorkspaceId) {
-                    window.location.href = `/workspace/${currentWorkspaceId}`;
-                  }
+                const currentWorkspaceId = window.location.pathname.split('/workspace/')[1]?.split('/')[0];
+                if (currentWorkspaceId) {
+                  router.push(`/workspace/${currentWorkspaceId}`);
                 }
               }}
               className="w-7 h-7 flex items-center justify-center rounded-md bg-white/5 text-red-400 hover:bg-red-500 hover:text-white transition-colors cursor-pointer"

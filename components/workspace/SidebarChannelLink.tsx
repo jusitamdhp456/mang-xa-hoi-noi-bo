@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { Phone, Lock, Edit3, X, Search, UserPlus } from 'lucide-react'
-import { useVoiceSettings } from '@/components/providers/VoiceSettingsProvider'
+import { useVoiceSettings, playVoiceTone } from '@/components/providers/VoiceSettingsProvider'
 import { getFriends, sendDirectMessage } from '@/app/actions/friend'
 
 interface ChannelItem {
@@ -64,7 +64,7 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
     (f.username || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const { activeParticipants, changeUserNickname, currentUser } = useVoiceSettings()
+  const { activeParticipants, changeUserNickname, currentUser, setActiveChannelId, setWorkspaceId } = useVoiceSettings()
   
   const isVoice = channel.type === 'voice'
   const channelUrl = `/workspace/${workspaceId}/channel/${channel.id}`
@@ -94,7 +94,10 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
   // Handle double-click
   const handleDoubleClick = () => {
     if (isVoice) {
-      router.push(channelUrl)
+      playVoiceTone('join');
+      setActiveChannelId(channel.id);
+      setWorkspaceId(workspaceId);
+      router.push(channelUrl);
     }
   }
 

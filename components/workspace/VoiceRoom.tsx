@@ -11,57 +11,7 @@ import { useVoiceSettings } from '@/components/providers/VoiceSettingsProvider';
 import { Edit3, Check, X, Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Volume2, VolumeX, Settings } from 'lucide-react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
-function playVoiceTone(type: 'join' | 'leave') {
-  if (typeof window === 'undefined') return;
-  try {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContextClass) return;
-    const ctx = new AudioContextClass();
-    const now = ctx.currentTime;
 
-    if (type === 'join') {
-      const freqs = [659.25, 783.99, 1046.50];
-      freqs.forEach((f, idx) => {
-        const start = now + idx * 0.08;
-        const duration = 0.25;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(f, start);
-        gain.gain.setValueAtTime(0, now);
-        gain.gain.setValueAtTime(0.12, start);
-        gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
-        
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(start);
-        osc.stop(start + duration + 0.05);
-      });
-    } else {
-      const freqs = [783.99, 659.25, 523.25];
-      freqs.forEach((f, idx) => {
-        const start = now + idx * 0.08;
-        const duration = 0.25;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(f, start);
-        gain.gain.setValueAtTime(0, now);
-        gain.gain.setValueAtTime(0.1, start);
-        gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
-        
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(start);
-        osc.stop(start + duration + 0.05);
-      });
-    }
-  } catch (e) {
-    console.warn('AudioContext failed:', e);
-  }
-}
 
 export function VoiceRoom({ 
   channelId, 
@@ -118,15 +68,10 @@ export function VoiceRoom({
   useEffect(() => {
     setActiveChannelId(channelId);
     setWorkspaceId(workspaceId);
-    
-    // Play join chime tone
-    playVoiceTone('join');
 
     return () => {
       setActiveChannelId(null);
       setWorkspaceId(null);
-      // Play leave chime tone
-      playVoiceTone('leave');
     };
   }, [channelId, workspaceId, setActiveChannelId, setWorkspaceId]);
 
