@@ -128,11 +128,14 @@ export function VoiceRoom({
           peerConnection!.addTrack(track, localMediaStream!);
         });
 
+        // Initialize remote stream container
+        const remoteMediaStream = new MediaStream();
+        
         // Receive remote tracks
         peerConnection.ontrack = (event) => {
-          if (event.streams && event.streams[0]) {
-            setRemoteStream(event.streams[0]);
-          }
+          remoteMediaStream.addTrack(event.track);
+          // Force state refresh to bind stream
+          setRemoteStream(new MediaStream(remoteMediaStream.getTracks()));
         };
 
         // Gather ICE Candidates and broadcast to peer
@@ -267,34 +270,28 @@ export function VoiceRoom({
     }
   }, [isMuted, localStream]);
 
-  useEffect(() => {
-    if (remoteAudioRef.current) {
-      remoteAudioRef.current.volume = isDeafened ? 0 : 1;
-      remoteAudioRef.current.muted = isDeafened;
-    }
-    if (remoteVideoRef.current) {
-      remoteVideoRef.current.volume = isDeafened ? 0 : 1;
-      remoteVideoRef.current.muted = isDeafened;
-    }
-  }, [isDeafened, remoteStream]);
-
-  // Bind local/remote source objects to visual elements and trigger playback
+  // Bind local source objects to visual element
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
     }
   }, [localStream]);
 
+  // Bind remote source objects to media tags, configure volume/mute, and play
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
+      remoteVideoRef.current.volume = isDeafened ? 0 : 1;
+      remoteVideoRef.current.muted = isDeafened;
       remoteVideoRef.current.play().catch(e => console.warn('Video play warning:', e));
     }
     if (remoteAudioRef.current && remoteStream) {
       remoteAudioRef.current.srcObject = remoteStream;
+      remoteAudioRef.current.volume = isDeafened ? 0 : 1;
+      remoteAudioRef.current.muted = isDeafened;
       remoteAudioRef.current.play().catch(e => console.warn('Audio play warning:', e));
     }
-  }, [remoteStream]);
+  }, [remoteStream, isDeafened]);
 
   const toggleMute = () => {
     if (localStream) {
