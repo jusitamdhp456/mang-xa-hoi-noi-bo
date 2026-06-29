@@ -25,7 +25,7 @@ export function ParticleTrail() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: false }); // Optimize canvas context settings
     if (!ctx) return;
 
     let animationFrameId: number;
@@ -54,35 +54,39 @@ export function ParticleTrail() {
     window.addEventListener('resize', handleResize);
 
     const addParticle = (x: number, y: number) => {
-      // Spawn 1 to 2 trailing sparkles on move
-      const count = Math.floor(Math.random() * 2) + 1;
-      for (let i = 0; i < count; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const speed = Math.random() * 1.2 + 0.3;
-        
-        particles.push({
-          x,
-          y,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed - 0.2,
-          size: Math.random() * 2 + 1.5,
-          color: colors[Math.floor(Math.random() * colors.length)],
-          alpha: 1.0,
-          decay: Math.random() * 0.02 + 0.015,
-          isStar: Math.random() > 0.4,
-          rotation: Math.random() * Math.PI,
-          rotationSpeed: (Math.random() - 0.5) * 0.06,
-          isAmbient: false
-        });
-      }
+      // Spawn 1 trailing sparkle on move to save performance
+      const angle = Math.random() * Math.PI * 2;
+      const speed = Math.random() * 1.0 + 0.2;
+      
+      particles.push({
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 0.2,
+        size: Math.random() * 1.8 + 1.2,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        alpha: 1.0,
+        decay: Math.random() * 0.02 + 0.015,
+        isStar: Math.random() > 0.4,
+        rotation: Math.random() * Math.PI,
+        rotationSpeed: (Math.random() - 0.5) * 0.06,
+        isAmbient: false
+      });
     };
 
+    // Throttle particle generation to once every 30ms
+    let lastSpawnTime = 0;
     const handleMouseMove = (e: MouseEvent) => {
       mouseRef.current.x = e.clientX;
       mouseRef.current.y = e.clientY;
       mouseRef.current.active = true;
       mouseRef.current.lastMove = Date.now();
-      addParticle(e.clientX, e.clientY);
+
+      const now = Date.now();
+      if (now - lastSpawnTime > 30) {
+        addParticle(e.clientX, e.clientY);
+        lastSpawnTime = now;
+      }
     };
 
     const handleTouchMove = (e: TouchEvent) => {
@@ -92,7 +96,12 @@ export function ParticleTrail() {
         mouseRef.current.y = touch.clientY;
         mouseRef.current.active = true;
         mouseRef.current.lastMove = Date.now();
-        addParticle(touch.clientX, touch.clientY);
+        
+        const now = Date.now();
+        if (now - lastSpawnTime > 30) {
+          addParticle(touch.clientX, touch.clientY);
+          lastSpawnTime = now;
+        }
       }
     };
 
@@ -129,31 +138,21 @@ export function ParticleTrail() {
 
     // Main animation loop
     const updateAndDraw = () => {
-      ctx.clearRect(0, 0, width, height);
+      // Fast clear screen (with dark gradient match background instead of full clear context for blend)
+      ctx.fillStyle = '#0f1224'; // Match gradient color to avoid alpha clear overhead
+      ctx.fillRect(0, 0, width, height);
 
       const mouse = mouseRef.current;
       const isMouseActive = mouse.active && (Date.now() - mouse.lastMove < 2500);
 
-      // Keep spawning background ambient particles to keep the screen alive
-      while (particles.filter(p => p.isAmbient).length < 50) {
-        particles.push({
-          x: Math.random() * width,
-          y: Math.random() * height,
-          vx: (Math.random() - 0.5) * 0.5,
-          vy: (Math.random() - 0.5) * 0.5 - 0.1,
-          size: Math.random() * 2 + 1,
-          color: colors[Math.floor(Math.random() * colors.length)],
-          alpha: Math.random() * 0.5 + 0.3,     // Slightly fainter ambient particles
-          decay: Math.random() * 0.006 + 0.002,  // Decays slowly
-          isStar: Math.random() > 0.5,
-          rotation: Math.random() * Math.PI,
-          rotationSpeed: (Math.random() - 0.5) * 0.02,
-          isAmbient: true
-        });
-      }
+      let ambientCount = 0;
 
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
+
+        if (p.isAmbient) {
+          ambientCount++;
+        }
 
         if (isMouseActive) {
           // Physics attraction pull towards mouse
@@ -198,7 +197,7 @@ export function ParticleTrail() {
             p.y = Math.random() * height;
             p.vx = (Math.random() - 0.5) * 0.5;
             p.vy = (Math.random() - 0.5) * 0.5 - 0.1;
-            p.size = Math.random() * 2 + 1;
+            p.size = Math.random() * 1.8 + 0.8;
             p.alpha = Math.random() * 0.5 + 0.3;
             p.decay = Math.random() * 0.006 + 0.002;
           } else {
@@ -214,13 +213,30 @@ export function ParticleTrail() {
           ctx.save();
           ctx.globalAlpha = p.alpha;
           ctx.fillStyle = p.color;
-          ctx.shadowBlur = 8;
-          ctx.shadowColor = p.color;
           ctx.beginPath();
           ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
           ctx.fill();
           ctx.restore();
         }
+      }
+
+      // Add missing ambient particles up to 25
+      while (ambientCount < 25) {
+        particles.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          vx: (Math.random() - 0.5) * 0.5,
+          vy: (Math.random() - 0.5) * 0.5 - 0.1,
+          size: Math.random() * 1.8 + 0.8,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          alpha: Math.random() * 0.5 + 0.3,
+          decay: Math.random() * 0.006 + 0.002,
+          isStar: Math.random() > 0.5,
+          rotation: Math.random() * Math.PI,
+          rotationSpeed: (Math.random() - 0.5) * 0.02,
+          isAmbient: true
+        });
+        ambientCount++;
       }
 
       animationFrameId = requestAnimationFrame(updateAndDraw);
@@ -240,7 +256,6 @@ export function ParticleTrail() {
     <canvas
       ref={canvasRef}
       className="fixed inset-0 pointer-events-none z-0"
-      style={{ mixBlendMode: 'screen' }}
     />
   );
 }
