@@ -4,11 +4,15 @@ import { useEffect, useState, useRef } from 'react';
 import '@livekit/components-styles';
 import {
   LiveKitRoom,
-  VideoConference,
   RoomAudioRenderer,
+  GridLayout,
+  ParticipantTile,
+  useTracks,
   useLocalParticipant,
   useParticipants,
 } from '@livekit/components-react';
+import { Track } from 'livekit-client';
+import { Monitor, MonitorOff } from 'lucide-react';
 import { useVoiceSettings } from '@/components/providers/VoiceSettingsProvider';
 import { Edit3, Check, X, Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Volume2, VolumeX, Settings } from 'lucide-react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
@@ -39,6 +43,80 @@ function LiveKitActiveSpeakersSync({ setSpeakingUserIds }: { setSpeakingUserIds:
   }, [participants, setSpeakingUserIds]);
 
   return null;
+}
+
+// Compact media stage: shows camera/screen-share tiles (avatar placeholder when
+// no video). Kept small so the main area stays free for chat + future media.
+function VoiceStage() {
+  const tracks = useTracks(
+    [
+      { source: Track.Source.Camera, withPlaceholder: true },
+      { source: Track.Source.ScreenShare, withPlaceholder: false },
+    ],
+    { onlySubscribed: false }
+  );
+
+  return (
+    <div className="flex-1 min-h-0 p-2">
+      <GridLayout tracks={tracks} className="h-full">
+        <ParticipantTile />
+      </GridLayout>
+    </div>
+  );
+}
+
+// Compact control bar: mic, camera, screen share, leave. Mic/deafen are driven
+// by the global VoiceSettings so they stay in sync with the sidebar panel.
+function VoiceControlBar({ onLeave }: { onLeave: () => void }) {
+  const { localParticipant } = useLocalParticipant();
+  const { isMuted, toggleMute, isDeafened, toggleDeafen } = useVoiceSettings();
+  const [cameraOn, setCameraOn] = useState(false);
+  const [screenOn, setScreenOn] = useState(false);
+
+  const toggleCamera = async () => {
+    try {
+      const next = !cameraOn;
+      await localParticipant.setCameraEnabled(next);
+      setCameraOn(next);
+    } catch (e) {
+      console.warn('Camera toggle failed:', e);
+    }
+  };
+
+  const toggleScreen = async () => {
+    try {
+      const next = !screenOn;
+      await localParticipant.setScreenShareEnabled(next);
+      setScreenOn(next);
+    } catch (e) {
+      console.warn('Screen share toggle failed:', e);
+    }
+  };
+
+  const btn = 'w-9 h-9 rounded-full flex items-center justify-center transition-colors cursor-pointer border';
+  const idle = 'bg-zinc-800 border-white/10 text-zinc-300 hover:bg-zinc-700';
+  const active = 'bg-indigo-600 border-indigo-600 text-white';
+  const danger = 'bg-red-600 border-red-600 text-white';
+
+  return (
+    <div className="shrink-0 flex items-center justify-center gap-2.5 py-2.5 bg-zinc-900/60 border-t border-white/5 backdrop-blur-md select-none">
+      <button onClick={toggleMute} className={`${btn} ${isMuted ? danger : idle}`} title={isMuted ? 'Bật mic' : 'Tắt mic'}>
+        {isMuted ? <MicOff size={16} /> : <Mic size={16} />}
+      </button>
+      <button onClick={toggleDeafen} className={`${btn} ${isDeafened ? danger : idle}`} title={isDeafened ? 'Bật nghe' : 'Tắt nghe'}>
+        {isDeafened ? <VolumeX size={16} /> : <Volume2 size={16} />}
+      </button>
+      <button onClick={toggleCamera} className={`${btn} ${cameraOn ? active : idle}`} title={cameraOn ? 'Tắt camera' : 'Bật camera'}>
+        {cameraOn ? <VideoIcon size={16} /> : <VideoOff size={16} />}
+      </button>
+      <button onClick={toggleScreen} className={`${btn} ${screenOn ? active : idle}`} title={screenOn ? 'Dừng chia sẻ màn hình' : 'Chia sẻ màn hình'}>
+        {screenOn ? <MonitorOff size={16} /> : <Monitor size={16} />}
+      </button>
+      <button onClick={onLeave} className={`${btn} ${danger}`} title="Rời kênh thoại">
+        <PhoneOff size={16} />
+      </button>
+    </div>
+  );
 }
 
 
@@ -843,7 +921,14 @@ export function VoiceRoom({
       >
         <LiveKitSync isMuted={isMuted} isDeafened={isDeafened} />
         <LiveKitActiveSpeakersSync setSpeakingUserIds={setSpeakingUserIds} />
-        <VideoConference />
+        <VoiceStage />
+        <VoiceControlBar
+          onLeave={() => {
+            setActiveChannelId(null);
+            setWorkspaceId(null);
+            setDisconnected(true);
+          }}
+        />
         {!isDeafened && <RoomAudioRenderer />}
       </LiveKitRoom>
     </div>
