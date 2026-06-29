@@ -111,12 +111,12 @@ export async function sendMessage(
             content: `đã nhắc đến bạn trong một tin nhắn.`,
             link: `/workspace/${workspaceId}/channel/${channelId}`
           }))
-          
+
           await supabase.from('notifications').insert(notifications)
         }
       }
     }
   }
 
-  return { success: true }
+  return { success: true, messageId: message.id }
 }

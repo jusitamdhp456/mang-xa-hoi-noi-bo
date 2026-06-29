@@ -55,6 +55,19 @@ export function ChatArea({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const channelRef = useRef<RealtimeChannel | null>(null)
 
+  // Fetch a single message (with author, attachments, reactions) and append it
+  // if not already present. Used by realtime, by the new-message broadcast, and
+  // by the local send so the chat works even if postgres realtime is disabled.
+  const appendMessageById = useCallback(async (messageId: string) => {
+    const { data: msg } = await supabase
+      .from('messages')
+      .select('*, profiles(display_name, avatar_key), message_attachments(*), message_reactions(emoji, user_id)')
+      .eq('id', messageId)
+      .single()
+    if (!msg) return
+    setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg as MessageRow]))
+  }, [supabase])
+
   // Re-fetch the reactions for a single message and merge into state.
   const refreshReactions = useCallback(async (messageId: string) => {
     const { data } = await supabase
@@ -97,6 +110,16 @@ export function ChatArea({
     })
   }, [currentUserId, refreshReactions])
 
+  // After a message is sent: show it locally and notify other clients.
+  const handleSent = useCallback(async (messageId: string) => {
+    await appendMessageById(messageId)
+    channelRef.current?.send({
+      type: 'broadcast',
+      event: 'new_message',
+      payload: { messageId },
+    })
+  }, [appendMessageById])
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
@@ -116,26 +139,17 @@ export function ChatArea({
           table: 'messages',
           filter: `channel_id=eq.${channelId}`,
         },
-        async (payload) => {
-          const newMessage = payload.new;
-          
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('display_name, avatar_key')
-            .eq('id', newMessage.sender_id)
-            .single()
-
-          // Cần fetch thêm attachment nếu có, nhưng hiện tại payload chỉ có bảng messages.
-          // Cách an toàn là fetch lại toàn bộ message hoặc chỉ lấy attachment dựa trên message.id
-          let message_attachments = []
-          if (newMessage.type === 'image' || newMessage.type === 'file') {
-            const { data: attach } = await supabase.from('message_attachments').select('*').eq('message_id', newMessage.id)
-            if (attach) message_attachments = attach
-          }
-
-          const enrichedMessage = { ...(newMessage as MessageRow), profiles: profile as unknown as { display_name: string; avatar_key: string | null }, message_attachments } as MessageRow
-          
-          setMessages((prev) => [...prev, enrichedMessage])
+        (payload) => {
+          const id = payload.new?.id
+          if (id) appendMessageById(id)
+        }
+      )
+      .on(
+        'broadcast',
+        { event: 'new_message' },
+        (payload) => {
+          const messageId = payload?.payload?.messageId
+          if (messageId) appendMessageById(messageId)
         }
       )
       .on(
@@ -154,7 +168,7 @@ export function ChatArea({
       channelRef.current = null
       supabase.removeChannel(channel)
     }
-  }, [channelId, supabase, refreshReactions])
+  }, [channelId, supabase, refreshReactions, appendMessageById])
 
   return (
     <>
@@ -183,11 +197,12 @@ export function ChatArea({
         </div>
       </div>
       
-      <MessageInput 
-        channelId={channelId} 
-        channelName={channelName} 
-        channelType={channelType} 
+      <MessageInput
+        channelId={channelId}
+        channelName={channelName}
+        channelType={channelType}
         workspaceId={workspaceId}
+        onSent={handleSent}
       />
 
       {/* Image Lightbox Modal Overlay */}

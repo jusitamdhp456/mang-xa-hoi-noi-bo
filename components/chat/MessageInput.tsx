@@ -11,16 +11,18 @@ const EMOJI_LIST = [
   '❤️', '🔥', '⭐', '✅', '❌', '💯', '🚀', '☕',
 ]
 
-export function MessageInput({ 
-  channelId, 
-  channelName, 
-  channelType, 
-  workspaceId 
-}: { 
-  channelId: string, 
-  channelName: string, 
+export function MessageInput({
+  channelId,
+  channelName,
+  channelType,
+  workspaceId,
+  onSent
+}: {
+  channelId: string,
+  channelName: string,
   channelType: string,
-  workspaceId: string
+  workspaceId: string,
+  onSent?: (messageId: string) => void
 }) {
   const [content, setContent] = useState('')
   const [isSending, setIsSending] = useState(false)
@@ -174,7 +176,8 @@ export function MessageInput({
       
       const res = await sendMessage(channelId, workspaceId, currentContent, attachmentData)
       if (res?.error) throw new Error(res.error)
-      
+      if (res?.messageId) onSent?.(res.messageId)
+
     } catch (err: unknown) {
       alert((err as Error).message || 'Có lỗi xảy ra khi gửi tin nhắn')
       setContent(currentContent)
