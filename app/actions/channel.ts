@@ -13,8 +13,24 @@ export async function createCategory(workspaceId: string, formData: FormData) {
   const supabase = await createSupabaseServerClient()
 
   const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (!user || authError) {
-    return { error: 'Bạn cần đăng nhập để thực hiện' }
+  if (authError || !user) {
+    return { error: 'Lỗi: Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn' }
+  }
+
+  // Verify workspace membership
+  const { data: member, error: memberError } = await supabase
+    .from('workspace_members')
+    .select('role')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (memberError) {
+    return { error: `Lỗi kiểm tra thành viên: ${memberError.message}` }
+  }
+
+  if (!member) {
+    return { error: 'Bạn không có quyền tạo danh mục: Bạn không phải là thành viên của không gian này.' }
   }
 
   const { error } = await supabase
@@ -26,7 +42,7 @@ export async function createCategory(workspaceId: string, formData: FormData) {
     if (error.code === '23505') {
       return { error: 'Tên danh mục này đã tồn tại trong không gian' }
     }
-    return { error: `Không thể tạo danh mục: ${error.message}` }
+    return { error: `Không thể tạo danh mục: ${error.message} (${error.code})` }
   }
 
   revalidatePath(`/workspace/${workspaceId}`)
@@ -43,7 +59,27 @@ export async function createChannel(workspaceId: string, categoryId: string | nu
   }
 
   const supabase = await createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    return { error: 'Lỗi: Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn' }
+  }
+
+  // Debug check: Verify if user is in workspace_members table
+  const { data: member, error: memberError } = await supabase
+    .from('workspace_members')
+    .select('role')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (memberError) {
+    return { error: `Lỗi kiểm tra thành viên: ${memberError.message}` }
+  }
+
+  if (!member) {
+    return { error: `Bạn không có quyền tạo kênh: Bạn không phải là thành viên của không gian này.` }
+  }
 
   // Format channel name according to standard rules
   const formattedName = name.trim().toLowerCase().replace(/\s+/g, '-')
@@ -56,7 +92,7 @@ export async function createChannel(workspaceId: string, categoryId: string | nu
       name: formattedName,
       type,
       is_private: isPrivate,
-      created_by: user?.id
+      created_by: user.id
     })
 
   if (error) {
@@ -64,7 +100,7 @@ export async function createChannel(workspaceId: string, categoryId: string | nu
     if (error.code === '23505') {
       return { error: `Tên kênh "#${formattedName}" đã tồn tại trong không gian này` }
     }
-    return { error: `Không thể tạo kênh: ${error.message}` }
+    return { error: `Không thể tạo kênh: ${error.message} (${error.code})` }
   }
 
   revalidatePath(`/workspace/${workspaceId}`)
