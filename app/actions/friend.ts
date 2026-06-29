@@ -30,16 +30,28 @@ export async function sendFriendRequest(targetUserId: string) {
 
   // Check if a request already exists
   const supabaseAdmin = createSupabaseServiceClient();
-  const { data: existingNotification } = await supabaseAdmin
+  const { data: existingNotifications, error: queryErr } = await supabaseAdmin
     .from('notifications')
-    .select('id')
+    .select('id, body')
     .eq('user_id', targetUserId)
     .eq('title', 'Lời mời kết bạn')
-    .is('read_at', null)
-    .contains('body', user.id)
-    .limit(1);
+    .is('read_at', null);
 
-  if (existingNotification && existingNotification.length > 0) {
+  if (queryErr) {
+    console.error('Error checking existing notifications:', queryErr);
+    throw new Error(queryErr.message);
+  }
+
+  const alreadySent = (existingNotifications || []).some(n => {
+    try {
+      const payload = JSON.parse(n.body || '{}');
+      return payload.sender_id === user.id;
+    } catch (e) {
+      return false;
+    }
+  });
+
+  if (alreadySent) {
     return { success: true, message: 'Yêu cầu kết bạn đã được gửi trước đó.' };
   }
 
