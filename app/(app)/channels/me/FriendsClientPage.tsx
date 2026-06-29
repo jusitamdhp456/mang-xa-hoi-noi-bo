@@ -642,37 +642,30 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
     try {
       if (currentFile) {
         setIsUploading(true);
-        const presignRes = await fetch('/api/upload/presigned', {
+        const formData = new FormData()
+        formData.append('file', currentFile)
+        formData.append('threadId', selectedChatId)
+
+        const uploadRes = await fetch('/api/upload', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fileName: currentFile.name,
-            fileType: currentFile.type,
-            threadId: selectedChatId
-          })
-        });
+          body: formData
+        })
         
-        if (!presignRes.ok) throw new Error('Không thể tạo liên kết tải lên');
+        if (!uploadRes.ok) {
+          const errData = await uploadRes.json()
+          throw new Error(errData.error || 'Tải tệp tin lên thất bại')
+        }
         
-        const { uploadUrl, objectKey } = await presignRes.json();
-        
-        const uploadRes = await fetch(uploadUrl, {
-          method: 'PUT',
-          headers: { 'Content-Type': currentFile.type },
-          body: currentFile
-        });
-        
-        if (!uploadRes.ok) throw new Error('Tải tệp tin lên thất bại');
-        
+        const uploadData = await uploadRes.json()
         const attachmentPayload = {
-          objectKey,
-          fileName: currentFile.name,
-          mimeType: currentFile.type || 'application/octet-stream',
-          sizeBytes: currentFile.size
+          objectKey: uploadData.objectKey,
+          fileName: uploadData.fileName,
+          mimeType: uploadData.mimeType,
+          sizeBytes: uploadData.sizeBytes
         };
 
         finalContent = JSON.stringify(attachmentPayload);
-        msgType = currentFile.type.startsWith('image/') ? 'image' : 'file';
+        msgType = uploadData.mimeType.startsWith('image/') ? 'image' : 'file';
       }
 
       const tempMessageId = `msg-temp-${Date.now()}`;

@@ -50,34 +50,27 @@ export function MessageInput({
       let attachmentData = undefined
       
       if (currentFile) {
-        const presignRes = await fetch('/api/upload/presigned', {
+        const formData = new FormData()
+        formData.append('file', currentFile)
+        formData.append('workspaceId', workspaceId)
+        formData.append('channelId', channelId)
+
+        const uploadRes = await fetch('/api/upload', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fileName: currentFile.name,
-            fileType: currentFile.type,
-            workspaceId,
-            channelId
-          })
+          body: formData
         })
         
-        if (!presignRes.ok) throw new Error('Không thể lấy URL upload')
+        if (!uploadRes.ok) {
+          const errData = await uploadRes.json()
+          throw new Error(errData.error || 'Upload file thất bại')
+        }
         
-        const { uploadUrl, objectKey } = await presignRes.json()
-        
-        const uploadRes = await fetch(uploadUrl, {
-          method: 'PUT',
-          headers: { 'Content-Type': currentFile.type },
-          body: currentFile
-        })
-        
-        if (!uploadRes.ok) throw new Error('Upload file thất bại')
-        
+        const uploadData = await uploadRes.json()
         attachmentData = {
-          objectKey,
-          fileName: currentFile.name,
-          mimeType: currentFile.type || 'application/octet-stream',
-          sizeBytes: currentFile.size
+          objectKey: uploadData.objectKey,
+          fileName: uploadData.fileName,
+          mimeType: uploadData.mimeType,
+          sizeBytes: uploadData.sizeBytes
         }
       }
       
