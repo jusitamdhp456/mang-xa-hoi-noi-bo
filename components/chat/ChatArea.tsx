@@ -61,7 +61,7 @@ export function ChatArea({
   const appendMessageById = useCallback(async (messageId: string) => {
     const { data: msg } = await supabase
       .from('messages')
-      .select('*, profiles(display_name, avatar_key), message_attachments(*), message_reactions(emoji, user_id)')
+      .select('*, profiles!messages_sender_id_fkey(display_name, avatar_key), message_attachments(*), message_reactions(emoji, user_id)')
       .eq('id', messageId)
       .single()
     if (!msg) return

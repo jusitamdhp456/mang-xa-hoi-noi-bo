@@ -16,7 +16,7 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
   let initialMessages = []
   const { data: msgs } = await supabase
     .from('messages')
-    .select('*, profiles(display_name, avatar_key), message_attachments(*), message_reactions(emoji, user_id)')
+    .select('*, profiles!messages_sender_id_fkey(display_name, avatar_key), message_attachments(*), message_reactions(emoji, user_id)')
     .eq('channel_id', channelId)
     .order('created_at', { ascending: true })
     .limit(50)

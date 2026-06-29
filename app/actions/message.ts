@@ -62,7 +62,7 @@ export async function sendMessage(
       content: content?.trim() || null,
       type: attachment ? (attachment.mimeType.startsWith('image/') ? 'image' : 'file') : 'text'
     })
-    .select('id, content, created_at, sender_id, type, profiles(display_name, avatar_key)')
+    .select('id, content, created_at, sender_id, type, profiles!messages_sender_id_fkey(display_name, avatar_key)')
     .single()
 
   if (error || !message) {
