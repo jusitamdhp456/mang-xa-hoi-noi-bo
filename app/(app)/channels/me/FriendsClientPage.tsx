@@ -134,7 +134,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
     <div className="flex-1 flex h-full overflow-hidden bg-transparent text-zinc-300 select-none">
       
       {/* COLUMN 1: DIRECT MESSAGES SIDEBAR */}
-      <div className="w-60 bg-black/20 backdrop-blur-xl flex-shrink-0 flex flex-col h-full border-r border-white/10">
+      <div className="w-60 bg-black/20 backdrop-blur-xl flex-shrink-0 flex flex-col h-full border-r border-white/10 animate-slide-in-left">
         
         {/* Search Header */}
         <div className="h-16 px-4 border-b border-white/10 flex items-center justify-center flex-shrink-0 bg-black/10">
@@ -229,12 +229,12 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
       </div>
 
       {/* COLUMN 2: MAIN WORKSPACE */}
-      <div className="flex-1 flex flex-col h-full bg-white/5">
+      <div className="flex-1 flex flex-col h-full bg-white/5 animate-scale-in">
         
         {/* TAB OR CHAT HEADER */}
         {selectedChatId === null ? (
           /* Friends Navigation Header */
-          <div className="h-12 border-b border-black/20 flex items-center px-4 gap-4 flex-shrink-0 bg-[#313338]">
+          <div className="h-16 border-b border-white/10 flex items-center px-6 gap-4 flex-shrink-0 bg-white/5 backdrop-blur-md">
             <div className="flex items-center gap-2 pr-4 border-r border-white/10 text-white">
               <User size={20} className="text-zinc-400" />
               <span className="font-semibold text-sm">Bạn bè</span>
@@ -564,7 +564,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
 
           {/* COLUMN 3: ACTIVE NOW SIDEBAR */}
           {selectedChatId === null && (
-            <div className="w-80 flex-shrink-0 bg-black/10 border-l border-white/10 p-4 flex flex-col gap-4 overflow-y-auto hidden lg:flex">
+            <div className="w-80 flex-shrink-0 bg-black/10 border-l border-white/10 p-4 flex flex-col gap-4 overflow-y-auto hidden lg:flex animate-scale-in">
               <h3 className="text-white font-bold text-base">Đang Hoạt Động</h3>
               
               {(() => {

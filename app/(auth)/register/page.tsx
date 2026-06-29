@@ -7,7 +7,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
 
   return (
     <div className="flex h-screen items-center justify-center bg-transparent">
-      <div className="w-full max-w-md space-y-8 rounded-3xl bg-[#151b2e]/95 p-8 shadow-2xl border border-white/10">
+      <div className="w-full max-w-md space-y-8 rounded-3xl bg-[#151b2e]/95 p-8 shadow-2xl border border-white/10 animate-fade-in-up">
         <div className="text-center">
            <div className="w-20 h-20 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full mx-auto mb-4 flex items-center justify-center shadow-md border-4 border-white/20">
               <span className="text-4xl">✨</span>
