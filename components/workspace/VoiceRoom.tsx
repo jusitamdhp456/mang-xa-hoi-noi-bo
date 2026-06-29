@@ -14,7 +14,8 @@ import {
 } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import { Monitor, MonitorOff } from 'lucide-react';
-import { useVoiceSettings } from '@/components/providers/VoiceSettingsProvider';
+import { useVoiceSettings, playVoiceTone } from '@/components/providers/VoiceSettingsProvider';
+import { useRouter } from 'next/navigation';
 import { Edit3, Check, X, Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Volume2, VolumeX, Settings } from 'lucide-react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
@@ -124,6 +125,57 @@ function VoiceExtraControls() {
       </button>
     </>,
     slot
+  );
+}
+
+// Full control bar for mobile, where the sidebar (and its voice controls) is
+// hidden. Visible only below the lg breakpoint.
+function MobileVoiceControls() {
+  const router = useRouter();
+  const { localParticipant } = useLocalParticipant();
+  const { isMuted, toggleMute, isDeafened, toggleDeafen, setActiveChannelId, setWorkspaceId } = useVoiceSettings();
+  const [cameraOn, setCameraOn] = useState(false);
+  const [screenOn, setScreenOn] = useState(false);
+
+  const toggleCamera = async () => {
+    try { const n = !cameraOn; await localParticipant.setCameraEnabled(n); setCameraOn(n); }
+    catch (e) { console.warn('Camera toggle failed:', e); }
+  };
+  const toggleScreen = async () => {
+    try { const n = !screenOn; await localParticipant.setScreenShareEnabled(n); setScreenOn(n); }
+    catch (e) { console.warn('Screen share toggle failed:', e); }
+  };
+  const leave = () => {
+    playVoiceTone('leave');
+    setActiveChannelId(null);
+    setWorkspaceId(null);
+    const wsId = window.location.pathname.split('/workspace/')[1]?.split('/')[0];
+    if (wsId) router.push(`/workspace/${wsId}`);
+  };
+
+  const btn = 'w-11 h-11 rounded-full flex items-center justify-center transition-colors cursor-pointer border';
+  const idle = 'bg-zinc-800 border-white/10 text-zinc-200 active:bg-zinc-700';
+  const active = 'bg-indigo-600 border-indigo-600 text-white';
+  const danger = 'bg-red-600 border-red-600 text-white';
+
+  return (
+    <div className="md:hidden shrink-0 flex items-center justify-center gap-3 py-3 bg-zinc-900/80 border-t border-white/10 backdrop-blur-md select-none">
+      <button onClick={toggleMute} className={`${btn} ${isMuted ? danger : idle}`} title={isMuted ? 'Bật mic' : 'Tắt mic'}>
+        {isMuted ? <MicOff size={18} /> : <Mic size={18} />}
+      </button>
+      <button onClick={toggleDeafen} className={`${btn} ${isDeafened ? danger : idle}`} title={isDeafened ? 'Bật nghe' : 'Tắt nghe'}>
+        {isDeafened ? <VolumeX size={18} /> : <Volume2 size={18} />}
+      </button>
+      <button onClick={toggleCamera} className={`${btn} ${cameraOn ? active : idle}`} title={cameraOn ? 'Tắt camera' : 'Bật camera'}>
+        {cameraOn ? <VideoIcon size={18} /> : <VideoOff size={18} />}
+      </button>
+      <button onClick={toggleScreen} className={`${btn} ${screenOn ? active : idle}`} title={screenOn ? 'Dừng chia sẻ' : 'Chia sẻ màn hình'}>
+        {screenOn ? <MonitorOff size={18} /> : <Monitor size={18} />}
+      </button>
+      <button onClick={leave} className={`${btn} ${danger}`} title="Rời kênh thoại">
+        <PhoneOff size={18} />
+      </button>
+    </div>
   );
 }
 
@@ -864,8 +916,8 @@ export function VoiceRoom({
 
   return (
     <div className="flex-1 bg-[#121214] overflow-hidden flex flex-col" data-lk-theme="default">
-      {/* Voice Room Nickname Control Bar */}
-      <div className="bg-zinc-900/60 border-b border-white/5 px-6 py-3.5 flex items-center justify-between gap-4 backdrop-blur-md shrink-0 select-none">
+      {/* Voice Room Nickname Control Bar (hidden on mobile to save space) */}
+      <div className="bg-zinc-900/60 border-b border-white/5 px-6 py-3.5 hidden md:flex items-center justify-between gap-4 backdrop-blur-md shrink-0 select-none">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center border border-cyan-500/15 text-sm font-bold shadow-sm">
             🔊
@@ -931,6 +983,7 @@ export function VoiceRoom({
         <LiveKitActiveSpeakersSync setSpeakingUserIds={setSpeakingUserIds} />
         <VoiceStage />
         <VoiceExtraControls />
+        <MobileVoiceControls />
         {!isDeafened && <RoomAudioRenderer />}
       </LiveKitRoom>
     </div>
