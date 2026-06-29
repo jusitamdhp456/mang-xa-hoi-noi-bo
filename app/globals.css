@@ -90,6 +90,29 @@ body::before {
   animation: slideInLeft 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* Intro splash + logo loader animations */
+@keyframes introPop {
+  0%   { opacity: 0; transform: scale(0.2) rotate(-25deg); }
+  55%  { opacity: 1; transform: scale(1.15) rotate(10deg); }
+  70%  { transform: scale(0.92) rotate(-6deg); }
+  85%  { transform: scale(1.06) rotate(3deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+@keyframes logoFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-7px); }
+}
+
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.45; transform: scale(1.15); }
+  50%      { opacity: 0.8; transform: scale(1.35); }
+}
+
+.animate-intro-pop { animation: introPop 0.9s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-logo-float { animation: logoFloat 1.8s ease-in-out infinite; }
+.animate-glow-pulse { animation: glowPulse 1.8s ease-in-out infinite; }
+
 /* Custom scrollbar for dark mode */
 ::-webkit-scrollbar {
   width: 6px;

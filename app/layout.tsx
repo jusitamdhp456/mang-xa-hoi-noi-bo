@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Barlow } from "next/font/google";
 import "./globals.css";
+import { IntroSplash } from "@/components/ui/IntroSplash";
 
 const barlow = Barlow({
   weight: ['400', '500', '600', '700', '800'],
@@ -28,7 +29,10 @@ export default function RootLayout({
       lang="vi"
       className={`${barlow.variable} ${barlow.className} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <IntroSplash />
+        {children}
+      </body>
     </html>
   );
 }
