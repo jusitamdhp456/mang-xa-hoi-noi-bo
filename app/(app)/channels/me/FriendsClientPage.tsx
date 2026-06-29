@@ -1522,7 +1522,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                     <p className="text-xs text-zinc-500">Đây là sự khởi đầu của lịch sử tin nhắn trực tiếp của bạn.</p>
                   </div>
 
-                  <div className="flex-1 space-y-4">
+                  <div className="flex-1 space-y-5 flex flex-col justify-end">
                     {dbMessages.map((msg, index) => {
                       const isMe = msg.sender_id === user.id;
                       const partnerName = activeChatPartner?.display_name || 'Bạn';
@@ -1530,33 +1530,50 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                       const timeStr = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
                       return (
-                        <div key={msg.id || index} className="flex gap-4 items-start hover:bg-white/5 -mx-6 px-6 py-1 transition-all">
-                          <div className="relative flex-shrink-0 mt-0.5">
+                        <div 
+                          key={msg.id || index} 
+                          className={`flex gap-3 items-end max-w-[85%] sm:max-w-[75%] transition-all ${isMe ? 'self-end flex-row-reverse' : 'self-start flex-row'}`}
+                        >
+                          {/* Avatar */}
+                          <div className="relative flex-shrink-0 mb-0.5">
                             {isMe ? (
                               avatarUrl ? (
-                                <img src={avatarUrl} alt="Me" className="w-9 h-9 rounded-full object-cover border border-white/5" />
+                                <img src={avatarUrl} alt="Me" className="w-8 h-8 rounded-full object-cover border border-white/5 shadow-md" />
                               ) : (
-                                <div className="w-9 h-9 rounded-full bg-cyan-600 flex items-center justify-center text-white font-bold text-xs uppercase">
+                                <div className="w-8 h-8 rounded-full bg-cyan-600 flex items-center justify-center text-white font-black text-xs uppercase shadow-md border border-white/5">
                                   {displayName.charAt(0).toUpperCase()}
                                 </div>
                               )
                             ) : (
                               partnerAvatar ? (
-                                <img src={partnerAvatar} alt="Partner" className="w-9 h-9 rounded-full object-cover border border-white/5" />
+                                <img src={partnerAvatar} alt="Partner" className="w-8 h-8 rounded-full object-cover border border-white/5 shadow-md" />
                               ) : (
-                                <div className="w-9 h-9 rounded-full bg-indigo-900 flex items-center justify-center text-white font-bold text-xs uppercase">
+                                <div className="w-8 h-8 rounded-full bg-indigo-900 flex items-center justify-center text-white font-black text-xs uppercase shadow-md border border-white/5">
                                   {partnerName.charAt(0).toUpperCase()}
                                 </div>
                               )
                             )}
                           </div>
-                          
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-baseline gap-2">
-                              <span className="text-white font-bold text-xs leading-none hover:underline cursor-pointer">{isMe ? 'Bạn' : partnerName}</span>
-                              <span className="text-[9px] text-zinc-500 font-medium">{timeStr}</span>
+
+                          {/* Chat Bubble container */}
+                          <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                            {/* Sender Info */}
+                            <div className="flex items-center gap-1.5 px-1 mb-1 text-[10px] text-zinc-500 font-bold select-none">
+                              <span>{isMe ? 'Bạn' : partnerName}</span>
+                              <span>•</span>
+                              <span>{timeStr}</span>
                             </div>
-                            <p className="text-xs text-zinc-300 mt-1.5 leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+
+                            {/* Bubble Body with larger text and padded nicely */}
+                            <div 
+                              className={`px-4 py-2.5 rounded-2xl whitespace-pre-wrap leading-relaxed break-words text-[13.5px] sm:text-[14px] font-medium shadow-md border ${
+                                isMe 
+                                  ? 'bg-indigo-600 border-indigo-500 text-white rounded-br-none' 
+                                  : 'bg-zinc-800/90 border-white/5 text-zinc-200 rounded-bl-none'
+                              }`}
+                            >
+                              {msg.content}
+                            </div>
                           </div>
                         </div>
                       );
