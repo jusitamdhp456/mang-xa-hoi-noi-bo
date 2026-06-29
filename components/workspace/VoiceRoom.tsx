@@ -87,7 +87,6 @@ export function VoiceRoom({
         }
       } catch (e) {
         console.error('Lỗi khi fetch token:', e);
-        // Fall back to P2P calling as a general failure fallback
         setUseP2P(true);
       }
     })();
@@ -102,6 +101,7 @@ export function VoiceRoom({
 
     let localMediaStream: MediaStream | null = null;
     let peerConnection: RTCPeerConnection | null = null;
+    const candidatesQueue: any[] = [];
 
     const startP2P = async () => {
       try {
@@ -145,11 +145,37 @@ export function VoiceRoom({
           }
         };
 
-        // Listen for signaling broadcasts
+        // Handshake: create offer only when peer_ready is received to avoid timing issues
         signalChannel
+          .on('broadcast', { event: 'peer_ready' }, async (payload) => {
+            if (payload.payload.senderId === userId || !peerConnection) return;
+            
+            // Tie breaker: Alphabetically smaller UUID initiates the connection offer
+            const isOfferCreator = userId < partnerId;
+            if (isOfferCreator) {
+              const offer = await peerConnection.createOffer();
+              await peerConnection.setLocalDescription(offer);
+              signalChannel.send({
+                type: 'broadcast',
+                event: 'sdp-offer',
+                payload: { offer, senderId: userId }
+              });
+            }
+          })
           .on('broadcast', { event: 'sdp-offer' }, async (payload) => {
             if (payload.payload.senderId === userId || !peerConnection) return;
             await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.payload.offer));
+            
+            // Process queued ICE candidates
+            while (candidatesQueue.length > 0) {
+              const candidate = candidatesQueue.shift();
+              try {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+              } catch (e) {
+                console.warn('Queued candidate error:', e);
+              }
+            }
+
             const answer = await peerConnection.createAnswer();
             await peerConnection.setLocalDescription(answer);
             
@@ -162,33 +188,40 @@ export function VoiceRoom({
           .on('broadcast', { event: 'sdp-answer' }, async (payload) => {
             if (payload.payload.senderId === userId || !peerConnection) return;
             await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.payload.answer));
+            
+            // Process queued ICE candidates
+            while (candidatesQueue.length > 0) {
+              const candidate = candidatesQueue.shift();
+              try {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+              } catch (e) {
+                console.warn('Queued candidate error:', e);
+              }
+            }
           })
           .on('broadcast', { event: 'ice-candidate' }, async (payload) => {
             if (payload.payload.senderId === userId || !peerConnection) return;
-            if (payload.payload.candidate) {
-              try {
-                await peerConnection.addIceCandidate(new RTCIceCandidate(payload.payload.candidate));
-              } catch (e) {
-                console.warn('Error adding ICE candidate:', e);
+            const candidate = payload.payload.candidate;
+            if (candidate) {
+              if (peerConnection.remoteDescription && peerConnection.remoteDescription.type) {
+                try {
+                  await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                } catch (e) {
+                  console.warn('Error adding ICE candidate:', e);
+                }
+              } else {
+                candidatesQueue.push(candidate);
               }
             }
           })
           .subscribe(async (status) => {
             if (status === 'SUBSCRIBED') {
-              // Tie breaker: Alphabetically smaller UUID initiates the connection offer
-              const isOfferCreator = userId < partnerId;
-              if (isOfferCreator) {
-                setTimeout(async () => {
-                  if (!peerConnection) return;
-                  const offer = await peerConnection.createOffer();
-                  await peerConnection.setLocalDescription(offer);
-                  signalChannel.send({
-                    type: 'broadcast',
-                    event: 'sdp-offer',
-                    payload: { offer, senderId: userId }
-                  });
-                }, 1000);
-              }
+              // Inform partner that we are ready to initiate/receive
+              signalChannel.send({
+                type: 'broadcast',
+                event: 'peer_ready',
+                payload: { senderId: userId }
+              });
             }
           });
 
@@ -211,7 +244,27 @@ export function VoiceRoom({
     };
   }, [useP2P, channelId, video, userId, partnerId]);
 
-  // Bind local/remote source objects to visual video/audio tags
+  // Sync global isMuted and isDeafened settings to P2P connection
+  useEffect(() => {
+    if (localStream) {
+      const audioTrack = localStream.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !isMuted;
+        setP2PMuted(isMuted);
+      }
+    }
+  }, [isMuted, localStream]);
+
+  useEffect(() => {
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.volume = isDeafened ? 0 : 1;
+    }
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.volume = isDeafened ? 0 : 1;
+    }
+  }, [isDeafened, remoteStream]);
+
+  // Bind local/remote source objects to visual elements and trigger playback
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
@@ -221,9 +274,11 @@ export function VoiceRoom({
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
+      remoteVideoRef.current.play().catch(e => console.warn('Video play warning:', e));
     }
     if (remoteAudioRef.current && remoteStream) {
       remoteAudioRef.current.srcObject = remoteStream;
+      remoteAudioRef.current.play().catch(e => console.warn('Audio play warning:', e));
     }
   }, [remoteStream]);
 
