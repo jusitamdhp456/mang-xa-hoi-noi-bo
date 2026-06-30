@@ -1,6 +1,6 @@
 'use server'
 
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase/server'
 import { RoomServiceClient } from 'livekit-server-sdk'
 
 export async function kickParticipant(channelId: string, targetUserId: string) {
@@ -51,7 +51,8 @@ export async function kickParticipant(channelId: string, targetUserId: string) {
     await roomService.removeParticipant(channelId, targetUserId);
 
     // Cập nhật Supabase để gỡ user khỏi phòng (để họ biến mất khỏi UI lập tức)
-    await supabase
+    const supabaseAdmin = createSupabaseServiceClient();
+    await supabaseAdmin
       .from('profiles')
       .update({ voice_channel_id: null })
       .eq('id', targetUserId);
