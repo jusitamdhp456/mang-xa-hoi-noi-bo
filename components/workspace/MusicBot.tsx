@@ -39,6 +39,14 @@ export function MusicBot({ channelId, workspaceId }: { channelId: string; worksp
   }, [chatMessages]);
 
   useEffect(() => {
+    const handlePlayRequest = async (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail.channelId === channelId) {
+        handlePlayCommand(detail.query);
+      }
+    };
+    window.addEventListener('play_music_request', handlePlayRequest);
+
     const supabase = createSupabaseBrowserClient();
     const channel = supabase.channel(`workspace:${workspaceId}:bot-commands`)
       .on(
@@ -53,6 +61,7 @@ export function MusicBot({ channelId, workspaceId }: { channelId: string; worksp
       .subscribe();
 
     return () => {
+      window.removeEventListener('play_music_request', handlePlayRequest);
       supabase.removeChannel(channel);
       cleanupBot();
     };
