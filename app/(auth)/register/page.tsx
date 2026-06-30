@@ -14,7 +14,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
            </div>
            <h2 className="text-3xl font-extrabold text-white">Tạo tài khoản mới</h2>
            <p className="text-sm text-white/70 mt-2 font-medium">
-             Tham gia cộng đồng Mạng xã hội nội bộ
+             Tham gia cộng đồng IntraSocial
            </p>
         </div>
 

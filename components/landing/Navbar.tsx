@@ -11,7 +11,7 @@ export function Navbar({ isLoggedIn }: NavbarProps) {
       <Link href="/" className="flex items-center gap-2 text-white font-extrabold text-xl tracking-tight">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo.png" alt="Logo" className="w-9 h-9 rounded-full object-cover" />
-        Mạng Xã Hội
+        IntraSocial
       </Link>
 
       {/* Nav Links (Hidden on small screens) */}

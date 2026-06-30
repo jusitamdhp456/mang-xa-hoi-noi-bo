@@ -2,8 +2,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Mạng Xã Hội | Nơi trò chuyện và kết nối",
-  description: "Nền tảng Mạng Xã Hội cực kỳ lý tưởng để trò chuyện với bạn bè hoặc thậm chí xây dựng một cộng đồng trên toàn thế giới.",
+  title: "IntraSocial | Nơi trò chuyện và kết nối",
+  description: "Nền tảng IntraSocial cực kỳ lý tưởng để trò chuyện với bạn bè hoặc thậm chí xây dựng một cộng đồng trên toàn thế giới.",
 };
 
 export default async function Home() {

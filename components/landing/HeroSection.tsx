@@ -32,7 +32,7 @@ export function HeroSection({ isLoggedIn }: HeroSectionProps) {
             Trò chuyện<br />nhóm đây<br />thú vị và các<br />trò chơi
           </h1>
           <p className="text-lg md:text-xl font-medium max-w-2xl leading-relaxed mb-10 text-white/90">
-            Nền tảng Mạng Xã Hội cực kỳ lý tưởng để trò chuyện với bạn bè hoặc thậm chí xây dựng một cộng đồng trên toàn thế giới. Hãy tùy chỉnh không gian của riêng bạn để trò chuyện, vui chơi và giao lưu.
+            Nền tảng IntraSocial cực kỳ lý tưởng để trò chuyện với bạn bè hoặc thậm chí xây dựng một cộng đồng trên toàn thế giới. Hãy tùy chỉnh không gian của riêng bạn để trò chuyện, vui chơi và giao lưu.
           </p>
           
           <div className="flex flex-col sm:flex-row items-center gap-6 w-full justify-center lg:justify-start">
