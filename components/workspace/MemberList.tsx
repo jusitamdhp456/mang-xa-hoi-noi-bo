@@ -20,13 +20,13 @@ export default async function MemberList({ workspaceId }: { channelId?: string, 
       <div className="flex flex-col gap-3">
         {(members as unknown as MemberRow[])?.map((m) => (
           m.profiles && (
-          <div key={m.profiles.id} className="flex items-center gap-3 cursor-pointer hover:bg-white/60 p-2 -mx-2 rounded-xl transition-all shadow-sm hover:shadow-md group">
+          <div key={m.profiles.id} className="flex items-center gap-3 cursor-pointer hover:bg-white/10 p-2 -mx-2 rounded-xl transition-all group">
             <div className="w-10 h-10 rounded-full bg-white/80 border border-white flex items-center justify-center text-pink-500 font-bold text-lg shrink-0 shadow-sm relative">
               {m.profiles.display_name?.charAt(0).toUpperCase()}
               {/* Online indicator dot for avatar can be added here if desired in the future */}
             </div>
             <div className="flex-1 overflow-hidden">
-              <p className="text-sm font-bold text-zinc-800 truncate group-hover:text-black transition-colors">{m.profiles.display_name}</p>
+              <p className="text-sm font-bold text-white truncate transition-colors">{m.profiles.display_name}</p>
               <MemberStatus userId={m.profiles.id} defaultStatus={m.profiles.status_text} />
             </div>
           </div>
