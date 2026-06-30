@@ -16,7 +16,8 @@ import { Track } from 'livekit-client';
 import { Monitor, MonitorOff, AlertTriangle, Maximize, Minimize } from 'lucide-react';
 import { useVoiceSettings, playVoiceTone } from '@/components/providers/VoiceSettingsProvider';
 import { useRouter } from 'next/navigation';
-import { Edit3, Check, X, Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Volume2, VolumeX, Settings, UserMinus, MoreVertical } from 'lucide-react';
+import { Edit3, Check, X, Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Volume2, VolumeX, Settings, UserMinus, MoreVertical, Music, Hand } from 'lucide-react';
+import { SOUNDBOARD } from '@/lib/soundboard';
 import { kickParticipant } from '@/app/actions/livekit';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { MusicBot } from './MusicBot';
@@ -347,10 +348,12 @@ function VoiceStage({ channelId, workspaceId }: { channelId: string; workspaceId
 // the bottom-left. Mic/deafen/leave already live in UserPanel via VoiceSettings.
 function VoiceExtraControls() {
   const { localParticipant } = useLocalParticipant();
+  const { pttEnabled, togglePtt, playSoundboard } = useVoiceSettings();
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   const [cameraOn, setCameraOn] = useState(false);
   const [screenOn, setScreenOn] = useState(false);
   const [fpsMenu, setFpsMenu] = useState(false);
+  const [sbMenu, setSbMenu] = useState(false);
 
   // Wait for the portal target in the sidebar to exist.
   useEffect(() => {
@@ -430,6 +433,43 @@ function VoiceExtraControls() {
           </>
         )}
       </div>
+
+      {/* Soundboard */}
+      <div className="relative">
+        <button onClick={() => setSbMenu((v) => !v)} className={`${btn} ${sbMenu ? active : idle}`} title="Bảng âm thanh">
+          <Music size={15} />
+        </button>
+        {sbMenu && (
+          <>
+            <div className="fixed inset-0 z-10" onClick={() => setSbMenu(false)} />
+            <div className="absolute z-20 bottom-9 right-0 w-48 bg-[#1e1f22] border border-white/10 rounded-xl shadow-2xl p-1.5 animate-scale-in">
+              <p className="text-[9px] font-extrabold uppercase tracking-wider text-zinc-500 px-2 py-1 select-none">Bảng âm thanh</p>
+              <div className="grid grid-cols-3 gap-1">
+                {SOUNDBOARD.map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => playSoundboard(s.id)}
+                    className="flex flex-col items-center gap-0.5 px-1 py-2 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+                    title={s.label}
+                  >
+                    <span className="text-lg leading-none">{s.emoji}</span>
+                    <span className="text-[9px] font-bold text-zinc-300 truncate w-full text-center">{s.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Push-to-talk toggle */}
+      <button
+        onClick={togglePtt}
+        className={`${btn} ${pttEnabled ? active : idle}`}
+        title={pttEnabled ? 'Tắt Nhấn-để-nói (PTT)' : 'Bật Nhấn-để-nói: giữ Space để nói'}
+      >
+        <Hand size={15} />
+      </button>
     </>,
     slot
   );

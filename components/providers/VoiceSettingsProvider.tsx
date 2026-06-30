@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { playSound, type SoundId } from '@/lib/soundboard';
 
 interface Participant {
   user_id: string;
@@ -37,6 +38,14 @@ interface VoiceSettingsContextType {
   // Speaking status
   speakingUserIds: string[];
   setSpeakingUserIds: (ids: string[]) => void;
+
+  // Push-to-talk
+  pttEnabled: boolean;
+  togglePtt: () => void;
+  pttActive: boolean;
+
+  // Soundboard
+  playSoundboard: (id: SoundId) => void;
 }
 
 const VoiceSettingsContext = createContext<VoiceSettingsContextType | undefined>(undefined);
@@ -111,6 +120,15 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
   const [speakingUserIds, setSpeakingUserIds] = useState<string[]>([]);
 
+  // Push-to-talk: when enabled, the mic stays muted and only opens while the
+  // user holds the PTT key (Space).
+  const [pttEnabled, setPttEnabled] = useState(false);
+  const [pttActive, setPttActive] = useState(false);
+  const pttEnabledRef = useRef(false);
+  const activeChannelForPttRef = useRef<string | null>(null);
+  useEffect(() => { pttEnabledRef.current = pttEnabled; }, [pttEnabled]);
+  useEffect(() => { activeChannelForPttRef.current = activeChannelId; }, [activeChannelId]);
+
   // Derived state: combine real users (with self) and bots
   const activeParticipantsWithSelf = useMemo(() => {
     let result = activeParticipants;
@@ -153,7 +171,35 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
     
     if (savedMuted === 'true') setIsMuted(true);
     if (savedDeafened === 'true') setIsDeafened(true);
+    if (localStorage.getItem('voice_ptt') === 'true') { setPttEnabled(true); setIsMuted(true); }
     setIsLoaded(true);
+  }, []);
+
+  // Push-to-talk key handlers (Space). Hold to talk, release to mute.
+  useEffect(() => {
+    const isTyping = () => {
+      const el = document.activeElement as HTMLElement | null;
+      return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+    };
+    const onDown = (e: KeyboardEvent) => {
+      if (e.code !== 'Space' || e.repeat) return;
+      if (!pttEnabledRef.current || !activeChannelForPttRef.current || isTyping()) return;
+      e.preventDefault();
+      setPttActive(true);
+      setIsMuted(false);
+    };
+    const onUp = (e: KeyboardEvent) => {
+      if (e.code !== 'Space') return;
+      if (!pttEnabledRef.current) return;
+      setPttActive(false);
+      setIsMuted(true);
+    };
+    window.addEventListener('keydown', onDown);
+    window.addEventListener('keyup', onUp);
+    return () => {
+      window.removeEventListener('keydown', onDown);
+      window.removeEventListener('keyup', onUp);
+    };
   }, []);
 
   // Save to localStorage when changed
@@ -275,12 +321,20 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
       }
     };
 
+    // Soundboard: play a sound for everyone in the same voice channel.
+    const onSoundboard = (payload: any) => {
+      const { sound, channel_id, user_id } = payload.payload || {};
+      if (user_id === user.id) return; // sender already heard it locally
+      if (channel_id && channel_id === activeChannelIdRef.current) playSound(sound);
+    };
+
     channel
       .on('presence', { event: 'sync' }, onSync)
       .on('presence', { event: 'join' }, onJoin)
       .on('presence', { event: 'leave' }, onLeave)
       .on('broadcast', { event: 'change_nickname' }, onNicknameChange)
       .on('broadcast', { event: 'kick_user' }, onKickUser)
+      .on('broadcast', { event: 'soundboard' }, onSoundboard)
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           await channel.track({
@@ -393,6 +447,27 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
     setKickedUsers(prev => new Set(prev).add(userId));
   }, []);
 
+  const togglePtt = () => {
+    setPttEnabled(prev => {
+      const next = !prev;
+      try { localStorage.setItem('voice_ptt', String(next)); } catch { /* ignore */ }
+      setPttActive(false);
+      if (next) setIsMuted(true); // mic stays closed until you hold Space
+      return next;
+    });
+  };
+
+  const playSoundboard = (id: SoundId) => {
+    playSound(id);
+    if (workspaceId && activeChannelId && user) {
+      supabase.channel(`workspace_presence:${workspaceId}`).send({
+        type: 'broadcast',
+        event: 'soundboard',
+        payload: { sound: id, channel_id: activeChannelId, user_id: user.id },
+      });
+    }
+  };
+
   return (
     <VoiceSettingsContext.Provider 
       value={{ 
@@ -413,7 +488,11 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
         currentUser: user,
         onlineUserIds,
         speakingUserIds,
-        setSpeakingUserIds
+        setSpeakingUserIds,
+        pttEnabled,
+        togglePtt,
+        pttActive,
+        playSoundboard
       }}
     >
       {children}
