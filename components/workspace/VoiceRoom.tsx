@@ -67,7 +67,7 @@ function VoiceStage({ channelId, workspaceId }: { channelId: string; workspaceId
 
   const [watchingScreenShares, setWatchingScreenShares] = useState<Set<string>>(new Set());
   const { localParticipant } = useLocalParticipant();
-  const { activeParticipants, speakingUserIds, currentUser } = useVoiceSettings();
+  const { activeParticipants, speakingUserIds, currentUser, kickUserBroadcast } = useVoiceSettings();
   const roomParticipants = activeParticipants.filter(p => p.voice_channel_id === channelId);
   const livekitParticipants = useParticipants();
 
@@ -79,9 +79,16 @@ function VoiceStage({ channelId, workspaceId }: { channelId: string; workspaceId
 
   useEffect(() => {
     if (currentUser?.id && workspaceId) {
-      supabase.from('workspace_members').select('role').eq('workspace_id', workspaceId).eq('user_id', currentUser.id).single().then(({data}) => {
-        if (data) setMyRole(data.role);
-      });
+      const checkRole = async () => {
+        const { data } = await supabase
+          .from('workspace_members')
+          .select('role')
+          .eq('workspace_id', workspaceId)
+          .eq('user_id', currentUser.id)
+          .single();
+        if (data?.role) setMyRole(data.role);
+      };
+      checkRole();
     }
   }, [currentUser?.id, workspaceId]);
 
@@ -104,11 +111,7 @@ function VoiceStage({ channelId, workspaceId }: { channelId: string; workspaceId
     if (res.error) {
       alert(res.error);
     } else {
-      supabase.channel(`workspace_presence:${workspaceId}`).send({
-        type: 'broadcast',
-        event: 'kick_user',
-        payload: { target_user_id: targetId, channel_id: channelId }
-      });
+      kickUserBroadcast(targetId, channelId);
     }
   };
 
