@@ -68,23 +68,29 @@ function VoiceStage({ channelId }: { channelId: string }) {
   const roomParticipants = activeParticipants.filter(p => p.voice_channel_id === channelId);
 
   const livekitParticipants = useParticipants();
-  const botParticipant = livekitParticipants.find(p => p.identity.endsWith('-bot') || p.name?.includes('Bot'));
+  const botParticipants = livekitParticipants.filter(p => p.identity.endsWith('-bot') || p.identity.startsWith('bot-') || p.name?.includes('Bot') || p.identity.includes('bot'));
 
+  const prevBots = useRef<string[]>([]);
   useEffect(() => {
-    if (botParticipant) {
+    const currentBotIds = botParticipants.map(b => b.identity);
+    const newBots = currentBotIds.filter(id => !prevBots.current.includes(id));
+    if (newBots.length > 0) {
       playVoiceTone('join');
     }
-  }, [botParticipant?.identity]);
+    prevBots.current = currentBotIds;
+  }, [botParticipants]);
 
   const displayParticipants = [...roomParticipants];
-  if (botParticipant && !displayParticipants.find(p => p.user_id === botParticipant.identity)) {
-    displayParticipants.push({
-      user_id: botParticipant.identity,
-      display_name: botParticipant.name || '🎵 Bot Nhạc',
-      avatar_key: null,
-      voice_channel_id: channelId
-    } as any);
-  }
+  botParticipants.forEach(bot => {
+    if (!displayParticipants.find(p => p.user_id === bot.identity)) {
+      displayParticipants.push({
+        user_id: bot.identity,
+        display_name: bot.name || '🎵 Bot Nhạc',
+        avatar_key: null,
+        voice_channel_id: channelId
+      } as any);
+    }
+  });
 
   const cameraTracks = allTracks.filter(t => t.source === Track.Source.Camera);
   const screenShareTracks = allTracks.filter(t => t.source === Track.Source.ScreenShare);
