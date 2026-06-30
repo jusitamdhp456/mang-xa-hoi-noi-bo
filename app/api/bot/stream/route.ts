@@ -1,4 +1,5 @@
 import ytdl from '@distube/ytdl-core';
+import { requireUser, isAllowedMediaUrl } from '@/lib/bot/guard';
 
 async function getFallbackAudioUrl(videoId: string): Promise<string | null> {
   const invidiousInstances = [
@@ -57,6 +58,10 @@ async function getFallbackAudioUrl(videoId: string): Promise<string | null> {
 }
 
 export async function GET(request: Request) {
+  if (!(await requireUser())) {
+    return new Response('Unauthorized', { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const v = searchParams.get('v');
 
@@ -75,9 +80,9 @@ export async function GET(request: Request) {
       
       const readable = new ReadableStream({
         start(controller) {
-          stream.on('data', (chunk) => controller.enqueue(chunk));
+          stream.on('data', (chunk: Uint8Array) => controller.enqueue(chunk));
           stream.on('end', () => controller.close());
-          stream.on('error', (err) => controller.error(err));
+          stream.on('error', (err: Error) => controller.error(err));
         },
         cancel() {
           stream.destroy();
@@ -99,7 +104,11 @@ export async function GET(request: Request) {
       if (!fallbackUrl) {
         throw new Error(`ytdl-core failed (${ytdlError.message}) and all fallbacks failed.`);
       }
-      
+
+      if (!isAllowedMediaUrl(fallbackUrl)) {
+        throw new Error('Fallback URL host not allowed');
+      }
+
       const audioRes = await fetch(fallbackUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'

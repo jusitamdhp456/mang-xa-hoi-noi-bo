@@ -1,10 +1,20 @@
+import { requireUser, isAllowedMediaUrl } from '@/lib/bot/guard';
+
 export async function GET(request: Request) {
   try {
+    if (!(await requireUser())) {
+      return new Response('Unauthorized', { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const audioUrl = searchParams.get('url');
 
     if (!audioUrl) {
       return new Response('Missing audio url', { status: 400 });
+    }
+
+    if (!isAllowedMediaUrl(audioUrl)) {
+      return new Response('URL not allowed', { status: 403 });
     }
 
     const res = await fetch(audioUrl, {

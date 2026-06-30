@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
+import { requireUser } from '@/lib/bot/guard';
 
 export async function GET(request: Request) {
+  if (!(await requireUser())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const q = searchParams.get('q');
 

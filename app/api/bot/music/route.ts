@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireUser } from '@/lib/bot/guard';
 
 // Hàm lấy Client ID động từ trang chủ SoundCloud
 async function getSoundcloudClientId(): Promise<string | null> {
@@ -37,6 +38,10 @@ async function getSoundcloudClientId(): Promise<string | null> {
 }
 
 export async function GET(request: Request) {
+  if (!(await requireUser())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const query = searchParams.get('q');
 
