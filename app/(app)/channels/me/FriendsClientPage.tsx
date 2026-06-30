@@ -791,18 +791,18 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
       // Render locally immediately
       setDbMessages(prev => [...prev, messagePayload]);
 
-      // Save in database
-      await sendDirectMessage(selectedChatId, finalContent, msgType as any);
-
-      // Broadcast to the thread channel room-dm
+      // Broadcast to the thread channel room-dm first for instant delivery
       const supabase = createSupabaseBrowserClient();
-      await supabase
+      supabase
         .channel(`room-dm-${selectedChatId}`)
         .send({
           type: 'broadcast',
           event: 'new_message',
           payload: messagePayload
         });
+
+      // Save in database
+      await sendDirectMessage(selectedChatId, finalContent, msgType as any);
     } catch (err: any) {
       console.error('Failed to send DM:', err);
       alert(err.message || 'Gửi tin nhắn hoặc tệp tin thất bại');

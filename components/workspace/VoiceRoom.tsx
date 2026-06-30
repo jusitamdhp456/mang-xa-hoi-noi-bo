@@ -50,7 +50,7 @@ function LiveKitActiveSpeakersSync({ setSpeakingUserIds }: { setSpeakingUserIds:
 // Compact media stage: shows camera/screen-share tiles (avatar placeholder when
 // no video). Kept small so the main area stays free for chat + future media.
 function VoiceStage() {
-  const tracks = useTracks(
+  const allTracks = useTracks(
     [
       { source: Track.Source.Camera, withPlaceholder: true },
       { source: Track.Source.ScreenShare, withPlaceholder: false },
@@ -58,9 +58,49 @@ function VoiceStage() {
     { onlySubscribed: false }
   );
 
+  const [watchingScreenShares, setWatchingScreenShares] = useState<Set<string>>(new Set());
+  const { localParticipant } = useLocalParticipant();
+
+  const cameraTracks = allTracks.filter(t => t.source === Track.Source.Camera);
+  const screenShareTracks = allTracks.filter(t => t.source === Track.Source.ScreenShare);
+
+  const tracksToRender = [
+    ...cameraTracks,
+    ...screenShareTracks.filter(t => {
+      // Always show my own screenshare or if I am watching it
+      return t.participant.identity === localParticipant.identity || watchingScreenShares.has(t.participant.identity);
+    })
+  ];
+
   return (
-    <div className="flex-1 min-h-0 p-2">
-      <GridLayout tracks={tracks} className="h-full">
+    <div className="flex-1 min-h-0 p-2 flex flex-col relative">
+      {screenShareTracks.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-2 shrink-0 justify-center absolute top-4 left-0 right-0 z-10 pointer-events-none">
+          {screenShareTracks.map(t => {
+             const id = t.participant.identity;
+             if (id === localParticipant.identity) return null; // don't need a button for my own
+             const isWatching = watchingScreenShares.has(id);
+             return (
+               <button 
+                 key={id}
+                 onClick={() => {
+                   setWatchingScreenShares(prev => {
+                     const next = new Set(prev);
+                     if (isWatching) next.delete(id);
+                     else next.add(id);
+                     return next;
+                   });
+                 }}
+                 className="px-3 py-1.5 bg-zinc-800/90 hover:bg-zinc-700/90 text-white rounded-lg text-sm font-medium flex items-center gap-2 border border-white/10 shadow-lg transition-all pointer-events-auto backdrop-blur-md"
+               >
+                 <Monitor size={16} className={isWatching ? 'text-red-400' : 'text-emerald-400'} />
+                 {isWatching ? `Dừng xem màn hình của ${t.participant.name || 'người dùng'}` : `Vào xem màn hình của ${t.participant.name || 'người dùng'}`}
+               </button>
+             )
+          })}
+        </div>
+      )}
+      <GridLayout tracks={tracksToRender} className="flex-1 min-h-0">
         <ParticipantTile />
       </GridLayout>
     </div>
