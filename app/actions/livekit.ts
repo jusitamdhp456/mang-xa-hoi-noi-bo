@@ -50,6 +50,12 @@ export async function kickParticipant(channelId: string, targetUserId: string) {
     // Tên phòng trong LiveKit được thiết lập bằng channelId
     await roomService.removeParticipant(channelId, targetUserId);
 
+    // Cập nhật Supabase để gỡ user khỏi phòng (để họ biến mất khỏi UI lập tức)
+    await supabase
+      .from('profiles')
+      .update({ voice_channel_id: null })
+      .eq('id', targetUserId);
+
     return { success: true };
   } catch (error: any) {
     console.error('Lỗi khi kích người dùng:', error);

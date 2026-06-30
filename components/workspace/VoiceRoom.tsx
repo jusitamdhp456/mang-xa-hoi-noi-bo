@@ -99,7 +99,6 @@ function VoiceStage({ channelId, workspaceId }: { channelId: string; workspaceId
   }, [volumes, mutes, livekitParticipants]);
 
   const handleKick = async (targetId: string) => {
-    if (!confirm('Bạn có chắc muốn kích người này khỏi kênh đàm thoại?')) return;
     setOpenMenuId(null);
     const res = await kickParticipant(channelId, targetId);
     if (res.error) alert(res.error);
