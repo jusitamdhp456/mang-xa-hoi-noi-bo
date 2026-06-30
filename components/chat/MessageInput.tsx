@@ -62,7 +62,12 @@ export function MessageInput({
       .eq('workspace_id', workspaceId)
       .then(({ data }) => {
         if (!data) return
-        setMembers(data.map((m: any) => ({ id: m.profiles.id, name: m.profiles.display_name, avatar: m.profiles.avatar_key })))
+        const people = data.map((m: any) => ({ id: m.profiles.id, name: m.profiles.display_name, avatar: m.profiles.avatar_key }))
+        setMembers([
+          { id: 'everyone', name: 'everyone', avatar: null },
+          { id: 'here', name: 'here', avatar: null },
+          ...people,
+        ])
       })
   }, [workspaceId])
 

@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { VoiceRoom } from '@/components/workspace/VoiceRoom';
+import { RichText } from '@/lib/richtext';
 import { VoiceInviteCard } from '@/components/chat/VoiceInviteCard';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { 
@@ -1980,7 +1981,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                                     }
                                   })()
                                 ) : (
-                                  msg.content
+                                  <RichText text={msg.content} />
                                 )}
                               </div>
                             )}

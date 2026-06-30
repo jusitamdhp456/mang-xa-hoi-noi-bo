@@ -130,6 +130,26 @@ export async function sendMessage(
     }
   }
 
+  // 3b. @everyone / @here → notify all other workspace members
+  if (content && (content.includes('@everyone') || content.includes('@here'))) {
+    const { data: allMembers } = await serviceClient
+      .from('workspace_members')
+      .select('user_id')
+      .eq('workspace_id', workspaceId)
+    const targets = (allMembers || []).map((m) => m.user_id).filter((id) => id !== user.id)
+    if (targets.length > 0) {
+      await serviceClient.from('notifications').insert(
+        targets.map((id) => ({
+          user_id: id,
+          actor_id: user.id,
+          type: 'mention',
+          content: 'đã nhắc đến mọi người trong một tin nhắn.',
+          link: `/workspace/${workspaceId}/channel/${channelId}`,
+        }))
+      )
+    }
+  }
+
   return { success: true, message: fullMessage }
 }
 
