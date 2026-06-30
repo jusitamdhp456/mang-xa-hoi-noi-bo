@@ -223,6 +223,11 @@ export function ChatArea({
   }, [channelId, refreshPinned])
   useEffect(() => { refreshPinned() }, [refreshPinned])
 
+  // Viewing a channel clears its unread marker in the sidebar.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('app:channel-read', { detail: { channelId } }))
+  }, [channelId, messages.length])
+
   // --- Search ---
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')

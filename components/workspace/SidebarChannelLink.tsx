@@ -8,6 +8,7 @@ import { Phone, Lock, Edit3, X, Search, UserPlus, MicOff, Volume2, MoreVertical,
 import { useVoiceSettings, playVoiceTone } from '@/components/providers/VoiceSettingsProvider'
 import { getFriends, sendDirectMessage } from '@/app/actions/friend'
 import { updateChannel, deleteChannel } from '@/app/actions/channel'
+import { useUnread } from '@/components/providers/UnreadProvider'
 
 interface ChannelItem {
   id: string
@@ -72,6 +73,9 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
   const channelUrl = `/workspace/${workspaceId}/channel/${channel.id}`
   const isActive = pathname === channelUrl
 
+  const { isUnread, markRead } = useUnread()
+  const unread = !isActive && isUnread(channel.id)
+
   // Filter participants currently connected to this voice channel
   const participants = isVoice
     ? activeParticipants.filter(p => p.voice_channel_id === channel.id)
@@ -116,6 +120,7 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
 
   // Handle single-click (shows a double-click hint for voice channels)
   const handleClick = (e: React.MouseEvent) => {
+    markRead(channel.id)
     if (isVoice) {
       e.preventDefault()
       setShowHint(true)
@@ -159,10 +164,12 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
           : 'hover:bg-white/10 text-white/70 hover:text-white hover:shadow-sm'
       }`}
     >
+      {/* Unread pill on the left edge (Discord-style) */}
+      {unread && <span className="absolute -left-1 top-1/2 -translate-y-1/2 w-1 h-2 rounded-full bg-white" />}
       <span className="mr-2.5 leading-none shrink-0 text-cyan-400 flex items-center">
         {isVoice ? <Volume2 size={16} /> : <span className="text-lg">#</span>}
       </span>
-      <span className="truncate flex-1">{channel.name}</span>
+      <span className={`truncate flex-1 ${unread ? 'text-white font-bold' : ''}`}>{channel.name}</span>
       {channel.is_private && <Lock size={12} className="text-zinc-500 ml-2 shrink-0" />}
 
       {/* Channel options menu trigger */}

@@ -111,6 +111,8 @@ export function MessageToasts() {
               const { channelId, channelName, message } = payload?.payload || {};
               if (!message || message.sender_id === user.id) return;
               if (pathRef.current?.includes(`/channel/${channelId}`)) return;
+              // Mark the channel unread in the sidebar.
+              window.dispatchEvent(new CustomEvent('app:channel-activity', { detail: { channelId } }));
               const content = (message.content || '').startsWith('[VOICE_INVITE]:')
                 ? 'Đã gửi lời mời đàm thoại'
                 : (message.content || 'Đã gửi một tệp đính kèm');
