@@ -372,7 +372,7 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
         setWorkspaceId,
         customName,
         setCustomName,
-        activeParticipants: mergedParticipants,
+        activeParticipants: activeParticipantsWithSelf,
         changeUserNickname,
         currentUser: user,
         onlineUserIds,
