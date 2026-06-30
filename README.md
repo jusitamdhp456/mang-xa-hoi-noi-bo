@@ -66,3 +66,4 @@ npm run dev
 - **Supabase RLS (Row Level Security)**: Người dùng chỉ có thể lấy dữ liệu nếu họ là thành viên (member) của Workspace đó.
 - **Server Actions & Presigned URL**: Không bao giờ lộ Secret Key của S3/R2 xuống trình duyệt. Việc tạo mã Upload và Download diễn ra ở phía Server Node.js (Route Handlers).
 - **LiveKit Tokens**: Chỉ những ai đã đăng nhập và thuộc đúng kênh mới được Server cấp Token tham gia phòng thoại.
+test
