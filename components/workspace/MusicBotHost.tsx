@@ -47,7 +47,15 @@ export function MusicBotHost({ channelId }: { channelId: string }) {
 
         // 5. Setup Audio Element & Web Audio API
         if (audioRef.current) {
-          audioRef.current.src = `/api/bot/stream?v=${data.videoId}`;
+          // Pre-flight check to see if stream API is failing
+          const streamUrl = `/api/bot/stream?v=${data.videoId}`;
+          const checkRes = await fetch(streamUrl, { method: 'GET', headers: { 'Range': 'bytes=0-100' } });
+          if (!checkRes.ok) {
+            const errText = await checkRes.text().catch(() => 'Unknown stream error');
+            throw new Error(`Lỗi luồng âm thanh (Stream API): ${errText}`);
+          }
+
+          audioRef.current.src = streamUrl;
           audioRef.current.crossOrigin = 'anonymous';
           
           if (!audioCtxRef.current) {

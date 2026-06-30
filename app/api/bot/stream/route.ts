@@ -10,8 +10,8 @@ async function getFallbackAudioUrl(videoId: string): Promise<string | null> {
   
   for (const instance of invidiousInstances) {
     try {
-      const res = await fetch(`https://${instance}/api/v1/videos/${videoId}`, {
-        signal: AbortSignal.timeout(3500)
+      const res = await fetch(`https://${instance}/api/v1/videos/${videoId}?local=true`, {
+        signal: AbortSignal.timeout(8000)
       });
       if (res.ok) {
         const data = await res.json();
@@ -37,7 +37,7 @@ async function getFallbackAudioUrl(videoId: string): Promise<string | null> {
   for (const instance of pipedInstances) {
     try {
       const res = await fetch(`https://${instance}/streams/${videoId}`, {
-        signal: AbortSignal.timeout(3500)
+        signal: AbortSignal.timeout(8000)
       });
       if (res.ok) {
         const data = await res.json();
