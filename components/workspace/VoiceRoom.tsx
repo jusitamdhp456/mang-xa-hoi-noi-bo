@@ -17,6 +17,7 @@ import { useVoiceSettings, playVoiceTone } from '@/components/providers/VoiceSet
 import { useRouter } from 'next/navigation';
 import { Edit3, Check, X, Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Volume2, VolumeX, Settings } from 'lucide-react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { MusicBot } from './MusicBot';
 
 function LiveKitSync({ isMuted, isDeafened }: { isMuted: boolean; isDeafened: boolean }) {
   const { localParticipant } = useLocalParticipant();
