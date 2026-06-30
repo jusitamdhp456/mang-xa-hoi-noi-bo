@@ -114,7 +114,7 @@ function VoiceStage() {
   ];
 
   return (
-    <div className="flex-1 min-h-0 p-2 flex flex-col gap-2 relative">
+    <div className="flex-1 min-h-0 p-2 flex flex-col gap-2 relative bg-transparent">
       {/* Active Screen Share Area */}
       {activeScreenShare && (
         <div className="flex-1 min-h-0 rounded-xl overflow-hidden relative bg-black shadow-lg border border-white/5 flex items-center justify-center">
@@ -159,12 +159,31 @@ function VoiceStage() {
            })}
         </div>
       ) : (
-        <div className="flex-1 min-h-0">
-          <GridLayout tracks={bottomTracks} className="h-full">
-            <ParticipantTile>
-              <ScreenShareOverlay setWatchingScreenShares={setWatchingScreenShares} />
-            </ParticipantTile>
-          </GridLayout>
+        <div className="flex-1 min-h-0 flex flex-col">
+          {bottomTracks.length > 0 ? (
+            <GridLayout tracks={bottomTracks} className="h-full">
+              <ParticipantTile>
+                <ScreenShareOverlay setWatchingScreenShares={setWatchingScreenShares} />
+              </ParticipantTile>
+            </GridLayout>
+          ) : (
+             <div className="flex-1 w-full h-full flex flex-wrap items-center justify-center gap-6 md:gap-8 p-6 md:p-8 overflow-y-auto">
+               {activeParticipants.map(p => {
+                 const isSpeaking = speakingUserIds.includes(p.user_id);
+                 const avatarUrl = p.avatar_key 
+                   ? `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${p.avatar_key}` 
+                   : `https://ui-avatars.com/api/?name=${encodeURIComponent(p.display_name)}&background=random`;
+                 return (
+                   <div key={p.user_id} className="flex flex-col items-center gap-3 md:gap-4 shrink-0">
+                     <div className={`w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden border-4 transition-all duration-300 ${isSpeaking ? 'border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.5)] scale-105' : 'border-white/5'}`}>
+                       <img src={avatarUrl} alt={p.display_name} className="w-full h-full object-cover" />
+                     </div>
+                     <span className="text-sm md:text-base font-semibold text-zinc-300 max-w-[150px] truncate text-center bg-black/40 px-4 py-1.5 rounded-full border border-white/5">{p.display_name}</span>
+                   </div>
+                 )
+               })}
+             </div>
+          )}
         </div>
       )}
     </div>
@@ -796,7 +815,7 @@ export function VoiceRoom({
 
   if (disconnected) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-[#121214] text-zinc-300 p-6 select-none">
+      <div className="flex-1 flex flex-col items-center justify-center bg-transparent text-zinc-300 p-6 select-none">
         <div className="w-20 h-20 bg-zinc-800 rounded-full flex items-center justify-center text-zinc-400 mb-6 shadow-lg border border-white/5">
           <PhoneOff size={32} />
         </div>
@@ -1033,7 +1052,7 @@ export function VoiceRoom({
 
   if (token === '') {
     return (
-      <div className="flex-1 flex items-center justify-center bg-[#121214] text-zinc-400 select-none">
+      <div className="flex-1 flex items-center justify-center bg-transparent text-zinc-400 select-none">
         <div className="flex flex-col items-center">
           <div className="w-8 h-8 border-4 border-zinc-800 border-t-indigo-500 rounded-full animate-spin mb-4"></div>
           <span className="text-xs font-medium text-zinc-400">Đang kết nối vào kênh thoại...</span>
@@ -1043,7 +1062,7 @@ export function VoiceRoom({
   }
 
   return (
-    <div className="flex-1 bg-[#121214] overflow-hidden flex flex-col" data-lk-theme="default">
+    <div className="flex-1 bg-transparent overflow-hidden flex flex-col" data-lk-theme="default">
       {/* Voice Room Nickname Control Bar (hidden on mobile to save space) */}
       <div className="bg-zinc-900/60 border-b border-white/5 px-6 py-3.5 hidden md:flex items-center justify-between gap-4 backdrop-blur-md shrink-0 select-none">
         <div className="flex items-center gap-3">
