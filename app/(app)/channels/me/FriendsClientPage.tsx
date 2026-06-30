@@ -801,6 +801,15 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
           payload: messagePayload
         });
 
+      // Notify the recipient's global toast listener (works anywhere in the app)
+      if (activeChatPartner?.id) {
+        supabase.channel(`dm-notify:${activeChatPartner.id}`).send({
+          type: 'broadcast',
+          event: 'dm_toast',
+          payload: { senderName: displayName, content: finalContent },
+        });
+      }
+
       // Save in database
       await sendDirectMessage(selectedChatId, finalContent, msgType as any);
     } catch (err: any) {

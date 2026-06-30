@@ -3,7 +3,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
-import { loadFriendsDashboardData } from '@/app/actions/friend';
 
 type Toast = {
   id: string;
@@ -95,74 +94,55 @@ export function MessageToasts() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user || cancelled) return;
 
-      // 1. Workspace channels
+      // 1. Workspace channels — listen on a DEDICATED notify topic per workspace
+      // (not the channel's own topic, which ChatArea owns) to avoid duplicate
+      // subscription conflicts.
       const { data: memberships } = await supabase
         .from('workspace_members')
         .select('workspace_id')
         .eq('user_id', user.id);
       const wsIds = (memberships || []).map((m) => m.workspace_id);
 
-      if (wsIds.length > 0) {
-        const { data: chans } = await supabase
-          .from('channels')
-          .select('id, name, workspace_id')
-          .in('workspace_id', wsIds);
-        if (chans && !cancelled) {
-          chans.forEach((c) => {
-            subs.push(
-              supabase
-                .channel(`realtime:channel:${c.id}`)
-                .on('broadcast', { event: 'new_message' }, (payload) => {
-                  const msg = payload?.payload?.message;
-                  if (!msg || msg.sender_id === user.id) return;
-                  if (pathRef.current?.includes(`/channel/${c.id}`)) return;
-                  const content = (msg.content || '').startsWith('[VOICE_INVITE]:')
-                    ? 'Đã gửi lời mời đàm thoại'
-                    : (msg.content || 'Đã gửi một tệp đính kèm');
-                  notify({
-                    id: `${c.id}-${Date.now()}`,
-                    name: msg.profiles?.display_name || 'Thành viên',
-                    content,
-                    context: `#${c.name}`,
-                    link: `/workspace/${c.workspace_id}/channel/${c.id}`,
-                  });
-                })
-                .subscribe()
-            );
-          });
-        }
-      }
+      wsIds.forEach((wsId) => {
+        subs.push(
+          supabase
+            .channel(`workspace-notify:${wsId}`)
+            .on('broadcast', { event: 'message_toast' }, (payload) => {
+              const { channelId, channelName, message } = payload?.payload || {};
+              if (!message || message.sender_id === user.id) return;
+              if (pathRef.current?.includes(`/channel/${channelId}`)) return;
+              const content = (message.content || '').startsWith('[VOICE_INVITE]:')
+                ? 'Đã gửi lời mời đàm thoại'
+                : (message.content || 'Đã gửi một tệp đính kèm');
+              notify({
+                id: `${channelId}-${Date.now()}`,
+                name: message.profiles?.display_name || 'Thành viên',
+                content,
+                context: `#${channelName || 'kênh'}`,
+                link: `/workspace/${wsId}/channel/${channelId}`,
+              });
+            })
+            .subscribe()
+        );
+      });
 
-      // 2. Direct messages (friends)
-      try {
-        const { friends } = await loadFriendsDashboardData();
-        if (friends && !cancelled) {
-          friends.forEach((f: any) => {
-            if (!f.threadId) return;
-            subs.push(
-              supabase
-                .channel(`room-dm-${f.threadId}`)
-                .on('broadcast', { event: 'new_message' }, (payload) => {
-                  const msg = payload?.payload;
-                  if (!msg || msg.sender_id === user.id) return;
-                  // The friends page shows its own DM toasts, so skip there.
-                  if (pathRef.current?.startsWith('/channels/me')) return;
-                  const content = msg.content || 'Đã gửi một tệp đính kèm';
-                  notify({
-                    id: `dm-${f.threadId}-${Date.now()}`,
-                    name: f.display_name || f.username || 'Bạn bè',
-                    content,
-                    context: 'Tin nhắn riêng',
-                    link: '/channels/me',
-                  });
-                })
-                .subscribe()
-            );
-          });
-        }
-      } catch {
-        /* ignore */
-      }
+      // 2. Direct messages — single dedicated per-user notify topic.
+      subs.push(
+        supabase
+          .channel(`dm-notify:${user.id}`)
+          .on('broadcast', { event: 'dm_toast' }, (payload) => {
+            const { senderName, content } = payload?.payload || {};
+            if (pathRef.current?.startsWith('/channels/me')) return; // friends page handles its own
+            notify({
+              id: `dm-${Date.now()}`,
+              name: senderName || 'Bạn bè',
+              content: content || 'Đã gửi một tệp đính kèm',
+              context: 'Tin nhắn riêng',
+              link: '/channels/me',
+            });
+          })
+          .subscribe()
+      );
     };
 
     setup();

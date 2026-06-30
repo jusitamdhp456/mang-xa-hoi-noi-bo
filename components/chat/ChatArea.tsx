@@ -160,7 +160,14 @@ export function ChatArea({
       event: 'new_message',
       payload: { message },
     })
-  }, [])
+    // Notify the global toast listener on a dedicated topic (separate from this
+    // channel's topic to avoid duplicate-subscription conflicts).
+    supabase.channel(`workspace-notify:${workspaceId}`).send({
+      type: 'broadcast',
+      event: 'message_toast',
+      payload: { channelId, channelName, message },
+    })
+  }, [supabase, workspaceId, channelId, channelName])
 
   // Auto-scroll to bottom on first load and on new messages, but only when the
   // user is already near the bottom — so scrolling up to read history isn't
