@@ -76,10 +76,23 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
     ? activeParticipants.filter(p => p.voice_channel_id === channel.id)
     : []
 
+  // Open the channel menu, clamped inside the viewport (so it isn't cut off
+  // near the bottom/right edges).
+  const openMenuAt = (clientX: number, clientY: number) => {
+    const menuW = 200
+    const menuH = isVoice ? 150 : 110
+    let x = clientX
+    let y = clientY
+    if (x + menuW > window.innerWidth - 8) x = window.innerWidth - menuW - 8
+    if (x < 8) x = 8
+    if (y + menuH > window.innerHeight - 8) y = Math.max(8, clientY - menuH)
+    setMenuPosition({ x, y })
+  }
+
   // Handle right-click context menu (all channels)
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault()
-    setMenuPosition({ x: e.clientX, y: e.clientY })
+    openMenuAt(e.clientX, e.clientY)
   }
 
   const handleRenameChannel = async () => {
@@ -158,7 +171,7 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
           e.stopPropagation();
           e.preventDefault();
           const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-          setMenuPosition({ x: r.left - 150, y: r.bottom + 4 });
+          openMenuAt(r.right, r.bottom + 4);
         }}
         className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 text-zinc-400 hover:text-white transition-all cursor-pointer ml-1 shrink-0"
         title="Tùy chọn kênh"
