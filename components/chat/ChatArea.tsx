@@ -4,7 +4,8 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { toggleReaction } from '@/app/actions/reaction'
-import { Volume2, Download } from 'lucide-react'
+import { editMessage, deleteMessage, togglePin, getPinnedMessages } from '@/app/actions/message'
+import { Volume2, Download, Pin } from 'lucide-react'
 import { MessageItem } from './MessageItem'
 import { MessageInput } from './MessageInput'
 
@@ -22,11 +23,20 @@ export type ReactionRow = {
   user_id: string;
 };
 
+export type ReplyPreview = {
+  id: string;
+  content: string | null;
+  profiles?: { display_name: string } | null;
+};
+
 export type MessageRow = {
   id: string;
   content: string;
   created_at: string;
   sender_id: string;
+  edited_at?: string | null;
+  reply_to_id?: string | null;
+  reply_to?: ReplyPreview | null;
   profiles?: {
     display_name: string;
     avatar_key: string | null;
@@ -34,6 +44,8 @@ export type MessageRow = {
   message_attachments?: AttachmentRow[];
   message_reactions?: ReactionRow[];
 };
+
+const MSG_SELECT = '*, profiles!messages_sender_id_fkey(display_name, avatar_key), message_attachments(*), message_reactions(emoji, user_id), reply_to:reply_to_id(id, content, profiles!messages_sender_id_fkey(display_name))';
 
 export function ChatArea({ 
   channelId,
@@ -65,7 +77,7 @@ export function ChatArea({
   const appendMessageById = useCallback(async (messageId: string) => {
     const { data: msg } = await supabase
       .from('messages')
-      .select('*, profiles!messages_sender_id_fkey(display_name, avatar_key), message_attachments(*), message_reactions(emoji, user_id)')
+      .select(MSG_SELECT)
       .eq('id', messageId)
       .single()
     if (!msg) return
@@ -169,6 +181,58 @@ export function ChatArea({
     })
   }, [supabase, workspaceId, channelId, channelName])
 
+  // --- Reply ---
+  const [replyTo, setReplyTo] = useState<MessageRow | null>(null)
+
+  // --- Edit ---
+  const handleEdit = useCallback(async (messageId: string, content: string) => {
+    const editedAt = new Date().toISOString()
+    setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, content, edited_at: editedAt } : m)))
+    const res = await editMessage(messageId, content)
+    if (res?.error) return
+    channelRef.current?.send({ type: 'broadcast', event: 'edit_message', payload: { messageId, content, editedAt } })
+  }, [])
+
+  // --- Delete ---
+  const handleDelete = useCallback(async (messageId: string) => {
+    setMessages((prev) => prev.filter((m) => m.id !== messageId))
+    const res = await deleteMessage(messageId)
+    if (res?.error) { alert(res.error); return }
+    channelRef.current?.send({ type: 'broadcast', event: 'message_deleted', payload: { messageId } })
+  }, [])
+
+  // --- Pin ---
+  const [pinned, setPinned] = useState<MessageRow[]>([])
+  const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set())
+  const [showPinned, setShowPinned] = useState(false)
+  const refreshPinned = useCallback(async () => {
+    const list = (await getPinnedMessages(channelId)) as MessageRow[]
+    setPinned(list)
+    setPinnedIds(new Set(list.map((m) => m.id)))
+  }, [channelId])
+  const handleTogglePin = useCallback(async (messageId: string) => {
+    const res = await togglePin(messageId, channelId)
+    if (res?.error) { alert(res.error); return }
+    await refreshPinned()
+    channelRef.current?.send({ type: 'broadcast', event: 'pin_changed', payload: {} })
+  }, [channelId, refreshPinned])
+  useEffect(() => { refreshPinned() }, [refreshPinned])
+
+  // --- Typing indicator ---
+  const [typingNames, setTypingNames] = useState<string[]>([])
+  const typingTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+  const lastTypingSent = useRef(0)
+  const handleTyping = useCallback(() => {
+    const now = Date.now()
+    if (now - lastTypingSent.current < 2000) return
+    lastTypingSent.current = now
+    channelRef.current?.send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: { userId: currentUserId, name: currentUser?.display_name || 'Ai đó' },
+    })
+  }, [currentUserId, currentUser])
+
   // Auto-scroll to bottom on first load and on new messages, but only when the
   // user is already near the bottom — so scrolling up to read history isn't
   // yanked back down.
@@ -224,6 +288,27 @@ export function ChatArea({
           if (tempId) removeOptimistic(tempId)
         }
       )
+      .on('broadcast', { event: 'edit_message' }, (payload) => {
+        const { messageId, content, editedAt } = payload?.payload || {}
+        if (!messageId) return
+        setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, content, edited_at: editedAt } : m)))
+      })
+      .on('broadcast', { event: 'message_deleted' }, (payload) => {
+        const messageId = payload?.payload?.messageId
+        if (messageId) setMessages((prev) => prev.filter((m) => m.id !== messageId))
+      })
+      .on('broadcast', { event: 'pin_changed' }, () => {
+        refreshPinned()
+      })
+      .on('broadcast', { event: 'typing' }, (payload) => {
+        const { userId, name } = payload?.payload || {}
+        if (!userId || userId === currentUserId || !name) return
+        setTypingNames((prev) => (prev.includes(name) ? prev : [...prev, name]))
+        clearTimeout(typingTimers.current[userId])
+        typingTimers.current[userId] = setTimeout(() => {
+          setTypingNames((prev) => prev.filter((n) => n !== name))
+        }, 3500)
+      })
       .subscribe()
 
     channelRef.current = channel
@@ -232,10 +317,39 @@ export function ChatArea({
       channelRef.current = null
       supabase.removeChannel(channel)
     }
-  }, [channelId, supabase, refreshReactions, appendMessageById, appendMessage])
+  }, [channelId, supabase, refreshReactions, appendMessageById, appendMessage, removeOptimistic, refreshPinned, currentUserId])
 
   return (
     <>
+      {/* Pinned messages bar */}
+      {pinned.length > 0 && (
+        <div className="shrink-0 border-b border-white/10 bg-black/20 backdrop-blur-md">
+          <button
+            onClick={() => setShowPinned((v) => !v)}
+            className="w-full flex items-center gap-2 px-4 py-2 text-xs font-bold text-amber-300 hover:bg-white/5 transition-colors cursor-pointer"
+          >
+            <Pin size={13} />
+            {pinned.length} tin đã ghim
+          </button>
+          {showPinned && (
+            <div className="max-h-60 overflow-y-auto px-3 pb-2 space-y-1.5">
+              {pinned.map((p) => (
+                <div key={p.id} className="bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs">
+                  <p className="font-bold text-white/90">{p.profiles?.display_name || 'Người dùng'}</p>
+                  <p className="text-zinc-300 break-words line-clamp-3">{p.content || '(tệp đính kèm)'}</p>
+                  <button
+                    onClick={() => handleTogglePin(p.id)}
+                    className="mt-1 text-[10px] text-amber-300/80 hover:text-amber-200 cursor-pointer"
+                  >
+                    Bỏ ghim
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <div ref={scrollContainerRef} className="flex-1 p-4 overflow-y-auto bg-transparent flex flex-col scrollbar-thin scrollbar-thumb-gray-300">
         {/* Spacer keeps messages bottom-aligned when few, collapses when many so
             the overflow scrolls normally. */}
@@ -257,6 +371,11 @@ export function ChatArea({
                 onImageClick={setActiveLightboxImg}
                 currentUserId={currentUserId}
                 onToggleReaction={handleToggleReaction}
+                onReply={() => setReplyTo(msg)}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onTogglePin={() => handleTogglePin(msg.id)}
+                isPinned={pinnedIds.has(msg.id)}
               />
             ))}
           </div>
@@ -264,12 +383,22 @@ export function ChatArea({
         <div ref={messagesEndRef} />
       </div>
       
+      {/* Typing indicator */}
+      {typingNames.length > 0 && (
+        <div className="px-5 pb-1 text-[11px] text-zinc-400 italic animate-pulse shrink-0">
+          {typingNames.slice(0, 3).join(', ')} đang gõ…
+        </div>
+      )}
+
       <MessageInput
         channelId={channelId}
         channelName={channelName}
         channelType={channelType}
         workspaceId={workspaceId}
         currentUser={currentUser}
+        replyingTo={replyTo}
+        onCancelReply={() => setReplyTo(null)}
+        onTyping={handleTyping}
         onOptimistic={addOptimistic}
         onOptimisticFailed={(tempId) => {
           removeOptimistic(tempId)

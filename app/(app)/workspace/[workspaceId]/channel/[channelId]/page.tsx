@@ -17,7 +17,7 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
   const channelPromise = supabase.from('channels').select('*').eq('id', channelId).single()
   const msgsPromise = supabase
     .from('messages')
-    .select('*, profiles!messages_sender_id_fkey(display_name, avatar_key), message_attachments(*), message_reactions(emoji, user_id)')
+    .select('*, profiles!messages_sender_id_fkey(display_name, avatar_key), message_attachments(*), message_reactions(emoji, user_id), reply_to:reply_to_id(id, content, profiles!messages_sender_id_fkey(display_name))')
     .eq('channel_id', channelId)
     .order('created_at', { ascending: true })
     .limit(50)

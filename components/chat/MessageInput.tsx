@@ -18,6 +18,9 @@ export function MessageInput({
   channelType,
   workspaceId,
   currentUser = null,
+  replyingTo = null,
+  onCancelReply,
+  onTyping,
   onOptimistic,
   onOptimisticFailed,
   onBroadcastInstantly,
@@ -28,6 +31,9 @@ export function MessageInput({
   channelType: string,
   workspaceId: string,
   currentUser?: { id: string; display_name: string; avatar_key: string | null } | null,
+  replyingTo?: { id: string; content: string; profiles?: { display_name: string } } | null,
+  onCancelReply?: () => void,
+  onTyping?: () => void,
   onOptimistic?: (message: any) => void,
   onOptimisticFailed?: (tempId: string) => void,
   onBroadcastInstantly?: (message: any) => void,
@@ -154,7 +160,14 @@ export function MessageInput({
 
     setContent('')
     setSelectedFile(null)
-    
+
+    // Capture & clear the reply target for this send.
+    const replyId = replyingTo?.id
+    const replyPreview = replyingTo
+      ? { id: replyingTo.id, content: replyingTo.content, profiles: replyingTo.profiles }
+      : null
+    onCancelReply?.()
+
     // Intercept music bot commands
     const trimmed = currentContent.trim()
     if (trimmed.toLowerCase().startsWith('/play ') && !currentFile) {
@@ -186,6 +199,8 @@ export function MessageInput({
         profiles: { display_name: currentUser.display_name, avatar_key: currentUser.avatar_key },
         message_attachments: [],
         message_reactions: [],
+        reply_to_id: replyId || null,
+        reply_to: replyPreview,
       }
       onOptimistic?.(optimisticMsg)
       // Broadcast to other clients immediately before DB insert for zero-latency feel
@@ -244,7 +259,7 @@ export function MessageInput({
         }
       }
       
-      const res = await sendMessage(channelId, workspaceId, currentContent, attachmentData, messageId)
+      const res = await sendMessage(channelId, workspaceId, currentContent, attachmentData, messageId, replyId)
       if (res?.error) throw new Error(res.error)
       if (res?.message) onSent?.(res.message, tempId)
 
@@ -288,6 +303,17 @@ export function MessageInput({
       )}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        {replyingTo && (
+          <div className="flex items-center justify-between gap-2 bg-black/30 border border-white/10 rounded-xl px-3 py-2 ml-1 animate-fade-in-up">
+            <div className="min-w-0 text-xs">
+              <span className="text-indigo-300 font-bold">Đang trả lời {replyingTo.profiles?.display_name || 'tin nhắn'}</span>
+              <p className="text-zinc-400 truncate">{replyingTo.content || '(tệp đính kèm)'}</p>
+            </div>
+            <button type="button" onClick={() => onCancelReply?.()} className="text-zinc-400 hover:text-white shrink-0 cursor-pointer" title="Hủy trả lời">
+              ×
+            </button>
+          </div>
+        )}
         {selectedFile && (
           selectedFile.type.startsWith('image/') ? (
             /* Staging Image Preview */
@@ -356,7 +382,7 @@ export function MessageInput({
               type="text"
               ref={textInputRef}
               value={content}
-              onChange={(e) => setContent(e.target.value)}
+              onChange={(e) => { setContent(e.target.value); onTyping?.(); }}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
               disabled={isSending}

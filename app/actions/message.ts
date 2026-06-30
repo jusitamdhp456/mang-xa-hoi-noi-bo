@@ -3,11 +3,12 @@
 import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase/server'
 
 export async function sendMessage(
-  channelId: string, 
+  channelId: string,
   workspaceId: string,
-  content: string, 
+  content: string,
   attachment?: { objectKey: string, fileName: string, mimeType: string, sizeBytes: number },
-  messageId?: string
+  messageId?: string,
+  replyToId?: string
 ) {
   if (!content?.trim() && !attachment) return { error: 'Tin nhắn không được để trống' }
   
@@ -64,9 +65,10 @@ export async function sendMessage(
       channel_id: channelId,
       sender_id: user.id,
       content: content?.trim() || null,
+      reply_to_id: replyToId || null,
       type: attachment ? (attachment.mimeType.startsWith('image/') ? 'image' : 'file') : 'text'
     })
-    .select('id, content, created_at, sender_id, type, profiles!messages_sender_id_fkey(display_name, avatar_key)')
+    .select('id, content, created_at, sender_id, type, reply_to_id, profiles!messages_sender_id_fkey(display_name, avatar_key), reply_to:reply_to_id(id, content, profiles!messages_sender_id_fkey(display_name))')
     .single()
 
   if (error || !message) {
@@ -129,4 +131,97 @@ export async function sendMessage(
   }
 
   return { success: true, message: fullMessage }
+}
+
+// Edit own message
+export async function editMessage(messageId: string, content: string) {
+  if (!content?.trim()) return { error: 'Nội dung không được để trống' }
+  const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Chưa đăng nhập' }
+
+  const service = createSupabaseServiceClient()
+  const { data: msg } = await service.from('messages').select('sender_id').eq('id', messageId).single()
+  if (!msg) return { error: 'Tin nhắn không tồn tại' }
+  if (msg.sender_id !== user.id) return { error: 'Bạn chỉ sửa được tin của mình' }
+
+  const { error } = await service
+    .from('messages')
+    .update({ content: content.trim(), edited_at: new Date().toISOString() })
+    .eq('id', messageId)
+  if (error) return { error: 'Lỗi sửa tin nhắn' }
+  return { success: true }
+}
+
+// Delete a message (owner of the message, or workspace owner/admin)
+export async function deleteMessage(messageId: string) {
+  const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Chưa đăng nhập' }
+
+  const service = createSupabaseServiceClient()
+  const { data: msg } = await service
+    .from('messages')
+    .select('sender_id, channels(workspace_id)')
+    .eq('id', messageId)
+    .single()
+  if (!msg) return { error: 'Tin nhắn không tồn tại' }
+
+  let allowed = msg.sender_id === user.id
+  if (!allowed) {
+    const ch = Array.isArray(msg.channels) ? msg.channels[0] : msg.channels
+    if (ch?.workspace_id) {
+      const { data: m } = await supabase
+        .from('workspace_members')
+        .select('role')
+        .eq('workspace_id', ch.workspace_id)
+        .eq('user_id', user.id)
+        .maybeSingle()
+      if (m && (m.role === 'owner' || m.role === 'admin')) allowed = true
+    }
+  }
+  if (!allowed) return { error: 'Bạn không có quyền xoá tin này' }
+
+  const { error } = await service.from('messages').delete().eq('id', messageId)
+  if (error) return { error: 'Lỗi xoá tin nhắn' }
+  return { success: true }
+}
+
+// Pin / unpin a message in a channel
+export async function togglePin(messageId: string, channelId: string) {
+  const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Chưa đăng nhập' }
+
+  const service = createSupabaseServiceClient()
+  const { data: existing } = await service
+    .from('pinned_messages')
+    .select('message_id')
+    .eq('channel_id', channelId)
+    .eq('message_id', messageId)
+    .maybeSingle()
+
+  if (existing) {
+    await service.from('pinned_messages').delete().eq('channel_id', channelId).eq('message_id', messageId)
+    return { success: true, pinned: false }
+  }
+  const { error } = await service
+    .from('pinned_messages')
+    .insert({ channel_id: channelId, message_id: messageId, pinned_by: user.id })
+  if (error) return { error: 'Lỗi ghim tin nhắn' }
+  return { success: true, pinned: true }
+}
+
+// Get pinned messages for a channel
+export async function getPinnedMessages(channelId: string) {
+  const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+  const service = createSupabaseServiceClient()
+  const { data } = await service
+    .from('pinned_messages')
+    .select('message_id, pinned_at, messages!message_id(id, content, created_at, sender_id, profiles!messages_sender_id_fkey(display_name, avatar_key))')
+    .eq('channel_id', channelId)
+    .order('pinned_at', { ascending: false })
+  return (data || []).map((p: any) => p.messages).filter(Boolean)
 }

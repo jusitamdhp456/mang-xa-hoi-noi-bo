@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { SmilePlus, FileText } from 'lucide-react'
+import { SmilePlus, FileText, Reply, Pencil, Trash2, Pin, Check, X } from 'lucide-react'
 import { type MessageRow } from './ChatArea'
 import { VoiceInviteCard } from './VoiceInviteCard'
 
@@ -12,11 +12,21 @@ export function MessageItem({
   onImageClick,
   currentUserId = null,
   onToggleReaction,
+  onReply,
+  onEdit,
+  onDelete,
+  onTogglePin,
+  isPinned = false,
 }: {
   message: MessageRow;
   onImageClick?: (url: string) => void;
   currentUserId?: string | null;
   onToggleReaction?: (messageId: string, emoji: string) => void;
+  onReply?: () => void;
+  onEdit?: (messageId: string, content: string) => void;
+  onDelete?: (messageId: string) => void;
+  onTogglePin?: () => void;
+  isPinned?: boolean;
 }) {
   const senderName = message.profiles?.display_name || 'Người dùng ẩn danh'
   const initial = senderName.charAt(0).toUpperCase()
@@ -25,8 +35,17 @@ export function MessageItem({
   const timeStr = new Date(message.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
   const attachment = message.message_attachments?.[0]
   const isMe = currentUserId && message.sender_id === currentUserId
+  const isVoiceInvite = !!message.content?.startsWith('[VOICE_INVITE]:')
 
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editText, setEditText] = useState(message.content || '')
+
+  const saveEdit = () => {
+    const t = editText.trim()
+    setEditing(false)
+    if (t && t !== message.content) onEdit?.(message.id, t)
+  }
 
   // Group reactions by emoji with count + whether the current user reacted.
   const reactionGroups = (message.message_reactions || []).reduce<Record<string, { count: number; mine: boolean }>>(
@@ -47,7 +66,7 @@ export function MessageItem({
   }
 
   return (
-    <div className={`flex gap-3 items-end max-w-[85%] sm:max-w-[75%] transition-all mb-4 ${isMe ? 'self-end flex-row-reverse' : 'self-start flex-row'}`}>
+    <div className={`group flex gap-3 items-end max-w-[85%] sm:max-w-[75%] transition-all mb-4 ${isMe ? 'self-end flex-row-reverse' : 'self-start flex-row'}`}>
        {/* Avatar */}
        <div className="relative flex-shrink-0 mb-0.5">
          {avatar ? (
@@ -63,24 +82,59 @@ export function MessageItem({
        <div className={`flex flex-col min-w-0 ${isMe ? 'items-end' : 'items-start'}`}>
           {/* Sender Info */}
           <div className="flex items-center gap-1.5 px-1 mb-1 text-[10px] text-zinc-300 font-bold select-none">
+             {isPinned && <Pin size={10} className="text-amber-400" />}
              <span>{isMe ? 'Bạn' : senderName}</span>
              <span>•</span>
              <span>{timeStr}</span>
+             {message.edited_at && <span className="text-zinc-500 font-normal italic">(đã sửa)</span>}
           </div>
 
-          {message.content && (
-            message.content.startsWith('[VOICE_INVITE]:') ? (
-              <VoiceInviteCard payload={message.content.slice('[VOICE_INVITE]:'.length)} />
-            ) : (
-              <div 
-                className={`px-4 py-2.5 rounded-2xl whitespace-pre-wrap leading-relaxed break-words text-[13.5px] sm:text-[14px] font-medium shadow-md border ${
-                  isMe 
-                    ? 'bg-indigo-600 border-indigo-500 text-white rounded-br-none' 
-                    : 'bg-zinc-800/90 border-white/5 text-zinc-200 rounded-bl-none'
-                }`}
-              >
-                {message.content}
-              </div>
+          {/* Reply preview */}
+          {message.reply_to && (
+            <div className={`mb-1 px-2.5 py-1 rounded-lg bg-black/20 border-l-2 border-indigo-400/60 max-w-full ${isMe ? 'self-end' : 'self-start'}`}>
+              <p className="text-[10px] font-bold text-indigo-300 truncate">↩ {message.reply_to.profiles?.display_name || 'tin nhắn'}</p>
+              <p className="text-[11px] text-zinc-400 truncate max-w-[220px]">{message.reply_to.content || '(tệp đính kèm)'}</p>
+            </div>
+          )}
+
+          {editing ? (
+            <div className="flex items-center gap-1.5 w-full">
+              <input
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditing(false); }}
+                autoFocus
+                className="flex-1 bg-black/40 border border-indigo-500/50 rounded-xl px-3 py-2 text-[14px] text-white outline-none"
+              />
+              <button onClick={saveEdit} className="text-emerald-400 hover:text-emerald-300 p-1 cursor-pointer"><Check size={16} /></button>
+              <button onClick={() => setEditing(false)} className="text-red-400 hover:text-red-300 p-1 cursor-pointer"><X size={16} /></button>
+            </div>
+          ) : (
+            message.content && (
+              isVoiceInvite ? (
+                <VoiceInviteCard payload={message.content.slice('[VOICE_INVITE]:'.length)} />
+              ) : (
+                <div className="flex items-end gap-1.5">
+                  <div
+                    className={`px-4 py-2.5 rounded-2xl whitespace-pre-wrap leading-relaxed break-words text-[13.5px] sm:text-[14px] font-medium shadow-md border ${
+                      isMe
+                        ? 'bg-indigo-600 border-indigo-500 text-white rounded-br-none'
+                        : 'bg-zinc-800/90 border-white/5 text-zinc-200 rounded-bl-none'
+                    }`}
+                  >
+                    {message.content}
+                  </div>
+                  {/* Hover actions */}
+                  {!isVoiceInvite && (
+                    <div className={`flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity self-center ${isMe ? 'order-first' : ''}`}>
+                      {onReply && <button onClick={onReply} title="Trả lời" className="w-6 h-6 flex items-center justify-center rounded-md text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"><Reply size={13} /></button>}
+                      {onTogglePin && <button onClick={onTogglePin} title={isPinned ? 'Bỏ ghim' : 'Ghim'} className={`w-6 h-6 flex items-center justify-center rounded-md hover:bg-white/10 cursor-pointer ${isPinned ? 'text-amber-400' : 'text-zinc-400 hover:text-white'}`}><Pin size={13} /></button>}
+                      {isMe && onEdit && <button onClick={() => { setEditText(message.content || ''); setEditing(true); }} title="Sửa" className="w-6 h-6 flex items-center justify-center rounded-md text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"><Pencil size={13} /></button>}
+                      {isMe && onDelete && <button onClick={() => { if (confirm('Xoá tin nhắn này?')) onDelete(message.id); }} title="Xoá" className="w-6 h-6 flex items-center justify-center rounded-md text-zinc-400 hover:text-red-400 hover:bg-white/10 cursor-pointer"><Trash2 size={13} /></button>}
+                    </div>
+                  )}
+                </div>
+              )
             )
           )}
           
