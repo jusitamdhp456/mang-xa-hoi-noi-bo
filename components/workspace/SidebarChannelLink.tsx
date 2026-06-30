@@ -3,9 +3,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { Phone, Lock, Edit3, X, Search, UserPlus, MicOff } from 'lucide-react'
+import { Phone, Lock, Edit3, X, Search, UserPlus, MicOff, Volume2, MoreVertical, Pencil, Trash2 } from 'lucide-react'
 import { useVoiceSettings, playVoiceTone } from '@/components/providers/VoiceSettingsProvider'
 import { getFriends, sendDirectMessage } from '@/app/actions/friend'
+import { updateChannel, deleteChannel } from '@/app/actions/channel'
 
 interface ChannelItem {
   id: string
@@ -75,11 +76,28 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
     ? activeParticipants.filter(p => p.voice_channel_id === channel.id)
     : []
 
-  // Handle right-click context menu
+  // Handle right-click context menu (all channels)
   const handleContextMenu = (e: React.MouseEvent) => {
-    if (!isVoice) return // Only voice channels have this behavior
     e.preventDefault()
     setMenuPosition({ x: e.clientX, y: e.clientY })
+  }
+
+  const handleRenameChannel = async () => {
+    setMenuPosition(null)
+    const newName = prompt('Tên kênh mới:', channel.name)
+    if (newName === null) return
+    const res = await updateChannel(channel.id, newName)
+    if (res?.error) { alert(res.error); return }
+    router.refresh()
+  }
+
+  const handleDeleteChannel = async () => {
+    setMenuPosition(null)
+    if (!confirm(`Xoá kênh "${channel.name}"? Toàn bộ tin nhắn trong kênh sẽ mất.`)) return
+    const res = await deleteChannel(channel.id)
+    if (res?.error) { alert(res.error); return }
+    if (isActive) router.push(`/workspace/${workspaceId}`)
+    router.refresh()
   }
 
   // Handle single-click (shows a double-click hint for voice channels)
@@ -127,11 +145,26 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
           : 'hover:bg-white/10 text-white/70 hover:text-white hover:shadow-sm'
       }`}
     >
-      <span className="mr-3 text-lg leading-none shrink-0 text-cyan-400">
-        {isVoice ? '🔊' : '#'}
+      <span className="mr-2.5 leading-none shrink-0 text-cyan-400 flex items-center">
+        {isVoice ? <Volume2 size={16} /> : <span className="text-lg">#</span>}
       </span>
       <span className="truncate flex-1">{channel.name}</span>
       {channel.is_private && <Lock size={12} className="text-zinc-500 ml-2 shrink-0" />}
+
+      {/* Channel options menu trigger */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+          setMenuPosition({ x: r.left - 150, y: r.bottom + 4 });
+        }}
+        className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 text-zinc-400 hover:text-white transition-all cursor-pointer ml-1 shrink-0"
+        title="Tùy chọn kênh"
+      >
+        <MoreVertical size={13} />
+      </button>
 
       {isVoice && (
         <button
@@ -252,15 +285,34 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
           style={{ top: menuPosition.y, left: menuPosition.x }}
           className="fixed z-50 bg-[#1e1b4b]/95 border border-white/15 backdrop-blur-2xl rounded-xl p-1.5 shadow-2xl animate-scale-in text-white w-48"
         >
+          {isVoice && (
+            <button
+              onClick={() => {
+                playVoiceTone('join')
+                setActiveChannelId(channel.id)
+                setWorkspaceId(workspaceId)
+                router.push(channelUrl)
+                setMenuPosition(null)
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-600 rounded-lg transition-colors cursor-pointer text-left"
+            >
+              <Phone size={14} className="text-cyan-400 shrink-0" />
+              <span>Tham gia hội thoại</span>
+            </button>
+          )}
           <button
-            onClick={() => {
-              router.push(channelUrl)
-              setMenuPosition(null)
-            }}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-600 rounded-lg transition-colors cursor-pointer text-left"
+            onClick={handleRenameChannel}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer text-left"
           >
-            <Phone size={14} className="text-cyan-400 shrink-0" />
-            <span>Tham gia hội thoại</span>
+            <Pencil size={14} className="text-zinc-300 shrink-0" />
+            <span>Đổi tên kênh</span>
+          </button>
+          <button
+            onClick={handleDeleteChannel}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-red-400 hover:bg-red-600 hover:text-white rounded-lg transition-colors cursor-pointer text-left"
+          >
+            <Trash2 size={14} className="shrink-0" />
+            <span>Xoá kênh</span>
           </button>
         </div>
       )}

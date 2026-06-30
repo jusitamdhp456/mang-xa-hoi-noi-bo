@@ -132,8 +132,12 @@ export function ChatArea({
     setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]))
   }, [])
 
+  // Force scroll to bottom on the next render (used when the user sends).
+  const forceScrollRef = useRef(false)
+
   // Optimistic UI: show the sender's message instantly, before the round-trip.
   const addOptimistic = useCallback((msg: MessageRow) => {
+    forceScrollRef.current = true
     setMessages((prev) => [...prev, msg])
   }, [])
 
@@ -161,6 +165,7 @@ export function ChatArea({
   // After the server confirms: replace the optimistic placeholder with the real
   // message and notify other clients with the full payload.
   const handleSent = useCallback((message: MessageRow, tempId?: string) => {
+    forceScrollRef.current = true
     setMessages((prev) => {
       const withoutTemp = tempId ? prev.filter((m) => m.id !== tempId) : prev
       if (withoutTemp.some((m) => m.id === message.id)) return withoutTemp
@@ -241,6 +246,11 @@ export function ChatArea({
     if (!el) return
     if (!initializedRef.current) {
       initializedRef.current = true
+      el.scrollTop = el.scrollHeight
+      return
+    }
+    if (forceScrollRef.current) {
+      forceScrollRef.current = false
       el.scrollTop = el.scrollHeight
       return
     }

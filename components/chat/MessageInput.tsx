@@ -271,6 +271,8 @@ export function MessageInput({
     } finally {
       setIsSending(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
+      // Keep focus in the composer so the user can keep typing without re-clicking.
+      requestAnimationFrame(() => textInputRef.current?.focus())
     }
   }
 
@@ -385,8 +387,7 @@ export function MessageInput({
               onChange={(e) => { setContent(e.target.value); onTyping?.(); }}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
-              disabled={isSending}
-              placeholder={isSending ? "Vui lòng đợi..." : `Nhắn tin vào ${channelType === 'voice' ? '' : '#'}${channelName}...`}
+              placeholder={`Nhắn tin vào ${channelType === 'voice' ? '' : '#'}${channelName}...`}
               className="bg-transparent w-full outline-none text-xs text-white disabled:opacity-50 placeholder:text-zinc-500 font-medium mr-2"
            />
            {/* Emoji picker */}

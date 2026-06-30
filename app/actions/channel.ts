@@ -110,3 +110,50 @@ export async function createChannel(workspaceId: string, categoryId: string | nu
   revalidatePath(`/workspace/${workspaceId}`)
   return { success: true }
 }
+
+// Rename a channel (workspace owner/admin/mod)
+export async function updateChannel(channelId: string, name: string) {
+  const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Chưa đăng nhập' }
+  if (!name?.trim()) return { error: 'Tên kênh không được để trống' }
+
+  const service = createSupabaseServiceClient()
+  const { data: channel } = await service.from('channels').select('workspace_id').eq('id', channelId).single()
+  if (!channel) return { error: 'Kênh không tồn tại' }
+
+  const { data: m } = await supabase
+    .from('workspace_members').select('role')
+    .eq('workspace_id', channel.workspace_id).eq('user_id', user.id).maybeSingle()
+  if (!m || !['owner', 'admin', 'mod'].includes(m.role)) return { error: 'Bạn không có quyền sửa kênh' }
+
+  const formatted = name.trim().toLowerCase().replace(/\s+/g, '-')
+  const { error } = await service.from('channels').update({ name: formatted }).eq('id', channelId)
+  if (error) {
+    if (error.code === '23505') return { error: 'Tên kênh này đã tồn tại' }
+    return { error: 'Lỗi đổi tên kênh' }
+  }
+  revalidatePath(`/workspace/${channel.workspace_id}`)
+  return { success: true }
+}
+
+// Delete a channel (workspace owner/admin/mod)
+export async function deleteChannel(channelId: string) {
+  const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Chưa đăng nhập' }
+
+  const service = createSupabaseServiceClient()
+  const { data: channel } = await service.from('channels').select('workspace_id').eq('id', channelId).single()
+  if (!channel) return { error: 'Kênh không tồn tại' }
+
+  const { data: m } = await supabase
+    .from('workspace_members').select('role')
+    .eq('workspace_id', channel.workspace_id).eq('user_id', user.id).maybeSingle()
+  if (!m || !['owner', 'admin', 'mod'].includes(m.role)) return { error: 'Bạn không có quyền xoá kênh' }
+
+  const { error } = await service.from('channels').delete().eq('id', channelId)
+  if (error) return { error: 'Lỗi xoá kênh' }
+  revalidatePath(`/workspace/${channel.workspace_id}`)
+  return { success: true, workspaceId: channel.workspace_id }
+}
