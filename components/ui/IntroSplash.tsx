@@ -25,11 +25,23 @@ function ringMelody(ctx: AudioContext) {
 export function IntroSplash() {
   // gate: waiting for the user's tap -> show: intro playing -> hiding -> gone
   const [phase, setPhase] = useState<'gate' | 'show' | 'hiding' | 'gone'>('gate');
+  const [decided, setDecided] = useState(false); // avoid flashing the gate before the session check
   const ctxRef = useRef<AudioContext | null>(null);
   const bufferRef = useRef<AudioBuffer | null>(null);
 
   // Prepare the audio (fetch + decode) up front so playback is instant on tap.
   useEffect(() => {
+    // Show the intro only once per session — reloads skip it.
+    let seen = false;
+    try { seen = !!sessionStorage.getItem('intro_seen'); } catch { /* ignore */ }
+    if (seen) {
+      setPhase('gone');
+      setDecided(true);
+      return;
+    }
+    try { sessionStorage.setItem('intro_seen', '1'); } catch { /* ignore */ }
+    setDecided(true);
+
     const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     const ctx = AC ? new AC() : null;
     ctxRef.current = ctx;
@@ -75,7 +87,7 @@ export function IntroSplash() {
     setTimeout(() => setPhase('gone'), 3000);
   };
 
-  if (phase === 'gone') return null;
+  if (!decided || phase === 'gone') return null;
 
   return (
     <div
