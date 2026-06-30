@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { Room, Track, LocalAudioTrack } from 'livekit-client';
+import { Room, Track } from 'livekit-client';
 
 export function MusicBotHost({ channelId }: { channelId: string }) {
   const [botState, setBotState] = useState<{ videoId: string, title: string, status: string } | null>(null);
@@ -63,8 +63,7 @@ export function MusicBotHost({ channelId }: { channelId: string }) {
           const audioTrack = stream.getAudioTracks()[0];
           
           if (audioTrack) {
-            const localAudioTrack = new LocalAudioTrack(audioTrack, 'music');
-            await room.localParticipant.publishTrack(localAudioTrack, { source: Track.Source.Microphone });
+            await room.localParticipant.publishTrack(audioTrack, { name: 'music', source: Track.Source.Microphone });
             setBotState({ videoId: data.videoId, title: data.title, status: 'Đang phát' });
           } else {
             throw new Error('Không thể lấy luồng âm thanh');
