@@ -11,7 +11,7 @@ import {
   useTracks,
   useLocalParticipant,
   useParticipants,
-  useTrackContext
+  useTrackRefContext
 } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import { Monitor, MonitorOff, AlertTriangle } from 'lucide-react';
@@ -55,7 +55,7 @@ function ScreenShareOverlay({
   watchingScreenShares: Set<string>;
   setWatchingScreenShares: React.Dispatch<React.SetStateAction<Set<string>>>;
 }) {
-  const trackRef = useTrackContext();
+  const trackRef = useTrackRefContext();
   const { localParticipant } = useLocalParticipant();
   
   if (trackRef.source !== Track.Source.ScreenShare) return null;
