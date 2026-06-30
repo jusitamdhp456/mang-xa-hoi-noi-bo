@@ -3,12 +3,13 @@
 import { useEffect, useState, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { loadFriendsDashboardData } from '@/app/actions/friend';
 
 type Toast = {
   id: string;
   name: string;
   content: string;
-  channelName: string;
+  context: string;
   link: string;
 };
 
@@ -39,75 +40,137 @@ function playPing() {
   }
 }
 
+// Browser/OS notification when the tab is in the background.
+function notifyOS(title: string, body: string, onClick: () => void) {
+  try {
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    if (!document.hidden) return; // only when the user isn't looking at the tab
+    const n = new Notification(title, { body, icon: '/logo.png' });
+    n.onclick = () => {
+      window.focus();
+      onClick();
+      n.close();
+    };
+  } catch {
+    /* ignore */
+  }
+}
+
 export function MessageToasts() {
   const pathname = usePathname();
   const router = useRouter();
   const [toasts, setToasts] = useState<Toast[]>([]);
-  // Keep the latest pathname available inside long-lived realtime handlers.
   const pathRef = useRef(pathname);
   useEffect(() => { pathRef.current = pathname; }, [pathname]);
 
-  const pushToast = (t: Toast) => {
+  // Ask for browser notification permission (best-effort + on first interaction).
+  useEffect(() => {
+    if (typeof Notification === 'undefined') return;
+    if (Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+      const onClick = () => {
+        if (Notification.permission === 'default') Notification.requestPermission().catch(() => {});
+        window.removeEventListener('pointerdown', onClick);
+      };
+      window.addEventListener('pointerdown', onClick, { once: true });
+      return () => window.removeEventListener('pointerdown', onClick);
+    }
+  }, []);
+
+  const notify = (t: Toast) => {
+    playPing();
     setToasts((prev) => [...prev, t]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((x) => x.id !== t.id));
     }, 5000);
+    notifyOS(`${t.name} • ${t.context}`, t.content, () => router.push(t.link));
   };
 
   useEffect(() => {
     const supabase = createSupabaseBrowserClient();
-    let channels: ReturnType<typeof supabase.channel>[] = [];
+    let subs: ReturnType<typeof supabase.channel>[] = [];
     let cancelled = false;
 
     const setup = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user || cancelled) return;
 
+      // 1. Workspace channels
       const { data: memberships } = await supabase
         .from('workspace_members')
         .select('workspace_id')
         .eq('user_id', user.id);
       const wsIds = (memberships || []).map((m) => m.workspace_id);
-      if (wsIds.length === 0) return;
 
-      const { data: chans } = await supabase
-        .from('channels')
-        .select('id, name, workspace_id')
-        .in('workspace_id', wsIds);
-      if (!chans || cancelled) return;
+      if (wsIds.length > 0) {
+        const { data: chans } = await supabase
+          .from('channels')
+          .select('id, name, workspace_id')
+          .in('workspace_id', wsIds);
+        if (chans && !cancelled) {
+          chans.forEach((c) => {
+            subs.push(
+              supabase
+                .channel(`realtime:channel:${c.id}`)
+                .on('broadcast', { event: 'new_message' }, (payload) => {
+                  const msg = payload?.payload?.message;
+                  if (!msg || msg.sender_id === user.id) return;
+                  if (pathRef.current?.includes(`/channel/${c.id}`)) return;
+                  const content = (msg.content || '').startsWith('[VOICE_INVITE]:')
+                    ? 'Đã gửi lời mời đàm thoại'
+                    : (msg.content || 'Đã gửi một tệp đính kèm');
+                  notify({
+                    id: `${c.id}-${Date.now()}`,
+                    name: msg.profiles?.display_name || 'Thành viên',
+                    content,
+                    context: `#${c.name}`,
+                    link: `/workspace/${c.workspace_id}/channel/${c.id}`,
+                  });
+                })
+                .subscribe()
+            );
+          });
+        }
+      }
 
-      channels = chans.map((c) =>
-        supabase
-          .channel(`realtime:channel:${c.id}`)
-          .on('broadcast', { event: 'new_message' }, (payload) => {
-            const msg = payload?.payload?.message;
-            if (!msg || msg.sender_id === user.id) return;
-            // Suppress if already viewing this channel.
-            if (pathRef.current?.includes(`/channel/${c.id}`)) return;
-
-            const name = msg.profiles?.display_name || 'Thành viên';
-            const content = (msg.content || '').startsWith('[VOICE_INVITE]:')
-              ? 'Đã gửi lời mời đàm thoại'
-              : (msg.content || 'Đã gửi một tệp đính kèm');
-
-            playPing();
-            pushToast({
-              id: `${c.id}-${Date.now()}`,
-              name,
-              content,
-              channelName: c.name,
-              link: `/workspace/${c.workspace_id}/channel/${c.id}`,
-            });
-          })
-          .subscribe()
-      );
+      // 2. Direct messages (friends)
+      try {
+        const { friends } = await loadFriendsDashboardData();
+        if (friends && !cancelled) {
+          friends.forEach((f: any) => {
+            if (!f.threadId) return;
+            subs.push(
+              supabase
+                .channel(`room-dm-${f.threadId}`)
+                .on('broadcast', { event: 'new_message' }, (payload) => {
+                  const msg = payload?.payload;
+                  if (!msg || msg.sender_id === user.id) return;
+                  // The friends page shows its own DM toasts, so skip there.
+                  if (pathRef.current?.startsWith('/channels/me')) return;
+                  const content = msg.content || 'Đã gửi một tệp đính kèm';
+                  notify({
+                    id: `dm-${f.threadId}-${Date.now()}`,
+                    name: f.display_name || f.username || 'Bạn bè',
+                    content,
+                    context: 'Tin nhắn riêng',
+                    link: '/channels/me',
+                  });
+                })
+                .subscribe()
+            );
+          });
+        }
+      } catch {
+        /* ignore */
+      }
     };
 
     setup();
     return () => {
       cancelled = true;
-      channels.forEach((ch) => supabase.removeChannel(ch));
+      subs.forEach((ch) => supabase.removeChannel(ch));
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (toasts.length === 0) return null;
@@ -125,7 +188,7 @@ export function MessageToasts() {
           className="pointer-events-auto text-left bg-[#1e1b4b]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-3.5 animate-fade-in-up hover:border-indigo-500/40 transition-colors cursor-pointer"
         >
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-300">#{t.channelName}</span>
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-300">{t.context}</span>
           </div>
           <p className="text-sm font-bold text-white truncate">{t.name}</p>
           <p className="text-xs text-zinc-300 line-clamp-2 mt-0.5 break-words">{t.content}</p>
