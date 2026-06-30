@@ -89,7 +89,7 @@ export function WorkspaceDashboard({
   }).filter(group => group.channels.length > 0 || searchTerm === '') // Hide empty categories only when searching
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden bg-transparent select-none animate-scale-in">
+    <div className="flex-1 flex flex-col h-full overflow-hidden bg-transparent select-none">
       {/* Header Banner */}
       <div className="relative shrink-0 p-6 md:p-8 border-b border-white/10 bg-gradient-to-r from-indigo-900/30 via-purple-900/20 to-cyan-900/20 backdrop-blur-md overflow-hidden">
         {/* Glow effect decorative balls */}
