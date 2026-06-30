@@ -11,7 +11,8 @@ import {
   useTracks,
   useLocalParticipant,
   useParticipants,
-  useTrackRefContext
+  useTrackRefContext,
+  VideoTrack
 } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import { Monitor, MonitorOff, AlertTriangle } from 'lucide-react';
@@ -85,6 +86,8 @@ function ScreenShareOverlay({
 
 // Compact media stage: shows camera/screen-share tiles (avatar placeholder when
 // no video). Kept small so the main area stays free for chat + future media.
+
+
 function VoiceStage() {
   const allTracks = useTracks(
     [
@@ -96,6 +99,7 @@ function VoiceStage() {
 
   const [watchingScreenShares, setWatchingScreenShares] = useState<Set<string>>(new Set());
   const { localParticipant } = useLocalParticipant();
+  const { activeParticipants, speakingUserIds } = useVoiceSettings();
 
   const cameraTracks = allTracks.filter(t => t.source === Track.Source.Camera);
   const screenShareTracks = allTracks.filter(t => t.source === Track.Source.ScreenShare);
@@ -113,8 +117,8 @@ function VoiceStage() {
     <div className="flex-1 min-h-0 p-2 flex flex-col gap-2 relative">
       {/* Active Screen Share Area */}
       {activeScreenShare && (
-        <div className="flex-1 min-h-0 rounded-xl overflow-hidden relative bg-black shadow-lg border border-white/5">
-          <ParticipantTile trackRef={activeScreenShare} className="w-full h-full" />
+        <div className="flex-1 min-h-0 rounded-xl overflow-hidden relative bg-black shadow-lg border border-white/5 flex items-center justify-center">
+          <VideoTrack trackRef={activeScreenShare} className="w-full h-full object-contain" />
           
           {activeScreenShare.participant.identity !== localParticipant.identity && (
              <div className="absolute top-4 left-4 z-20">
@@ -126,7 +130,7 @@ function VoiceStage() {
                       return next;
                     });
                   }}
-                  className="px-3 py-1.5 bg-black/60 hover:bg-black/80 backdrop-blur-md text-white rounded-md text-sm font-medium flex items-center gap-2 border border-white/10 shadow-sm transition-all"
+                  className="px-3 py-1.5 bg-black/60 hover:bg-black/80 text-white rounded-md text-sm font-medium flex items-center gap-2 border border-white/10 shadow-sm transition-all"
                 >
                   <MonitorOff size={16} className="text-red-400" />
                   Dừng xem màn hình của {activeScreenShare.participant.name || 'người dùng'}
@@ -136,14 +140,33 @@ function VoiceStage() {
         </div>
       )}
 
-      {/* Bottom Grid for cameras and non-active screen shares */}
-      <div className={activeScreenShare ? "h-32 shrink-0 md:h-40" : "flex-1 min-h-0"}>
-        <GridLayout tracks={bottomTracks} className="h-full">
-          <ParticipantTile>
-            <ScreenShareOverlay setWatchingScreenShares={setWatchingScreenShares} />
-          </ParticipantTile>
-        </GridLayout>
-      </div>
+      {/* Bottom Area: If watching screen share, show avatars. Otherwise show the standard grid. */}
+      {activeScreenShare ? (
+        <div className="h-20 md:h-24 shrink-0 flex items-center justify-center gap-4 bg-zinc-900/50 rounded-xl px-4 overflow-x-auto border border-white/5">
+           {activeParticipants.map(p => {
+             const isSpeaking = speakingUserIds.includes(p.user_id);
+             const avatarUrl = p.avatar_key 
+               ? `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${p.avatar_key}` 
+               : `https://ui-avatars.com/api/?name=${encodeURIComponent(p.display_name)}&background=random`;
+             return (
+               <div key={p.user_id} className="flex flex-col items-center gap-1.5 shrink-0">
+                 <div className={`w-12 h-12 md:w-14 md:h-14 rounded-full overflow-hidden border-2 transition-colors ${isSpeaking ? 'border-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'border-transparent'}`}>
+                   <img src={avatarUrl} alt={p.display_name} className="w-full h-full object-cover" />
+                 </div>
+                 <span className="text-[10px] md:text-xs text-zinc-400 max-w-[60px] truncate text-center">{p.display_name}</span>
+               </div>
+             )
+           })}
+        </div>
+      ) : (
+        <div className="flex-1 min-h-0">
+          <GridLayout tracks={bottomTracks} className="h-full">
+            <ParticipantTile>
+              <ScreenShareOverlay setWatchingScreenShares={setWatchingScreenShares} />
+            </ParticipantTile>
+          </GridLayout>
+        </div>
+      )}
     </div>
   );
 }
