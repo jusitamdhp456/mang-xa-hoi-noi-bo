@@ -19,6 +19,7 @@ export function MessageInput({
   currentUser = null,
   onOptimistic,
   onOptimisticFailed,
+  onBroadcastInstantly,
   onSent
 }: {
   channelId: string,
