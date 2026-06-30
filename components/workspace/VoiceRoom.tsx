@@ -6,12 +6,9 @@ import '@livekit/components-styles';
 import {
   LiveKitRoom,
   RoomAudioRenderer,
-  GridLayout,
-  ParticipantTile,
   useTracks,
   useLocalParticipant,
   useParticipants,
-  useTrackRefContext,
   VideoTrack
 } from '@livekit/components-react';
 import { Track } from 'livekit-client';
@@ -49,40 +46,7 @@ function LiveKitActiveSpeakersSync({ setSpeakingUserIds }: { setSpeakingUserIds:
   return null;
 }
 
-function ScreenShareOverlay({
-  setWatchingScreenShares,
-}: {
-  setWatchingScreenShares: React.Dispatch<React.SetStateAction<Set<string>>>;
-}) {
-  const trackRef = useTrackRefContext();
-  const { localParticipant } = useLocalParticipant();
-  
-  if (trackRef.source !== Track.Source.ScreenShare) return null;
-  
-  const id = trackRef.participant.identity;
-  if (id === localParticipant.identity) return null;
-  
-  return (
-    <div className="absolute inset-0 bg-zinc-900 z-10 flex flex-col items-center justify-center">
-      <Monitor size={32} className="text-white/30 mb-3" />
-      <p className="text-white text-xs font-medium mb-3">{trackRef.participant.name || 'Người dùng'} đang chia sẻ màn hình</p>
-      <button 
-        onClick={(e) => {
-          e.stopPropagation();
-          setWatchingScreenShares(prev => {
-            const next = new Set(prev);
-            next.add(id);
-            return next;
-          });
-        }}
-        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold shadow-lg transition-colors flex items-center gap-2 text-sm"
-      >
-        <Monitor size={16} />
-        Vào xem
-      </button>
-    </div>
-  );
-}
+
 
 // Compact media stage: shows camera/screen-share tiles (avatar placeholder when
 // no video). Kept small so the main area stays free for chat + future media.
@@ -161,30 +125,56 @@ function VoiceStage({ channelId }: { channelId: string }) {
         </div>
       ) : (
         <div className="flex-1 min-h-0 flex flex-col">
-          {bottomTracks.some(t => 'publication' in t && !!(t as any).publication) ? (
-            <GridLayout tracks={bottomTracks} className="h-full">
-              <ParticipantTile>
-                <ScreenShareOverlay setWatchingScreenShares={setWatchingScreenShares} />
-              </ParticipantTile>
-            </GridLayout>
-          ) : (
-             <div className="flex-1 w-full h-full flex flex-wrap items-center justify-center gap-6 md:gap-8 p-6 md:p-8 overflow-y-auto">
-               {roomParticipants.map(p => {
-                 const isSpeaking = speakingUserIds.includes(p.user_id);
-                 const avatarUrl = p.avatar_key 
-                   ? `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${p.avatar_key}` 
-                   : `https://ui-avatars.com/api/?name=${encodeURIComponent(p.display_name)}&background=random`;
-                 return (
-                   <div key={p.user_id} className="flex flex-col items-center gap-3 md:gap-4 shrink-0">
-                     <div className={`w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden border-4 transition-all duration-300 ${isSpeaking ? 'border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.5)] scale-105' : 'border-white/5'}`}>
-                       <img src={avatarUrl} alt={p.display_name} className="w-full h-full object-cover" />
-                     </div>
-                     <span className="text-sm md:text-base font-semibold text-zinc-300 max-w-[150px] truncate text-center bg-black/40 px-4 py-1.5 rounded-full border border-white/5">{p.display_name}</span>
-                   </div>
-                 )
-               })}
-             </div>
-          )}
+          <div className="flex-1 w-full h-full flex flex-wrap items-center justify-center gap-6 md:gap-8 p-6 md:p-8 overflow-y-auto">
+            {/* Screen Share Cards */}
+            {screenShareTracks.filter(t => 'publication' in t && !!(t as any).publication).map(t => (
+              <div key={`screen-${t.participant.identity}`} className="w-80 h-60 rounded-3xl overflow-hidden relative bg-black/40 backdrop-blur-md shadow-xl border border-white/10 flex flex-col items-center justify-center shrink-0">
+                <Monitor size={48} className="text-white/20 mb-4" />
+                <p className="text-white text-sm font-semibold mb-4">{t.participant.name || 'Người dùng'} đang chia sẻ màn hình</p>
+                <button 
+                  onClick={() => {
+                    setWatchingScreenShares(prev => {
+                      const next = new Set(prev);
+                      next.add(t.participant.identity);
+                      return next;
+                    });
+                  }}
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold shadow-lg transition-colors flex items-center gap-2 text-sm"
+                >
+                  <Monitor size={18} />
+                  Vào xem
+                </button>
+              </div>
+            ))}
+
+            {/* Cameras and Avatars */}
+            {roomParticipants.map(p => {
+              const isSpeaking = speakingUserIds.includes(p.user_id);
+              const avatarUrl = p.avatar_key 
+                ? `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${p.avatar_key}` 
+                : `https://ui-avatars.com/api/?name=${encodeURIComponent(p.display_name)}&background=random`;
+              
+              const pCamera = cameraTracks.find(t => t.participant.identity === p.user_id && 'publication' in t && !!(t as any).publication);
+
+              if (pCamera) {
+                return (
+                  <div key={`cam-${p.user_id}`} className={`w-80 h-60 rounded-3xl overflow-hidden relative shadow-lg transition-all ${isSpeaking ? 'border-4 border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.5)] scale-105' : 'border border-white/10'}`}>
+                    <VideoTrack trackRef={pCamera as any} className="w-full h-full object-cover" />
+                    <span className="absolute bottom-3 left-3 text-sm font-semibold text-white bg-black/60 px-3 py-1 rounded-lg backdrop-blur-sm">{p.display_name}</span>
+                  </div>
+                );
+              }
+
+              return (
+                <div key={p.user_id} className="flex flex-col items-center gap-3 md:gap-4 shrink-0">
+                  <div className={`w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden border-4 transition-all duration-300 ${isSpeaking ? 'border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.5)] scale-105' : 'border-white/5'}`}>
+                    <img src={avatarUrl} alt={p.display_name} className="w-full h-full object-cover" />
+                  </div>
+                  <span className="text-sm md:text-base font-semibold text-zinc-300 max-w-[150px] truncate text-center bg-black/40 px-4 py-1.5 rounded-full border border-white/5">{p.display_name}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
