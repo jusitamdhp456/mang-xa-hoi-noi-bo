@@ -12,7 +12,7 @@ export function MusicBot({ channelId, workspaceId }: { channelId: string; worksp
   
   const roomRef = useRef<Room | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const trackRef = useRef<LocalAudioTrack | null>(null);
+  const trackRef = useRef<any>(null);
   
   const { chatMessages, send } = useChat();
   const processedMsgsRef = useRef<Set<string>>(new Set());
@@ -133,11 +133,10 @@ export function MusicBot({ channelId, workspaceId }: { channelId: string; worksp
       await audioEl.play();
 
       const mediaStreamTrack = destination.stream.getAudioTracks()[0];
-      const localAudioTrack = new LocalAudioTrack(mediaStreamTrack, 'bot-audio', false);
-      trackRef.current = localAudioTrack;
+      trackRef.current = mediaStreamTrack;
 
       // Đặt source là Microphone để LiveKit xếp nó vào giao diện dạng người dùng
-      room.localParticipant.publishTrack(localAudioTrack, {
+      await room.localParticipant.publishTrack(mediaStreamTrack, {
         name: 'music',
         source: Track.Source.Microphone, 
       });
