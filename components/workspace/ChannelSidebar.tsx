@@ -43,7 +43,7 @@ export default async function ChannelSidebar({ workspaceId }: { workspaceId: str
   const voiceChannels = channels.filter(c => c.type === 'voice')
 
   return (
-    <div className="w-64 bg-black/20 backdrop-blur-xl border-r border-white/10 flex-shrink-0 flex flex-col h-full text-white z-10 transition-all">
+    <div className="w-full bg-black/10 border-r border-white/10 flex-shrink-0 flex flex-col h-full text-white z-10 transition-all">
       {/* Workspace Header - Clicking it returns to Dashboard */}
       <div className="h-16 flex items-center justify-between px-5 font-bold text-lg text-white border-b border-white/10 shadow-sm shrink-0 hover:bg-white/5 cursor-pointer transition-colors group/header">
         <Link href={`/workspace/${workspaceId}`} className="truncate flex-1 py-4" title="Trang tổng quan không gian làm việc">
