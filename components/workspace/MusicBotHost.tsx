@@ -19,7 +19,12 @@ export function MusicBotHost({ channelId }: { channelId: string }) {
       try {
         // 1. Search YouTube
         const searchRes = await fetch(`/api/bot/search?q=${encodeURIComponent(detail.query)}`);
-        if (!searchRes.ok) throw new Error('Không tìm thấy bài hát');
+        
+        if (!searchRes.ok) {
+          const errData = await searchRes.json().catch(() => ({}));
+          throw new Error(errData.error || 'Không tìm thấy bài hát hoặc lỗi server');
+        }
+        
         const data = await searchRes.json();
         
         setBotState({ videoId: data.videoId, title: data.title, status: 'Đang kết nối...' });
