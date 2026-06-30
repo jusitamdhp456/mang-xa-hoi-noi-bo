@@ -21,12 +21,13 @@ import { kickParticipant } from '@/app/actions/livekit';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { MusicBot } from './MusicBot';
 
-// High-framerate, motion-optimized screen share (best the browser/WebRTC allow,
-// ~60fps; good for game streaming). Browsers cap screen capture ~30-60fps.
+// Screen share tuned for reliability: 1080p @ 30fps, motion-optimized.
+// 60fps overwhelmed the encoder/decoder over typical links and corrupted the
+// video (green/purple artifacts), so 30fps is the stable sweet spot.
 const SCREEN_SHARE_OPTIONS = {
   audio: true,
   contentHint: 'motion' as const,
-  resolution: { width: 1920, height: 1080, frameRate: 60 },
+  resolution: { width: 1920, height: 1080, frameRate: 30 },
 };
 
 function LiveKitSync({ isMuted, isDeafened }: { isMuted: boolean; isDeafened: boolean }) {
