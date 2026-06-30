@@ -29,6 +29,7 @@ interface VoiceSettingsContextType {
   activeParticipants: Participant[];
   changeUserNickname: (targetUserId: string, newName: string) => void;
   currentUser: any;
+  onlineUserIds: string[];
 
   // Speaking status
   speakingUserIds: string[];
@@ -101,6 +102,7 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
   const [activeParticipants, setActiveParticipants] = useState<Participant[]>([]);
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
+  const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
   const [speakingUserIds, setSpeakingUserIds] = useState<string[]>([]);
 
   // Optimistic merged participants list so the current user shows up instantly upon joining
@@ -175,6 +177,7 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
   useEffect(() => {
     if (!workspaceId || !user) {
       setActiveParticipants([]);
+      setOnlineUserIds([]);
       presenceChannelRef.current = null;
       return;
     }
@@ -192,25 +195,30 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
       const state = channel.presenceState();
       const participantsList: Participant[] = [];
       const seenUserIds = new Set<string>(); // Deduplicate users!
+      const onlineIds = new Set<string>();
 
       Object.keys(state).forEach((key) => {
         const presenceList = state[key] as any[];
         presenceList.forEach((presence) => {
-          if (presence && presence.voice_channel_id && presence.user_id && !seenUserIds.has(presence.user_id)) {
-            seenUserIds.add(presence.user_id);
-            participantsList.push({
-              user_id: presence.user_id,
-              display_name: presence.display_name || 'User',
-              avatar_key: presence.avatar_key,
-              voice_channel_id: presence.voice_channel_id,
-              custom_name: presence.custom_name,
-              is_muted: presence.is_muted,
-              is_deafened: presence.is_deafened,
-            });
+          if (presence && presence.user_id) {
+            onlineIds.add(presence.user_id);
+            if (presence.voice_channel_id && !seenUserIds.has(presence.user_id)) {
+              seenUserIds.add(presence.user_id);
+              participantsList.push({
+                user_id: presence.user_id,
+                display_name: presence.display_name || 'User',
+                avatar_key: presence.avatar_key,
+                voice_channel_id: presence.voice_channel_id,
+                custom_name: presence.custom_name,
+                is_muted: presence.is_muted,
+                is_deafened: presence.is_deafened,
+              });
+            }
           }
         });
       });
       setActiveParticipants(participantsList);
+      setOnlineUserIds(Array.from(onlineIds));
     };
 
     // Audio chimes when someone else joins/leaves the voice channel we are in.
@@ -249,12 +257,12 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
       .on('presence', { event: 'leave' }, onLeave)
       .on('broadcast', { event: 'change_nickname' }, onNicknameChange)
       .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED' && activeChannelIdRef.current) {
+        if (status === 'SUBSCRIBED') {
           await channel.track({
             user_id: user.id,
             display_name: profile?.display_name || user.email?.split('@')[0] || 'User',
             avatar_key: profile?.avatar_key || null,
-            voice_channel_id: activeChannelIdRef.current,
+            voice_channel_id: activeChannelIdRef.current || null,
             custom_name: customName || null,
             is_muted: isMuted,
             is_deafened: isDeafened,
@@ -276,21 +284,17 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
     const channel = presenceChannelRef.current;
     if (!channel || !user) return;
 
-    if (activeChannelId) {
-      channel.track({
-        user_id: user.id,
-        display_name: profile?.display_name || user.email?.split('@')[0] || 'User',
-        avatar_key: profile?.avatar_key || null,
-        voice_channel_id: activeChannelId,
-        custom_name: customName || null,
-        is_muted: isMuted,
-        is_deafened: isDeafened,
-      }).catch((err: any) => {
-        console.error('Voice track update error:', err);
-      });
-    } else {
-      channel.untrack().catch(() => {});
-    }
+    channel.track({
+      user_id: user.id,
+      display_name: profile?.display_name || user.email?.split('@')[0] || 'User',
+      avatar_key: profile?.avatar_key || null,
+      voice_channel_id: activeChannelId || null,
+      custom_name: customName || null,
+      is_muted: isMuted,
+      is_deafened: isDeafened,
+    }).catch((err: any) => {
+      console.error('Presence track update error:', err);
+    });
   }, [activeChannelId, customName, isMuted, isDeafened, profile, user]);
 
   const toggleMute = () => {
@@ -335,6 +339,7 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
         activeParticipants: mergedParticipants,
         changeUserNickname,
         currentUser: user,
+        onlineUserIds,
         speakingUserIds,
         setSpeakingUserIds
       }}
