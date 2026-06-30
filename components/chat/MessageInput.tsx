@@ -1,9 +1,11 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { sendMessage } from '@/app/actions/message'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { Send, Smile, File as FileIcon } from 'lucide-react'
+
+type MemberHint = { id: string; name: string; avatar: string | null }
 
 const EMOJI_LIST = [
   '😀', '😁', '😂', '🤣', '😊', '😍', '😘', '😎',
@@ -46,6 +48,50 @@ export function MessageInput({
   const [emojiOpen, setEmojiOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textInputRef = useRef<HTMLInputElement>(null)
+
+  // --- @mention autocomplete ---
+  const [members, setMembers] = useState<MemberHint[]>([])
+  const [mentionResults, setMentionResults] = useState<MemberHint[]>([])
+  const [mentionOpen, setMentionOpen] = useState(false)
+
+  useEffect(() => {
+    const supabase = createSupabaseBrowserClient()
+    supabase
+      .from('workspace_members')
+      .select('profiles!inner(id, display_name, avatar_key)')
+      .eq('workspace_id', workspaceId)
+      .then(({ data }) => {
+        if (!data) return
+        setMembers(data.map((m: any) => ({ id: m.profiles.id, name: m.profiles.display_name, avatar: m.profiles.avatar_key })))
+      })
+  }, [workspaceId])
+
+  const detectMention = (value: string, caret: number) => {
+    const before = value.slice(0, caret)
+    const m = before.match(/@([\p{L}\d_.]*)$/u)
+    if (m) {
+      const q = m[1].toLowerCase()
+      const res = members.filter((mem) => mem.name?.toLowerCase().includes(q)).slice(0, 6)
+      setMentionResults(res)
+      setMentionOpen(res.length > 0)
+    } else {
+      setMentionOpen(false)
+    }
+  }
+
+  const insertMention = (name: string) => {
+    const input = textInputRef.current
+    const caret = input?.selectionStart ?? content.length
+    const before = content.slice(0, caret).replace(/@([\p{L}\d_.]*)$/u, `@${name} `)
+    const after = content.slice(caret)
+    setContent(before + after)
+    setMentionOpen(false)
+    requestAnimationFrame(() => {
+      input?.focus()
+      const pos = before.length
+      input?.setSelectionRange(pos, pos)
+    })
+  }
 
   // Insert an emoji at the caret position (or append if no selection).
   const insertEmoji = (emoji: string) => {
@@ -362,6 +408,30 @@ export function MessageInput({
           </div>
         )}
 
+        <div className="relative">
+        {mentionOpen && (
+          <div className="absolute bottom-full left-0 mb-2 w-64 bg-[#1e1f22] border border-white/10 rounded-xl shadow-2xl p-1.5 z-30 animate-scale-in">
+            <p className="text-[9px] font-extrabold uppercase tracking-wider text-zinc-500 px-2 py-1 select-none">Thành viên</p>
+            <div className="max-h-48 overflow-y-auto">
+              {mentionResults.map((mem) => (
+                <button
+                  key={mem.id}
+                  type="button"
+                  onClick={() => insertMention(mem.name)}
+                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer text-left"
+                >
+                  {mem.avatar ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={`/api/media/${mem.avatar}`} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full bg-indigo-900 text-white text-[10px] font-bold flex items-center justify-center shrink-0">{(mem.name || 'U').charAt(0).toUpperCase()}</div>
+                  )}
+                  <span className="text-xs font-semibold text-zinc-200 truncate">{mem.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="bg-[#383a40]/60 border border-white/5 rounded-2xl py-3 px-4 flex items-center shadow-lg focus-within:border-indigo-500 focus-within:bg-[#383a40]/80 transition-all">
            <button 
              type="button" 
@@ -384,7 +454,7 @@ export function MessageInput({
               type="text"
               ref={textInputRef}
               value={content}
-              onChange={(e) => { setContent(e.target.value); onTyping?.(); }}
+              onChange={(e) => { setContent(e.target.value); onTyping?.(); detectMention(e.target.value, e.target.selectionStart ?? e.target.value.length); }}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
               placeholder={`Nhắn tin vào ${channelType === 'voice' ? '' : '#'}${channelName}...`}
@@ -427,6 +497,7 @@ export function MessageInput({
            >
              <Send size={16} />
            </button>
+        </div>
         </div>
       </form>
     </div>

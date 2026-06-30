@@ -7,6 +7,15 @@ import { VoiceInviteCard } from './VoiceInviteCard'
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '🎉', '😮', '😢', '🔥', '👀']
 
+// Highlight @mentions inside message text.
+function renderWithMentions(text: string) {
+  return text.split(/(@[\p{L}\d_.]+)/u).map((part, i) =>
+    part.startsWith('@')
+      ? <span key={i} className="text-indigo-300 font-bold bg-indigo-500/20 rounded px-0.5">{part}</span>
+      : <span key={i}>{part}</span>
+  )
+}
+
 export function MessageItem({
   message,
   onImageClick,
@@ -122,7 +131,7 @@ export function MessageItem({
                         : 'bg-zinc-800/90 border-white/5 text-zinc-200 rounded-bl-none'
                     }`}
                   >
-                    {message.content}
+                    {renderWithMentions(message.content)}
                   </div>
                   {/* Hover actions */}
                   {!isVoiceInvite && (
