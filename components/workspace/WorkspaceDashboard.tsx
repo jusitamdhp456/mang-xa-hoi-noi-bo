@@ -270,7 +270,7 @@ export function WorkspaceDashboard({
               if (!member.profiles) return null
               const initial = member.profiles.display_name?.charAt(0).toUpperCase() || 'M'
               const avatar = member.profiles.avatar_key 
-                ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${member.profiles.avatar_key}` 
+                ? `/api/media/${member.profiles.avatar_key}` 
                 : null
 
               return (

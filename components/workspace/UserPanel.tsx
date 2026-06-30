@@ -56,7 +56,7 @@ export function UserPanel({ user, profile, channels, workspaceName }: UserPanelP
 
   const getAvatarUrl = () => {
     if (profile?.avatar_key) {
-      return `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${profile.avatar_key}`;
+      return `/api/media/${profile.avatar_key}`;
     }
     return null;
   };

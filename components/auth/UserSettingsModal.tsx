@@ -138,7 +138,7 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
     router.refresh();
   };
 
-  const avatarUrl = profile?.avatar_key ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${profile.avatar_key}` : null;
+  const avatarUrl = profile?.avatar_key ? `/api/media/${profile.avatar_key}` : null;
   const computedDisplayName = displayName || user?.email?.split('@')[0] || 'User';
 
   const bannerPresets = [

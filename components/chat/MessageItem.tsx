@@ -20,7 +20,7 @@ export function MessageItem({
 }) {
   const senderName = message.profiles?.display_name || 'Người dùng ẩn danh'
   const initial = senderName.charAt(0).toUpperCase()
-  const avatar = message.profiles?.avatar_key ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${message.profiles.avatar_key}` : null
+  const avatar = message.profiles?.avatar_key ? `/api/media/${message.profiles.avatar_key}` : null
 
   const timeStr = new Date(message.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
   const attachment = message.message_attachments?.[0]

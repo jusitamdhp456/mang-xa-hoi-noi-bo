@@ -17,6 +17,7 @@ export async function POST(request: Request) {
     const workspaceId = formData.get('workspaceId') as string | null;
     const channelId = formData.get('channelId') as string | null;
     const threadId = formData.get('threadId') as string | null;
+    const folder = formData.get('folder') as string | null;
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
@@ -30,7 +31,9 @@ export async function POST(request: Request) {
     const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
     let relativePath = '';
     
-    if (threadId) {
+    if (folder === 'avatars') {
+      relativePath = `avatars/${user.id}/${Date.now()}-${safeFileName}`;
+    } else if (threadId) {
       relativePath = `direct/${threadId}/${Date.now()}-${safeFileName}`;
     } else if (workspaceId && channelId) {
       relativePath = `workspaces/${workspaceId}/${channelId}/${Date.now()}-${safeFileName}`;

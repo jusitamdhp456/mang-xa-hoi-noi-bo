@@ -35,7 +35,7 @@ export default async function AppLayout({
     if (data) userWorkspaces = data as unknown as { workspaces: { id: string, name: string } | null }[];
   }
 
-  const avatarUrl = userProfile?.avatar_key ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${userProfile.avatar_key}` : null;
+  const avatarUrl = userProfile?.avatar_key ? `/api/media/${userProfile.avatar_key}` : null;
   const initial = (userProfile?.display_name || user?.email?.split('@')[0] || 'M').charAt(0).toUpperCase();
 
   return (

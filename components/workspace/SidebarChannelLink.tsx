@@ -187,7 +187,7 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
                     {p.avatar_key ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img 
-                        src={`https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${p.avatar_key}`} 
+                        src={`/api/media/${p.avatar_key}`} 
                         alt="" 
                         className={`w-6 h-6 rounded-full object-cover shrink-0 transition-all duration-200 ${isSpeaking ? 'ring-2 ring-emerald-500 ring-offset-1 ring-offset-zinc-900 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : ''}`} 
                       />
@@ -312,7 +312,7 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
                 filteredFriends.map(f => {
                   const isInvited = invitedFriendIds.includes(f.id);
                   const fInitial = (f.display_name || 'U').charAt(0).toUpperCase();
-                  const fAvatar = f.avatar_key ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${f.avatar_key}` : null;
+                  const fAvatar = f.avatar_key ? `/api/media/${f.avatar_key}` : null;
 
                   return (
                     <div key={f.id} className="flex items-center justify-between bg-black/10 p-2 rounded-xl border border-white/5">

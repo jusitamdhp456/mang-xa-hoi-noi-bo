@@ -4,7 +4,9 @@ import { NextResponse } from 'next/server';
 
 async function checkMediaAccess(user: { id: string }, objectKey: string): Promise<boolean> {
   // avatars and profile images are public to authenticated users
-  if (objectKey.startsWith('avatars/') || objectKey.startsWith('profiles/')) {
+  // (also handle the supabase-fallback/ prefix when R2 isn't used)
+  const bareKey = objectKey.replace(/^supabase-fallback\//, '');
+  if (bareKey.startsWith('avatars/') || bareKey.startsWith('profiles/')) {
     return true;
   }
 

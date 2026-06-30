@@ -529,7 +529,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
   // Show Toast Helper
   const showToast = (senderName: string, content: string, avatarKey: string | null, threadId: string) => {
     const id = `toast-${Date.now()}`;
-    const avatarUrl = avatarKey ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${avatarKey}` : null;
+    const avatarUrl = avatarKey ? `/api/media/${avatarKey}` : null;
     
     setToasts(prev => [...prev, { id, title: senderName, content, avatar: avatarUrl, threadId }]);
     
@@ -897,7 +897,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
 
   const currentUsername = profile?.username || user?.email?.split('@')[0] || 'username';
   const displayName = profile?.display_name || user?.email?.split('@')[0] || 'User';
-  const avatarUrl = profile?.avatar_key ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${profile.avatar_key}` : null;
+  const avatarUrl = profile?.avatar_key ? `/api/media/${profile.avatar_key}` : null;
   const user10DigitId = getTenDigitId(user?.id);
 
   return (
@@ -1008,7 +1008,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
 
           <div className="space-y-0.5">
             {filteredDMs.map(p => {
-              const avatar = p.avatar_key ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${p.avatar_key}` : null;
+              const avatar = p.avatar_key ? `/api/media/${p.avatar_key}` : null;
               const name = p.display_name || p.username || 'User';
               const isSelected = selectedChatId === p.threadId;
               
@@ -1340,7 +1340,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                             getTenDigitId(p.id).includes(addFriendInput.trim())
                           ).slice(0, 5).map(p => {
                             const isAlreadyFriend = friendsProfiles.some(f => f.id === p.id);
-                            const avatar = p.avatar_key ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${p.avatar_key}` : null;
+                            const avatar = p.avatar_key ? `/api/media/${p.avatar_key}` : null;
                             const name = p.display_name || p.username || 'User';
 
                             const handleAddClick = async () => {
@@ -1473,7 +1473,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                       )}
 
                       {(activeTab === 'online' ? friendsList : allList).map(p => {
-                        const avatar = p.avatar_key ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${p.avatar_key}` : null;
+                        const avatar = p.avatar_key ? `/api/media/${p.avatar_key}` : null;
                         const name = p.display_name || p.username || 'User';
                         let statusBg = (p.status === 'online' || p.status === 'idle') ? 'bg-green-500' : 'bg-zinc-500';
                         let statusTextDesc = (p.status === 'online' || p.status === 'idle') ? 'Trực tuyến' : 'Ngoại tuyến';
@@ -1545,7 +1545,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                             <div className="flex items-center gap-3">
                               <div className="relative w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">
                                 {req.sender_avatar ? (
-                                  <img src={`https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${req.sender_avatar}`} alt="" className="w-full h-full rounded-full object-cover" />
+                                  <img src={`/api/media/${req.sender_avatar}`} alt="" className="w-full h-full rounded-full object-cover" />
                                 ) : (
                                   initial
                                 )}
@@ -1587,7 +1587,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                 <h3 className="text-xs font-black text-zinc-400 uppercase tracking-wider">Đang Hoạt Động</h3>
                 <div className="space-y-4">
                   {friendsList.slice(0, 2).map((p) => {
-                    const avatar = p.avatar_key ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${p.avatar_key}` : null;
+                    const avatar = p.avatar_key ? `/api/media/${p.avatar_key}` : null;
                     const name = p.display_name || p.username || 'User';
 
                     return (
@@ -1678,7 +1678,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                     </button>
                     <div className="relative">
                       {activeChatPartner?.avatar_key ? (
-                        <img src={`https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${activeChatPartner.avatar_key}`} alt="avatar" className="w-8 h-8 rounded-full object-cover" />
+                        <img src={`/api/media/${activeChatPartner.avatar_key}`} alt="avatar" className="w-8 h-8 rounded-full object-cover" />
                       ) : (
                         <div className="w-8 h-8 rounded-full bg-indigo-900 flex items-center justify-center text-white text-xs font-bold uppercase">
                           {activeChatPartner?.display_name?.charAt(0)}
@@ -1772,7 +1772,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                     {dbMessages.map((msg, index) => {
                       const isMe = msg.sender_id === user.id;
                       const partnerName = activeChatPartner?.display_name || 'Bạn';
-                      const partnerAvatar = activeChatPartner?.avatar_key ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${activeChatPartner.avatar_key}` : null;
+                      const partnerAvatar = activeChatPartner?.avatar_key ? `/api/media/${activeChatPartner.avatar_key}` : null;
                       const timeStr = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
                       return (
@@ -2270,7 +2270,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                 {previewUser.avatar_key ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img 
-                    src={`https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${previewUser.avatar_key}`} 
+                    src={`/api/media/${previewUser.avatar_key}`} 
                     alt="" 
                     className="w-20 h-20 rounded-full object-cover border-4 border-[#1e1f22] bg-zinc-800" 
                   />
@@ -2490,7 +2490,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
             <div className="relative inline-block">
               {incomingCallInvite.senderAvatar ? (
                 <img 
-                  src={`https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${incomingCallInvite.senderAvatar}`} 
+                  src={`/api/media/${incomingCallInvite.senderAvatar}`} 
                   alt="" 
                   className="w-20 h-20 rounded-full object-cover border-4 border-indigo-600 mx-auto" 
                 />

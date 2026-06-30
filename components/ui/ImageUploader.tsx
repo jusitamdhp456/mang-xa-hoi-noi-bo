@@ -2,7 +2,6 @@
 
 import React, { useState, useRef } from 'react';
 import { ImagePlus } from 'lucide-react';
-import { generateUploadUrl } from '@/app/actions/upload';
 
 interface ImageUploaderProps {
   onUploadSuccess: (url: string) => void;
@@ -42,41 +41,43 @@ export function ImageUploader({ onUploadSuccess, folder = 'messages', className 
     setProgress(0);
 
     try {
-      // 1. Lấy presigned URL từ server
-      const { uploadUrl, key, error: presignError } = await generateUploadUrl(file.name, file.type, folder);
-
-      if (presignError || !uploadUrl || !key) {
-        throw new Error(presignError || 'Không thể lấy link upload');
-      }
-
-      // 2. Upload trực tiếp lên R2 bằng XMLHttpRequest để lấy % tiến trình
-      await new Promise((resolve, reject) => {
+      // Upload server-side via /api/upload (no R2 CORS needed, with Supabase
+      // Storage fallback). Returns the object key used by /api/media.
+      const objectKey: string = await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
-        
+        const form = new FormData();
+        form.append('file', file);
+        form.append('folder', folder);
+
         xhr.upload.onprogress = (event) => {
           if (event.lengthComputable) {
-            const percentComplete = Math.round((event.loaded / event.total) * 100);
-            setProgress(percentComplete);
+            setProgress(Math.round((event.loaded / event.total) * 100));
           }
         };
 
         xhr.onload = () => {
           if (xhr.status >= 200 && xhr.status < 300) {
-            resolve(xhr.response);
+            try {
+              const data = JSON.parse(xhr.responseText);
+              if (data.objectKey) resolve(data.objectKey);
+              else reject(new Error(data.error || 'Upload thất bại'));
+            } catch {
+              reject(new Error('Phản hồi upload không hợp lệ'));
+            }
           } else {
-            reject(new Error('Upload thất bại với status: ' + xhr.status));
+            let msg = 'Upload thất bại với status: ' + xhr.status;
+            try { msg = JSON.parse(xhr.responseText).error || msg; } catch { /* ignore */ }
+            reject(new Error(msg));
           }
         };
 
         xhr.onerror = () => reject(new Error('Lỗi mạng khi upload'));
 
-        xhr.open('PUT', uploadUrl, true);
-        xhr.setRequestHeader('Content-Type', file.type);
-        xhr.send(file);
+        xhr.open('POST', '/api/upload', true);
+        xhr.send(form);
       });
 
-      // 3. Hoàn tất — trả về key tương đối (khớp cách hiển thị avatar trong app)
-      onUploadSuccess(key);
+      onUploadSuccess(objectKey);
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'Lỗi khi upload ảnh');
