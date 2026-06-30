@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { Phone, Lock, Edit3, X, Search, UserPlus, MicOff, Volume2, MoreVertical, Pencil, Trash2 } from 'lucide-react'
@@ -291,12 +292,13 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
         </Link>
       )}
 
-      {/* Custom Context Menu */}
-      {menuPosition && (
-        <div 
+      {/* Custom Context Menu — portaled to <body> so an ancestor's backdrop
+          filter doesn't break `position: fixed` (which would clip/offscreen it). */}
+      {menuPosition && createPortal(
+        <div
           ref={menuRef}
           style={{ top: menuPosition.y, left: menuPosition.x }}
-          className="fixed z-50 bg-[#1e1b4b]/95 border border-white/15 backdrop-blur-2xl rounded-xl p-1.5 shadow-2xl animate-scale-in text-white w-48"
+          className="fixed z-[100] bg-[#1e1b4b]/95 border border-white/15 backdrop-blur-2xl rounded-xl p-1.5 shadow-2xl animate-scale-in text-white w-48"
         >
           {isVoice && (
             <button
@@ -327,7 +329,8 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
             <Trash2 size={14} className="shrink-0" />
             <span>Xoá kênh</span>
           </button>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Invite Friends Modal */}
