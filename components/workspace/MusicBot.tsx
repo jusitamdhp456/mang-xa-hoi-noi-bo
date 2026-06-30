@@ -142,7 +142,6 @@ export function MusicBot({ channelId, workspaceId }: { channelId: string; worksp
       });
 
       setBotStatus('playing');
-      playVoiceTone('join');
 
       // Khi kết thúc bài hát
       audioEl.onended = () => {

@@ -69,6 +69,12 @@ function VoiceStage({ channelId }: { channelId: string }) {
   const livekitParticipants = useParticipants();
   const botParticipant = livekitParticipants.find(p => p.identity.endsWith('-bot') || p.name?.includes('Bot'));
 
+  useEffect(() => {
+    if (botParticipant) {
+      playVoiceTone('join');
+    }
+  }, [botParticipant?.identity]);
+
   const displayParticipants = [...roomParticipants];
   if (botParticipant && !displayParticipants.find(p => p.user_id === botParticipant.identity)) {
     displayParticipants.push({
