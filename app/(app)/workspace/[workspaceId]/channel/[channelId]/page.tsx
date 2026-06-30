@@ -64,20 +64,12 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
                <NotificationBell />
             </div>
          </div>
-<<<<<<< HEAD
-                  {channel?.type === 'voice' ? (
-            <div className="flex-1 flex flex-col h-full overflow-hidden">
-              {/* Upper Part: Calling viewport */}
-              <div className="h-[45%] border-b border-white/10 flex-shrink-0 relative">
-=======
-         
          {channel?.type === 'voice' ? (
             <div className="flex-1 flex flex-col md:flex-row h-full overflow-hidden">
               {/* Media stage (video / screen share / future watch-party,
                   livestream, game-live). Stacks on top on mobile, takes the
                   majority of the width on desktop. */}
               <div className="h-[40%] min-h-[200px] md:h-auto md:flex-1 min-w-0 flex flex-col overflow-hidden relative border-b border-white/10 md:border-b-0 md:border-r">
->>>>>>> f2a368bbc81da776726d5ad64e34fa4a2f5f66e1
                 <VoiceRoom channelId={channelId} workspaceId={workspaceId} username={currentUsername} />
               </div>
               {/* Chat: full width below on mobile, ~1/5 vertical column on desktop. */}
@@ -87,13 +79,8 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
                   channelName={channel?.name || ''}
                   channelType={channel?.type || 'voice'}
                   workspaceId={workspaceId}
-<<<<<<< HEAD
-                  initialMessages={initialMessages} 
-                  currentUserId={user?.id}
-=======
                   initialMessages={initialMessages}
                   currentUser={currentUser}
->>>>>>> f2a368bbc81da776726d5ad64e34fa4a2f5f66e1
                 />
               </div>
             </div>
@@ -103,13 +90,8 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
               channelName={channel?.name || ''}
               channelType={channel?.type || 'text'}
               workspaceId={workspaceId}
-<<<<<<< HEAD
-              initialMessages={initialMessages} 
-              currentUserId={user?.id}
-=======
               initialMessages={initialMessages}
               currentUser={currentUser}
->>>>>>> f2a368bbc81da776726d5ad64e34fa4a2f5f66e1
             />
           )}
       </div>

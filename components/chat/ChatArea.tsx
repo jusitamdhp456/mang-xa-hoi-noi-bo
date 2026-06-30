@@ -41,24 +41,14 @@ export function ChatArea({
   channelType,
   workspaceId,
   initialMessages,
-<<<<<<< HEAD
-  currentUserId
-}: { 
-  channelId: string, 
-=======
   currentUser = null
 }: {
   channelId: string,
->>>>>>> f2a368bbc81da776726d5ad64e34fa4a2f5f66e1
   channelName: string,
   channelType: string,
   workspaceId: string,
   initialMessages: MessageRow[],
-<<<<<<< HEAD
-  currentUserId?: string
-=======
   currentUser?: { id: string; display_name: string; avatar_key: string | null } | null
->>>>>>> f2a368bbc81da776726d5ad64e34fa4a2f5f66e1
 }) {
   const currentUserId = currentUser?.id ?? null
   const [messages, setMessages] = useState<MessageRow[]>(initialMessages)
@@ -213,26 +203,7 @@ export function ChatArea({
 
   return (
     <>
-<<<<<<< HEAD
-      <div className="flex-1 p-4 overflow-y-auto bg-transparent flex flex-col scrollbar-thin scrollbar-thumb-gray-300">
-        <div className="mt-auto flex flex-col justify-end min-h-full space-y-5">
-          {messages.length === 0 ? (
-            <div className="text-center text-gray-500 my-8">
-               <div className="w-16 h-16 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center text-2xl text-gray-500">
-                 {channelType === 'voice' ? '🔊' : '#'}
-               </div>
-               <h3 className="text-lg font-bold text-gray-800 mb-1">Chào mừng bạn đến với {channelName}</h3>
-               <p className="text-sm">Đây là sự khởi đầu của kênh <strong>{channelName}</strong>.</p>
-            </div>
-          ) : (
-            messages.map((msg) => (
-              <MessageItem key={msg.id} message={msg} onImageClick={setActiveLightboxImg} currentUserId={currentUserId} />
-            ))
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-=======
-      <div ref={scrollContainerRef} className="flex-1 p-4 overflow-y-auto bg-gray-50 flex flex-col scrollbar-thin scrollbar-thumb-gray-300">
+      <div ref={scrollContainerRef} className="flex-1 p-4 overflow-y-auto bg-transparent flex flex-col scrollbar-thin scrollbar-thumb-gray-300">
         {/* Spacer keeps messages bottom-aligned when few, collapses when many so
             the overflow scrolls normally. */}
         <div className="flex-1 min-h-0" aria-hidden />
@@ -245,18 +216,19 @@ export function ChatArea({
              <p className="text-sm">Đây là sự khởi đầu của kênh <strong>{channelName}</strong>.</p>
           </div>
         ) : (
-          messages.map((msg) => (
-            <MessageItem
-              key={msg.id}
-              message={msg}
-              onImageClick={setActiveLightboxImg}
-              currentUserId={currentUserId}
-              onToggleReaction={handleToggleReaction}
-            />
-          ))
+          <div className="flex flex-col justify-end space-y-5">
+            {messages.map((msg) => (
+              <MessageItem
+                key={msg.id}
+                message={msg}
+                onImageClick={setActiveLightboxImg}
+                currentUserId={currentUserId}
+                onToggleReaction={handleToggleReaction}
+              />
+            ))}
+          </div>
         )}
         <div ref={messagesEndRef} />
->>>>>>> f2a368bbc81da776726d5ad64e34fa4a2f5f66e1
       </div>
       
       <MessageInput

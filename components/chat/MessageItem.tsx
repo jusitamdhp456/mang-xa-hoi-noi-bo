@@ -5,17 +5,6 @@ import { SmilePlus, FileText } from 'lucide-react'
 import { type MessageRow } from './ChatArea'
 import { VoiceInviteCard } from './VoiceInviteCard'
 
-<<<<<<< HEAD
-export function MessageItem({ message, onImageClick, currentUserId }: { message: MessageRow; onImageClick?: (url: string) => void; currentUserId?: string }) {
-  const senderName = message.profiles?.display_name || 'Người dùng ẩn danh'
-  const initial = senderName.charAt(0).toUpperCase()
-  const avatar = message.profiles?.avatar_key ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${message.profiles.avatar_key}` : null
-  
-  const timeStr = new Date(message.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
-  const attachment = message.message_attachments?.[0]
-  const isMe = currentUserId && message.sender_id === currentUserId
-  
-=======
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '🎉', '😮', '😢', '🔥', '👀']
 
 export function MessageItem({
@@ -31,9 +20,11 @@ export function MessageItem({
 }) {
   const senderName = message.profiles?.display_name || 'Người dùng ẩn danh'
   const initial = senderName.charAt(0).toUpperCase()
+  const avatar = message.profiles?.avatar_key ? `https://pub-9664a868c7184eaea9c2c0f43942f9d9.r2.dev/${message.profiles.avatar_key}` : null
 
   const timeStr = new Date(message.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
   const attachment = message.message_attachments?.[0]
+  const isMe = currentUserId && message.sender_id === currentUserId
 
   const [pickerOpen, setPickerOpen] = useState(false)
 
@@ -55,7 +46,6 @@ export function MessageItem({
     onToggleReaction?.(message.id, emoji)
   }
 
->>>>>>> f2a368bbc81da776726d5ad64e34fa4a2f5f66e1
   return (
     <div className={`flex gap-3 items-end max-w-[85%] sm:max-w-[75%] transition-all mb-4 ${isMe ? 'self-end flex-row-reverse' : 'self-start flex-row'}`}>
        {/* Avatar */}
@@ -121,24 +111,11 @@ export function MessageItem({
                   </a>
                 )
               ) : (
-<<<<<<< HEAD
                  <div className="flex items-center gap-3 bg-black/25 p-3 rounded-xl border border-white/5 max-w-sm mt-1">
                    <span className="text-2xl shrink-0">📎</span>
                    <div className="min-w-0 flex-1">
                      <p className="text-xs font-bold text-zinc-200 truncate">{attachment.file_name}</p>
                      <p className="text-[10px] text-zinc-400 mt-0.5">{(attachment.size_bytes / 1024).toFixed(1)} KB</p>
-=======
-                 <a 
-                   href={`/api/media/${attachment.object_key}`} 
-                   target="_blank" 
-                   rel="noopener noreferrer"
-                   className="flex items-center gap-3 bg-white/70 backdrop-blur-md border border-white rounded-2xl p-4 w-max hover:bg-white transition-all shadow-sm hover:shadow-md"
-                 >
-                   <div className="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center text-pink-600"><FileText size={18} /></div>
-                   <div>
-                     <p className="text-sm font-bold text-pink-600 hover:underline">{attachment.file_name}</p>
-                     <p className="text-xs font-medium text-zinc-500 mt-0.5">{(attachment.size_bytes / 1024).toFixed(1)} KB</p>
->>>>>>> f2a368bbc81da776726d5ad64e34fa4a2f5f66e1
                    </div>
                    <a 
                      href={`/api/media/${attachment.object_key}`} 
@@ -154,7 +131,7 @@ export function MessageItem({
 
           {/* Reactions */}
           {onToggleReaction && (
-            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+            <div className={`flex items-center gap-1.5 mt-1.5 flex-wrap ${isMe ? 'justify-end' : 'justify-start'}`}>
               {groupedReactions.map(([emoji, g]) => (
                 <button
                   key={emoji}
@@ -162,8 +139,8 @@ export function MessageItem({
                   onClick={() => react(emoji)}
                   className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border transition-all cursor-pointer ${
                     g.mine
-                      ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
-                      : 'bg-white/70 border-zinc-200 text-zinc-600 hover:bg-white'
+                      ? 'bg-indigo-600/30 border-indigo-500 text-indigo-300'
+                      : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
                   }`}
                   title={g.mine ? 'Bấm để bỏ cảm xúc' : 'Bấm để thả cảm xúc'}
                 >
@@ -173,12 +150,12 @@ export function MessageItem({
               ))}
 
               {/* Add reaction button + quick picker */}
-              <div className="relative">
+              <div className="relative group/picker">
                 <button
                   type="button"
                   onClick={() => setPickerOpen((v) => !v)}
-                  className={`w-6 h-6 flex items-center justify-center rounded-full text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all cursor-pointer ${
-                    groupedReactions.length > 0 ? '' : 'opacity-0 group-hover:opacity-100'
+                  className={`w-6 h-6 flex items-center justify-center rounded-full text-zinc-400 hover:text-indigo-400 hover:bg-white/10 transition-all cursor-pointer ${
+                    groupedReactions.length > 0 ? '' : 'opacity-0 group-hover/picker:opacity-100'
                   }`}
                   title="Thả cảm xúc"
                 >
@@ -187,13 +164,13 @@ export function MessageItem({
                 {pickerOpen && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setPickerOpen(false)} />
-                    <div className="absolute z-20 bottom-8 left-0 bg-white border border-zinc-200 rounded-2xl shadow-xl p-1.5 flex items-center gap-1 animate-scale-in">
+                    <div className={`absolute z-20 bottom-8 ${isMe ? 'right-0' : 'left-0'} bg-[#2b2d31] border border-white/10 rounded-2xl shadow-xl p-1.5 flex items-center gap-1 animate-scale-in`}>
                       {QUICK_EMOJIS.map((e) => (
                         <button
                           key={e}
                           type="button"
                           onClick={() => react(e)}
-                          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-indigo-50 text-lg transition-colors cursor-pointer"
+                          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-lg transition-colors cursor-pointer"
                         >
                           {e}
                         </button>
