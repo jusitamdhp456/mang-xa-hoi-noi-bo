@@ -10,24 +10,35 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
   const { workspaceId, channelId } = await params;
   
   const supabase = await createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  
-  const { data: channel } = await supabase.from('channels').select('*').eq('id', channelId).single()
-  
-  let initialMessages = []
-  const { data: msgs } = await supabase
+
+  // Channel + messages don't depend on the user, so fire them alongside getUser
+  // instead of waiting in series (faster first paint -> voice connects sooner).
+  const userPromise = supabase.auth.getUser()
+  const channelPromise = supabase.from('channels').select('*').eq('id', channelId).single()
+  const msgsPromise = supabase
     .from('messages')
     .select('*, profiles!messages_sender_id_fkey(display_name, avatar_key), message_attachments(*), message_reactions(emoji, user_id)')
     .eq('channel_id', channelId)
     .order('created_at', { ascending: true })
     .limit(50)
-  if (msgs) initialMessages = msgs
 
-  // Get current user profile for VoiceRoom username + optimistic chat rendering
+  const { data: { user } } = await userPromise
+  const profilePromise = user
+    ? supabase.from('profiles').select('display_name, avatar_key').eq('id', user.id).single()
+    : Promise.resolve({ data: null })
+
+  const [{ data: channel }, { data: msgs }, { data: profile }] = await Promise.all([
+    channelPromise,
+    msgsPromise,
+    profilePromise,
+  ])
+
+  const initialMessages = msgs || []
+
+  // Current user profile for VoiceRoom username + optimistic chat rendering
   let currentUsername = 'Khách'
   let currentUser: { id: string; display_name: string; avatar_key: string | null } | null = null
   if (user) {
-    const { data: profile } = await supabase.from('profiles').select('display_name, avatar_key').eq('id', user.id).single()
     if (profile?.display_name) currentUsername = profile.display_name
     currentUser = {
       id: user.id,

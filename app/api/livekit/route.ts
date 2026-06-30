@@ -22,7 +22,12 @@ export async function GET(request: Request) {
     }
 
     const supabase = await createSupabaseServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
+
+    // Auth check and channel lookup are independent — run them together.
+    const [{ data: { user } }, { data: channel }] = await Promise.all([
+      supabase.auth.getUser(),
+      supabase.from('channels').select('workspace_id').eq('id', room).single(),
+    ]);
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -30,13 +35,6 @@ export async function GET(request: Request) {
 
     const isBot = searchParams.get('bot') === 'true';
     const identity = isBot ? `${user.id}-bot` : user.id;
-
-    // Verify the user is a member of the workspace that owns this channel (room = channelId)
-    const { data: channel } = await supabase
-      .from('channels')
-      .select('workspace_id')
-      .eq('id', room)
-      .single();
 
     if (!channel) {
       return NextResponse.json({ error: 'Room not found' }, { status: 404 });
