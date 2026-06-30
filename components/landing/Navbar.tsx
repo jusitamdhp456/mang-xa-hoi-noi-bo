@@ -10,7 +10,7 @@ export function Navbar({ isLoggedIn }: NavbarProps) {
       {/* Logo */}
       <Link href="/" className="flex items-center gap-2 text-white font-extrabold text-xl tracking-tight">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.svg" alt="Logo" className="w-9 h-9 rounded-full object-cover" />
+        <img src="/logo.png" alt="Logo" className="w-9 h-9 rounded-full object-cover" />
         IntraSocial
       </Link>
 

@@ -50,7 +50,7 @@ export default async function AppLayout({
              title="Tin nhắn trực tiếp & Bạn bè"
            >
              {/* eslint-disable-next-line @next/next/no-img-element */}
-             <img src="/logo.svg" alt="Trang chủ" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+             <img src="/logo.png" alt="Trang chủ" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
            </div>
          </Link>
  

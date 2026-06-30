@@ -13,9 +13,9 @@ export const metadata: Metadata = {
   title: "IntraSocial",
   description: "Mạng xã hội giao tiếp nội bộ",
   icons: {
-    icon: "/logo.svg",
-    shortcut: "/logo.svg",
-    apple: "/logo.svg",
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
   },
 };
 
@@ -32,7 +32,7 @@ export default function RootLayout({
       <head>
         {/* Warm the intro sound + logo so they're ready the moment the app opens */}
         <link rel="preload" href="/alovua.mp3" as="audio" />
-        <link rel="preload" href="/logo.svg" as="image" />
+        <link rel="preload" href="/logo.png" as="image" />
       </head>
       <body className="min-h-full flex flex-col">
         <IntroSplash />
