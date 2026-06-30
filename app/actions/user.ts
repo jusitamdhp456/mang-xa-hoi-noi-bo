@@ -38,14 +38,27 @@ export async function updateProfile(data: {
     return { error: 'Unauthorized' };
   }
 
-  const { error } = await supabase
-    .from('profiles')
-    .update(data)
-    .eq('id', user.id);
+  // Only send provided fields.
+  const payload: Record<string, unknown> = {};
+  if (data.display_name !== undefined) payload.display_name = data.display_name;
+  if (data.status_text !== undefined) payload.status_text = data.status_text;
+  if (data.about_me !== undefined) payload.about_me = data.about_me;
+  if (data.banner_color !== undefined) payload.banner_color = data.banner_color;
+
+  let { error } = await supabase.from('profiles').update(payload).eq('id', user.id);
+
+  // If an extended column (about_me/banner_color) doesn't exist in the DB yet,
+  // retry with just the core columns so name/status still save.
+  if (error && (error.code === 'PGRST204' || error.code === '42703' || /column/i.test(error.message))) {
+    const core: Record<string, unknown> = {};
+    if (data.display_name !== undefined) core.display_name = data.display_name;
+    if (data.status_text !== undefined) core.status_text = data.status_text;
+    ({ error } = await supabase.from('profiles').update(core).eq('id', user.id));
+  }
 
   if (error) {
     console.error('Error updating profile:', error);
-    return { error: 'Lỗi cập nhật hồ sơ cá nhân' };
+    return { error: `Lỗi cập nhật hồ sơ: ${error.message}` };
   }
 
   revalidatePath('/', 'layout');
