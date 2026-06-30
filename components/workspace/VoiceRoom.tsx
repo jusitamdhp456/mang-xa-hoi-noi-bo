@@ -184,7 +184,7 @@ function VoiceStage({ channelId, workspaceId }: { channelId: string; workspaceId
            {displayParticipants.map(p => {
              const isSpeaking = speakingUserIds.includes(p.user_id);
              const avatarUrl = p.avatar_key 
-               ? `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${p.avatar_key}` 
+               ? `/api/media/${p.avatar_key}` 
                : `https://ui-avatars.com/api/?name=${encodeURIComponent(p.display_name)}&background=random`;
              return (
                <div key={p.user_id} className="flex flex-col items-center gap-1.5 shrink-0">
@@ -224,7 +224,7 @@ function VoiceStage({ channelId, workspaceId }: { channelId: string; workspaceId
             {displayParticipants.map((p) => {
               const isSpeaking = speakingUserIds.includes(p.user_id);
               const avatarUrl = p.avatar_key 
-                ? `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${p.avatar_key}` 
+                ? `/api/media/${p.avatar_key}` 
                 : `https://ui-avatars.com/api/?name=${encodeURIComponent(p.display_name)}&background=random`;
               
               const pCamera = cameraTracks.find(t => t.participant.identity === p.user_id && 'publication' in t && !!(t as any).publication);
@@ -1099,7 +1099,7 @@ export function VoiceRoom({
                         {p.avatar_key ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img 
-                            src={`https://pub-9664a868c7184eaea9c2c5f43942f9d9.r2.dev/${p.avatar_key}`} 
+                            src={`/api/media/${p.avatar_key}`} 
                             alt="" 
                             className={`w-16 h-16 rounded-full object-cover border-2 transition-all duration-300 ${
                               isSpeaking ? 'border-emerald-400' : 'border-zinc-700'
