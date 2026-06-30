@@ -74,7 +74,7 @@ function VoiceStage({ channelId, workspaceId }: { channelId: string; workspaceId
 
   useEffect(() => {
     if (!room) return;
-    room.participants.forEach((p) => {
+    room.remoteParticipants.forEach((p) => {
       p.audioTrackPublications.forEach((pub) => {
         if (pub.track) {
           const isMuted = mutes[p.identity] || false;
@@ -84,7 +84,7 @@ function VoiceStage({ channelId, workspaceId }: { channelId: string; workspaceId
         }
       });
     });
-  }, [volumes, mutes, room, room.participants]);
+  }, [volumes, mutes, room, room.remoteParticipants]);
 
   const handleKick = async (targetId: string) => {
     if (!confirm('Bạn có chắc muốn kích người này khỏi kênh đàm thoại?')) return;
