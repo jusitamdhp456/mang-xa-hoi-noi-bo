@@ -1,15 +1,21 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import '@livekit/components-styles';
 import {
   LiveKitRoom,
-  VideoConference,
   RoomAudioRenderer,
+  GridLayout,
+  ParticipantTile,
+  useTracks,
   useLocalParticipant,
   useParticipants,
 } from '@livekit/components-react';
-import { useVoiceSettings } from '@/components/providers/VoiceSettingsProvider';
+import { Track } from 'livekit-client';
+import { Monitor, MonitorOff, AlertTriangle } from 'lucide-react';
+import { useVoiceSettings, playVoiceTone } from '@/components/providers/VoiceSettingsProvider';
+import { useRouter } from 'next/navigation';
 import { Edit3, Check, X, Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Volume2, VolumeX, Settings } from 'lucide-react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
@@ -39,6 +45,138 @@ function LiveKitActiveSpeakersSync({ setSpeakingUserIds }: { setSpeakingUserIds:
   }, [participants, setSpeakingUserIds]);
 
   return null;
+}
+
+// Compact media stage: shows camera/screen-share tiles (avatar placeholder when
+// no video). Kept small so the main area stays free for chat + future media.
+function VoiceStage() {
+  const tracks = useTracks(
+    [
+      { source: Track.Source.Camera, withPlaceholder: true },
+      { source: Track.Source.ScreenShare, withPlaceholder: false },
+    ],
+    { onlySubscribed: false }
+  );
+
+  return (
+    <div className="flex-1 min-h-0 p-2">
+      <GridLayout tracks={tracks} className="h-full">
+        <ParticipantTile />
+      </GridLayout>
+    </div>
+  );
+}
+
+// Camera + screen-share controls. These need the LiveKit room context (so they
+// live inside <LiveKitRoom>), but are portaled into the sidebar voice panel
+// (#voice-extra-controls in UserPanel) so all voice controls sit together at
+// the bottom-left. Mic/deafen/leave already live in UserPanel via VoiceSettings.
+function VoiceExtraControls() {
+  const { localParticipant } = useLocalParticipant();
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  const [cameraOn, setCameraOn] = useState(false);
+  const [screenOn, setScreenOn] = useState(false);
+
+  // Wait for the portal target in the sidebar to exist.
+  useEffect(() => {
+    let raf = 0;
+    const find = () => {
+      const el = document.getElementById('voice-extra-controls');
+      if (el) setSlot(el);
+      else raf = requestAnimationFrame(find);
+    };
+    find();
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  const toggleCamera = async () => {
+    try {
+      const next = !cameraOn;
+      await localParticipant.setCameraEnabled(next);
+      setCameraOn(next);
+    } catch (e) {
+      console.warn('Camera toggle failed:', e);
+    }
+  };
+
+  const toggleScreen = async () => {
+    try {
+      const next = !screenOn;
+      await localParticipant.setScreenShareEnabled(next);
+      setScreenOn(next);
+    } catch (e) {
+      console.warn('Screen share toggle failed:', e);
+    }
+  };
+
+  if (!slot) return null;
+
+  const btn = 'w-7 h-8 flex items-center justify-center rounded-md transition-colors cursor-pointer';
+  const idle = 'text-white/70 hover:text-white hover:bg-white/5';
+  const active = 'text-indigo-400 bg-indigo-500/15 hover:bg-indigo-500/25';
+
+  return createPortal(
+    <>
+      <button onClick={toggleCamera} className={`${btn} ${cameraOn ? active : idle}`} title={cameraOn ? 'Tắt camera' : 'Bật camera'}>
+        {cameraOn ? <VideoIcon size={15} /> : <VideoOff size={15} />}
+      </button>
+      <button onClick={toggleScreen} className={`${btn} ${screenOn ? active : idle}`} title={screenOn ? 'Dừng chia sẻ màn hình' : 'Chia sẻ màn hình'}>
+        {screenOn ? <MonitorOff size={15} /> : <Monitor size={15} />}
+      </button>
+    </>,
+    slot
+  );
+}
+
+// Full control bar for mobile, where the sidebar (and its voice controls) is
+// hidden. Visible only below the lg breakpoint.
+function MobileVoiceControls() {
+  const router = useRouter();
+  const { localParticipant } = useLocalParticipant();
+  const { isMuted, toggleMute, isDeafened, toggleDeafen, setActiveChannelId, setWorkspaceId } = useVoiceSettings();
+  const [cameraOn, setCameraOn] = useState(false);
+  const [screenOn, setScreenOn] = useState(false);
+
+  const toggleCamera = async () => {
+    try { const n = !cameraOn; await localParticipant.setCameraEnabled(n); setCameraOn(n); }
+    catch (e) { console.warn('Camera toggle failed:', e); }
+  };
+  const toggleScreen = async () => {
+    try { const n = !screenOn; await localParticipant.setScreenShareEnabled(n); setScreenOn(n); }
+    catch (e) { console.warn('Screen share toggle failed:', e); }
+  };
+  const leave = () => {
+    playVoiceTone('leave');
+    setActiveChannelId(null);
+    setWorkspaceId(null);
+    const wsId = window.location.pathname.split('/workspace/')[1]?.split('/')[0];
+    if (wsId) router.push(`/workspace/${wsId}`);
+  };
+
+  const btn = 'w-11 h-11 rounded-full flex items-center justify-center transition-colors cursor-pointer border';
+  const idle = 'bg-zinc-800 border-white/10 text-zinc-200 active:bg-zinc-700';
+  const active = 'bg-indigo-600 border-indigo-600 text-white';
+  const danger = 'bg-red-600 border-red-600 text-white';
+
+  return (
+    <div className="md:hidden shrink-0 flex items-center justify-center gap-3 py-3 bg-zinc-900/80 border-t border-white/10 backdrop-blur-md select-none">
+      <button onClick={toggleMute} className={`${btn} ${isMuted ? danger : idle}`} title={isMuted ? 'Bật mic' : 'Tắt mic'}>
+        {isMuted ? <MicOff size={18} /> : <Mic size={18} />}
+      </button>
+      <button onClick={toggleDeafen} className={`${btn} ${isDeafened ? danger : idle}`} title={isDeafened ? 'Bật nghe' : 'Tắt nghe'}>
+        {isDeafened ? <VolumeX size={18} /> : <Volume2 size={18} />}
+      </button>
+      <button onClick={toggleCamera} className={`${btn} ${cameraOn ? active : idle}`} title={cameraOn ? 'Tắt camera' : 'Bật camera'}>
+        {cameraOn ? <VideoIcon size={18} /> : <VideoOff size={18} />}
+      </button>
+      <button onClick={toggleScreen} className={`${btn} ${screenOn ? active : idle}`} title={screenOn ? 'Dừng chia sẻ' : 'Chia sẻ màn hình'}>
+        {screenOn ? <MonitorOff size={18} /> : <Monitor size={18} />}
+      </button>
+      <button onClick={leave} className={`${btn} ${danger}`} title="Rời kênh thoại">
+        <PhoneOff size={18} />
+      </button>
+    </div>
+  );
 }
 
 
@@ -137,6 +275,30 @@ export function VoiceRoom({
       }
     })();
   }, [channelId, username, customName, disconnected]);
+
+  // iOS standalone PWAs get suspended in the background, which drops the
+  // realtime/WebRTC connection. When the app returns to the foreground, auto
+  // re-join (refetch token + reconnect) instead of leaving the user stranded
+  // on the "you left the call" screen.
+  useEffect(() => {
+    const handleForeground = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (disconnected) {
+        setToken('');
+        setUseP2P(false);
+        setError('');
+        setDisconnected(false);
+      }
+    };
+    document.addEventListener('visibilitychange', handleForeground);
+    window.addEventListener('pageshow', handleForeground);
+    window.addEventListener('focus', handleForeground);
+    return () => {
+      document.removeEventListener('visibilitychange', handleForeground);
+      window.removeEventListener('pageshow', handleForeground);
+      window.removeEventListener('focus', handleForeground);
+    };
+  }, [disconnected]);
 
   // P2P WebRTC connection setup
   useEffect(() => {
@@ -531,8 +693,8 @@ export function VoiceRoom({
   if (disconnected) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-[#121214] text-zinc-300 p-6 select-none">
-        <div className="w-20 h-20 bg-zinc-800 rounded-full flex items-center justify-center text-4xl mb-6 shadow-lg border border-white/5">
-          👋
+        <div className="w-20 h-20 bg-zinc-800 rounded-full flex items-center justify-center text-zinc-400 mb-6 shadow-lg border border-white/5">
+          <PhoneOff size={32} />
         </div>
         <h2 className="text-xl font-bold mb-2 text-white">Bạn đã rời cuộc gọi</h2>
         <p className="text-zinc-400 text-sm mb-8">Bạn đã ngắt kết nối.</p>
@@ -555,8 +717,8 @@ export function VoiceRoom({
 
     return (
       <div className="absolute inset-0 z-40 bg-zinc-950/95 backdrop-blur-md flex flex-col items-center justify-center text-zinc-300 p-4 select-none overflow-y-auto scrollbar-thin scrollbar-thumb-white/10">
-        <div className="w-12 h-12 bg-red-500/10 text-red-400 rounded-full flex items-center justify-center text-xl mb-3 border border-red-500/20 shrink-0">
-          ⚠️
+        <div className="w-12 h-12 bg-red-500/10 text-red-400 rounded-full flex items-center justify-center mb-3 border border-red-500/20 shrink-0">
+          <AlertTriangle size={20} />
         </div>
         <h2 className="text-sm font-bold mb-1 text-white shrink-0">
           {isMissingKeys ? "Chưa cấu hình API Key cho Đàm thoại" : "Lỗi kết nối phòng thoại"}
@@ -728,7 +890,7 @@ export function VoiceRoom({
               <h4 className="font-extrabold text-[11px] text-zinc-400 uppercase tracking-wider">Cấu hình Thiết bị</h4>
               
               <div className="space-y-1.5">
-                <label className="text-[10px] text-zinc-400 font-bold">🎙️ Đầu vào (Microphone)</label>
+                <label className="text-[10px] text-zinc-400 font-bold flex items-center gap-1.5"><Mic size={11} /> Đầu vào (Microphone)</label>
                 <select
                   value={selectedMicId}
                   onChange={(e) => changeMicrophone(e.target.value)}
@@ -744,7 +906,7 @@ export function VoiceRoom({
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] text-zinc-400 font-bold">🔊 Đầu ra (Loa / Tai nghe)</label>
+                <label className="text-[10px] text-zinc-400 font-bold flex items-center gap-1.5"><Volume2 size={11} /> Đầu ra (Loa / Tai nghe)</label>
                 <select
                   value={selectedOutputId}
                   onChange={(e) => changeAudioOutput(e.target.value)}
@@ -778,11 +940,11 @@ export function VoiceRoom({
 
   return (
     <div className="flex-1 bg-[#121214] overflow-hidden flex flex-col" data-lk-theme="default">
-      {/* Voice Room Nickname Control Bar */}
-      <div className="bg-zinc-900/60 border-b border-white/5 px-6 py-3.5 flex items-center justify-between gap-4 backdrop-blur-md shrink-0 select-none">
+      {/* Voice Room Nickname Control Bar (hidden on mobile to save space) */}
+      <div className="bg-zinc-900/60 border-b border-white/5 px-6 py-3.5 hidden md:flex items-center justify-between gap-4 backdrop-blur-md shrink-0 select-none">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center border border-cyan-500/15 text-sm font-bold shadow-sm">
-            🔊
+          <div className="w-8 h-8 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center border border-cyan-500/15 shadow-sm">
+            <Volume2 size={16} />
           </div>
           <div>
             <h3 className="font-bold text-white text-xs">Phòng đàm thoại</h3>
@@ -843,7 +1005,9 @@ export function VoiceRoom({
       >
         <LiveKitSync isMuted={isMuted} isDeafened={isDeafened} />
         <LiveKitActiveSpeakersSync setSpeakingUserIds={setSpeakingUserIds} />
-        <VideoConference />
+        <VoiceStage />
+        <VoiceExtraControls />
+        <MobileVoiceControls />
         {!isDeafened && <RoomAudioRenderer />}
       </LiveKitRoom>
     </div>

@@ -103,6 +103,10 @@ export async function acceptFriendRequest(notificationId: string) {
     throw new Error('Notification not found');
   }
 
+  if (notification.user_id !== user.id) {
+    throw new Error('Unauthorized');
+  }
+
   const senderId = notification.actor_id;
 
   if (!senderId) {
@@ -193,6 +197,21 @@ export async function declineFriendRequest(notificationId: string) {
   }
 
   const supabaseAdmin = createSupabaseServiceClient();
+
+  // Verify the notification belongs to the current user before dismissing
+  const { data: notification, error: notifError } = await supabaseAdmin
+    .from('notifications')
+    .select('user_id')
+    .eq('id', notificationId)
+    .single();
+
+  if (notifError || !notification) {
+    throw new Error('Notification not found');
+  }
+
+  if (notification.user_id !== user.id) {
+    throw new Error('Unauthorized');
+  }
 
   // Mark request notification as read (dismissed)
   const { error } = await supabaseAdmin
@@ -321,6 +340,18 @@ export async function sendDirectMessage(threadId: string, content: string, type:
   }
 
   const supabaseAdmin = createSupabaseServiceClient();
+
+  // Verify caller is a member of this thread
+  const { data: membership, error: memErr } = await supabaseAdmin
+    .from('direct_thread_members')
+    .select('thread_id')
+    .eq('thread_id', threadId)
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (memErr || !membership) {
+    throw new Error('Unauthorized');
+  }
 
   const { error } = await supabaseAdmin
     .from('direct_messages')

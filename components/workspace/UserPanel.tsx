@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useVoiceSettings, playVoiceTone } from '@/components/providers/VoiceSettingsProvider';
-import { Mic, MicOff, Headphones, PhoneOff, ChevronDown } from 'lucide-react';
+import { Mic, MicOff, Headphones, PhoneOff, ChevronDown, Volume2 } from 'lucide-react';
 import { User } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 
@@ -70,7 +70,7 @@ export function UserPanel({ user, profile, channels, workspaceName }: UserPanelP
       {activeChannelId && (
         <div className="bg-[#232428] border-t border-b border-white/10 px-3 py-2.5 flex items-center justify-between z-10 shadow-lg select-none">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="text-green-500 animate-pulse text-sm shrink-0">🟢</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shrink-0 shadow-[0_0_6px_rgba(34,197,94,0.8)]" />
             <div className="min-w-0 flex flex-col">
               <span className="text-green-500 text-[10px] font-extrabold uppercase tracking-wide truncate leading-none">Giọng nói đã kết nối</span>
               <span className="text-zinc-200 text-[11px] truncate leading-none mt-1.5 font-bold">
@@ -85,6 +85,10 @@ export function UserPanel({ user, profile, channels, workspaceName }: UserPanelP
           </div>
 
           <div className="flex items-center gap-1 shrink-0">
+            {/* Camera + screen-share are portaled here from inside LiveKitRoom
+                (mic/deafen already live in the profile bar just below). */}
+            <div id="voice-extra-controls" className="flex items-center" />
+
             <button
               onClick={() => {
                 playVoiceTone('leave');
@@ -204,7 +208,7 @@ export function UserPanel({ user, profile, channels, workspaceName }: UserPanelP
                         : 'hover:bg-white/5 hover:text-white'
                     }`}
                   >
-                    🎤 {d.label || `Microphone ${d.deviceId.slice(0, 5)}`}
+                    <Mic size={12} className="inline-block mr-1.5 align-text-bottom" /> {d.label || `Microphone ${d.deviceId.slice(0, 5)}`}
                   </button>
                 ))}
                 {micDevices.length === 0 && <p className="text-[10px] text-zinc-500 p-2 select-none">Không tìm thấy mic</p>}
@@ -234,7 +238,7 @@ export function UserPanel({ user, profile, channels, workspaceName }: UserPanelP
                         : 'hover:bg-white/5 hover:text-white'
                     }`}
                   >
-                    🔊 {d.label || `Speaker ${d.deviceId.slice(0, 5)}`}
+                    <Volume2 size={12} className="inline-block mr-1.5 align-text-bottom" /> {d.label || `Speaker ${d.deviceId.slice(0, 5)}`}
                   </button>
                 ))}
                 {speakerDevices.length === 0 && <p className="text-[10px] text-zinc-500 p-2 select-none">Không tìm thấy loa</p>}

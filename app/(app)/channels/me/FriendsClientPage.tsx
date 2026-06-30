@@ -580,9 +580,23 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
       )
       .subscribe();
 
+    // Reliable realtime via broadcast on a per-user channel (no dependency on
+    // postgres_changes being enabled). Other clients notify us here when they
+    // send/accept a friend request targeting us.
+    const userEvents = supabase
+      .channel(`user-events-${user.id}`)
+      .on('broadcast', { event: 'friend_request' }, () => {
+        loadDashboardData();
+      })
+      .on('broadcast', { event: 'friend_accepted' }, () => {
+        loadDashboardData();
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(channel1);
       supabase.removeChannel(channel2);
+      supabase.removeChannel(userEvents);
     };
   }, [user.id]);
 
@@ -800,6 +814,17 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
     }
   };
 
+  // Notify another user's per-user channel so their UI refreshes in realtime.
+  const notifyUser = (targetId: string, event: 'friend_request' | 'friend_accepted') => {
+    if (!targetId) return;
+    const supabase = createSupabaseBrowserClient();
+    supabase.channel(`user-events-${targetId}`).send({
+      type: 'broadcast',
+      event,
+      payload: { from: user.id },
+    });
+  };
+
   const handleAddFriendSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const query = addFriendInput.trim();
@@ -818,6 +843,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
       } else {
         try {
           const res = await sendFriendRequest(foundUser.id);
+          notifyUser(foundUser.id, 'friend_request');
           if (res?.message) {
             setAddFriendStatus(res.message);
           } else {
@@ -838,8 +864,11 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
 
   const handleAcceptRequest = async (requestId: string) => {
     try {
+      const req = friendRequests.find((r: any) => r.id === requestId);
       await acceptFriendRequest(requestId);
       await loadDashboardData();
+      // Let the original sender's friend list refresh (new DM thread appears).
+      if (req?.sender_id) notifyUser(req.sender_id, 'friend_accepted');
     } catch (e) {
       console.error('Failed to accept request:', e);
     }
@@ -1317,6 +1346,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                             const handleAddClick = async () => {
                               try {
                                 const res = await sendFriendRequest(p.id);
+                                notifyUser(p.id, 'friend_request');
                                 if (res?.message) {
                                   setAddFriendStatus(res.message);
                                 } else {

@@ -26,32 +26,46 @@ export function NotificationBell() {
 
   useEffect(() => {
     let isMounted = true;
+    let pgChannel: ReturnType<typeof supabase.channel> | null = null;
+    let userChannel: ReturnType<typeof supabase.channel> | null = null;
 
-    const fetchNotifs = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+    const fetchNotifs = async (userId: string) => {
       const { data } = await supabase
         .from('notifications')
         .select('*, profiles(display_name, avatar_key)')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .eq('is_read', false)
         .order('created_at', { ascending: false })
         .limit(20)
       if (data && isMounted) setNotifications(data)
     }
 
-    fetchNotifs()
-    
-    const channel = supabase
-      .channel('public:notifications')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, () => {
-        fetchNotifs()
-      })
-      .subscribe()
-      
-    return () => { 
+    const init = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user || !isMounted) return
+      fetchNotifs(user.id)
+
+      // Reliable realtime via a per-user broadcast channel (works even if
+      // postgres_changes isn't enabled). postgres_changes kept as a fallback.
+      userChannel = supabase
+        .channel(`user-events-${user.id}`)
+        .on('broadcast', { event: 'friend_request' }, () => fetchNotifs(user.id))
+        .subscribe()
+
+      pgChannel = supabase
+        .channel('public:notifications')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` }, () => {
+          fetchNotifs(user.id)
+        })
+        .subscribe()
+    }
+
+    init()
+
+    return () => {
       isMounted = false;
-      supabase.removeChannel(channel) 
+      if (pgChannel) supabase.removeChannel(pgChannel)
+      if (userChannel) supabase.removeChannel(userChannel)
     }
   }, [supabase])
 

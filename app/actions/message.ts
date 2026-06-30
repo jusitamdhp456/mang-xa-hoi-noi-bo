@@ -15,28 +15,30 @@ export async function sendMessage(
 
   if (authError || !user) return { error: 'Bạn cần đăng nhập để thực hiện' }
 
-  // Secure Server-side Validation: Verify if user is in workspace_members
-  const { data: member, error: memberError } = await supabase
-    .from('workspace_members')
-    .select('role')
-    .eq('workspace_id', workspaceId)
-    .eq('user_id', user.id)
-    .maybeSingle()
+  // Run the membership check and channel lookup in parallel to cut latency.
+  const [memberRes, channelRes] = await Promise.all([
+    supabase
+      .from('workspace_members')
+      .select('role')
+      .eq('workspace_id', workspaceId)
+      .eq('user_id', user.id)
+      .maybeSingle(),
+    supabase
+      .from('channels')
+      .select('is_private')
+      .eq('id', channelId)
+      .single(),
+  ])
 
-  if (memberError || !member) {
+  if (memberRes.error || !memberRes.data) {
     return { error: 'Bạn không có quyền gửi tin nhắn: Không phải là thành viên của không gian này' }
   }
 
-  // Fetch channel privacy details
-  const { data: channel, error: channelError } = await supabase
-    .from('channels')
-    .select('is_private')
-    .eq('id', channelId)
-    .single()
-
-  if (channelError || !channel) {
+  if (channelRes.error || !channelRes.data) {
     return { error: 'Kênh hội thoại không tồn tại' }
   }
+
+  const channel = channelRes.data
 
   // If private, verify channel membership and write permission
   if (channel.is_private) {
@@ -62,7 +64,7 @@ export async function sendMessage(
       content: content?.trim() || null,
       type: attachment ? (attachment.mimeType.startsWith('image/') ? 'image' : 'file') : 'text'
     })
-    .select('id')
+    .select('id, content, created_at, sender_id, type, profiles!messages_sender_id_fkey(display_name, avatar_key)')
     .single()
 
   if (error || !message) {
@@ -70,19 +72,25 @@ export async function sendMessage(
     return { error: `Không thể gửi tin nhắn: ${error?.message || 'Lỗi hệ thống'}` }
   }
 
+  // Build a full message object the client can render directly (no RLS re-read).
+  const fullMessage: Record<string, unknown> = { ...message, message_attachments: [], message_reactions: [] }
+
   // 2. Insert attachment nếu có
   if (attachment) {
-    const { error: attachError } = await supabase
+    const { data: attachRow, error: attachError } = await serviceClient
       .from('message_attachments')
       .insert({
-        message_id: message.id,
+        message_id: (message as { id: string }).id,
         object_key: attachment.objectKey,
         file_name: attachment.fileName,
         mime_type: attachment.mimeType,
         size_bytes: attachment.sizeBytes
       })
-      
+      .select('*')
+      .single()
+
     if (attachError) console.error('Error saving attachment:', attachError)
+    if (attachRow) fullMessage.message_attachments = [attachRow]
   }
 
   // 3. Xử lý Mention (Notifications)
@@ -111,12 +119,12 @@ export async function sendMessage(
             content: `đã nhắc đến bạn trong một tin nhắn.`,
             link: `/workspace/${workspaceId}/channel/${channelId}`
           }))
-          
+
           await supabase.from('notifications').insert(notifications)
         }
       }
     }
   }
 
-  return { success: true }
+  return { success: true, message: fullMessage }
 }

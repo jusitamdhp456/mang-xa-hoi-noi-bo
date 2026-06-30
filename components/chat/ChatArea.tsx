@@ -1,7 +1,10 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
+import { toggleReaction } from '@/app/actions/reaction'
+import { Volume2, Download } from 'lucide-react'
 import { MessageItem } from './MessageItem'
 import { MessageInput } from './MessageInput'
 
@@ -14,6 +17,11 @@ export type AttachmentRow = {
   size_bytes: number;
 };
 
+export type ReactionRow = {
+  emoji: string;
+  user_id: string;
+};
+
 export type MessageRow = {
   id: string;
   content: string;
@@ -24,34 +32,141 @@ export type MessageRow = {
     avatar_key: string | null;
   };
   message_attachments?: AttachmentRow[];
+  message_reactions?: ReactionRow[];
 };
 
 export function ChatArea({ 
-  channelId, 
+  channelId,
   channelName,
   channelType,
   workspaceId,
   initialMessages,
+<<<<<<< HEAD
   currentUserId
 }: { 
   channelId: string, 
+=======
+  currentUser = null
+}: {
+  channelId: string,
+>>>>>>> f2a368bbc81da776726d5ad64e34fa4a2f5f66e1
   channelName: string,
   channelType: string,
   workspaceId: string,
   initialMessages: MessageRow[],
+<<<<<<< HEAD
   currentUserId?: string
+=======
+  currentUser?: { id: string; display_name: string; avatar_key: string | null } | null
+>>>>>>> f2a368bbc81da776726d5ad64e34fa4a2f5f66e1
 }) {
+  const currentUserId = currentUser?.id ?? null
   const [messages, setMessages] = useState<MessageRow[]>(initialMessages)
   const [activeLightboxImg, setActiveLightboxImg] = useState<string | null>(null)
   const supabase = createSupabaseBrowserClient()
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const initializedRef = useRef(false)
+  const channelRef = useRef<RealtimeChannel | null>(null)
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
+  // Fetch a single message (with author, attachments, reactions) and append it
+  // if not already present. Used by realtime, by the new-message broadcast, and
+  // by the local send so the chat works even if postgres realtime is disabled.
+  const appendMessageById = useCallback(async (messageId: string) => {
+    const { data: msg } = await supabase
+      .from('messages')
+      .select('*, profiles!messages_sender_id_fkey(display_name, avatar_key), message_attachments(*), message_reactions(emoji, user_id)')
+      .eq('id', messageId)
+      .single()
+    if (!msg) return
+    setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg as MessageRow]))
+  }, [supabase])
 
+  // Re-fetch the reactions for a single message and merge into state.
+  const refreshReactions = useCallback(async (messageId: string) => {
+    const { data } = await supabase
+      .from('message_reactions')
+      .select('emoji, user_id')
+      .eq('message_id', messageId)
+    setMessages((prev) =>
+      prev.map((m) => (m.id === messageId ? { ...m, message_reactions: data || [] } : m))
+    )
+  }, [supabase])
+
+  // Toggle a reaction: optimistic local update, persist, then notify others.
+  const handleToggleReaction = useCallback(async (messageId: string, emoji: string) => {
+    if (!currentUserId) return
+    setMessages((prev) =>
+      prev.map((m) => {
+        if (m.id !== messageId) return m
+        const list = m.message_reactions || []
+        const mine = list.some((r) => r.user_id === currentUserId && r.emoji === emoji)
+        return {
+          ...m,
+          message_reactions: mine
+            ? list.filter((r) => !(r.user_id === currentUserId && r.emoji === emoji))
+            : [...list, { emoji, user_id: currentUserId }],
+        }
+      })
+    )
+
+    const res = await toggleReaction(messageId, emoji)
+    if (res?.error) {
+      // Reconcile with the server on failure.
+      await refreshReactions(messageId)
+      return
+    }
+    // Tell other clients to refresh this message's reactions.
+    channelRef.current?.send({
+      type: 'broadcast',
+      event: 'reaction',
+      payload: { messageId },
+    })
+  }, [currentUserId, refreshReactions])
+
+  // Append a full message object if not already present.
+  const appendMessage = useCallback((msg: MessageRow) => {
+    if (!msg?.id) return
+    setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]))
+  }, [])
+
+  // Optimistic UI: show the sender's message instantly, before the round-trip.
+  const addOptimistic = useCallback((msg: MessageRow) => {
+    setMessages((prev) => [...prev, msg])
+  }, [])
+
+  const removeOptimistic = useCallback((tempId: string) => {
+    setMessages((prev) => prev.filter((m) => m.id !== tempId))
+  }, [])
+
+  // After the server confirms: replace the optimistic placeholder with the real
+  // message and notify other clients with the full payload.
+  const handleSent = useCallback((message: MessageRow, tempId?: string) => {
+    setMessages((prev) => {
+      const withoutTemp = tempId ? prev.filter((m) => m.id !== tempId) : prev
+      if (withoutTemp.some((m) => m.id === message.id)) return withoutTemp
+      return [...withoutTemp, message]
+    })
+    channelRef.current?.send({
+      type: 'broadcast',
+      event: 'new_message',
+      payload: { message },
+    })
+  }, [])
+
+  // Auto-scroll to bottom on first load and on new messages, but only when the
+  // user is already near the bottom — so scrolling up to read history isn't
+  // yanked back down.
   useEffect(() => {
-    scrollToBottom()
+    const el = scrollContainerRef.current
+    if (!el) return
+    if (!initializedRef.current) {
+      initializedRef.current = true
+      el.scrollTop = el.scrollHeight
+      return
+    }
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 150
+    if (nearBottom) el.scrollTop = el.scrollHeight
   }, [messages])
 
   useEffect(() => {
@@ -65,37 +180,40 @@ export function ChatArea({
           table: 'messages',
           filter: `channel_id=eq.${channelId}`,
         },
-        async (payload) => {
-          const newMessage = payload.new;
-          
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('display_name, avatar_key')
-            .eq('id', newMessage.sender_id)
-            .single()
-
-          // Cần fetch thêm attachment nếu có, nhưng hiện tại payload chỉ có bảng messages.
-          // Cách an toàn là fetch lại toàn bộ message hoặc chỉ lấy attachment dựa trên message.id
-          let message_attachments = []
-          if (newMessage.type === 'image' || newMessage.type === 'file') {
-            const { data: attach } = await supabase.from('message_attachments').select('*').eq('message_id', newMessage.id)
-            if (attach) message_attachments = attach
-          }
-
-          const enrichedMessage = { ...(newMessage as MessageRow), profiles: profile as unknown as { display_name: string; avatar_key: string | null }, message_attachments } as MessageRow
-          
-          setMessages((prev) => [...prev, enrichedMessage])
+        (payload) => {
+          const id = payload.new?.id
+          if (id) appendMessageById(id)
+        }
+      )
+      .on(
+        'broadcast',
+        { event: 'new_message' },
+        (payload) => {
+          const msg = payload?.payload?.message as MessageRow | undefined
+          if (msg) appendMessage(msg)
+        }
+      )
+      .on(
+        'broadcast',
+        { event: 'reaction' },
+        (payload) => {
+          const messageId = payload?.payload?.messageId
+          if (messageId) refreshReactions(messageId)
         }
       )
       .subscribe()
 
+    channelRef.current = channel
+
     return () => {
+      channelRef.current = null
       supabase.removeChannel(channel)
     }
-  }, [channelId, supabase])
+  }, [channelId, supabase, refreshReactions, appendMessageById, appendMessage])
 
   return (
     <>
+<<<<<<< HEAD
       <div className="flex-1 p-4 overflow-y-auto bg-transparent flex flex-col scrollbar-thin scrollbar-thumb-gray-300">
         <div className="mt-auto flex flex-col justify-end min-h-full space-y-5">
           {messages.length === 0 ? (
@@ -113,13 +231,43 @@ export function ChatArea({
           )}
           <div ref={messagesEndRef} />
         </div>
+=======
+      <div ref={scrollContainerRef} className="flex-1 p-4 overflow-y-auto bg-gray-50 flex flex-col scrollbar-thin scrollbar-thumb-gray-300">
+        {/* Spacer keeps messages bottom-aligned when few, collapses when many so
+            the overflow scrolls normally. */}
+        <div className="flex-1 min-h-0" aria-hidden />
+        {messages.length === 0 ? (
+          <div className="text-center text-gray-500 my-8">
+             <div className="w-16 h-16 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center text-gray-500">
+               {channelType === 'voice' ? <Volume2 size={26} /> : <span className="text-2xl">#</span>}
+             </div>
+             <h3 className="text-lg font-bold text-gray-800 mb-1">Chào mừng bạn đến với {channelName}</h3>
+             <p className="text-sm">Đây là sự khởi đầu của kênh <strong>{channelName}</strong>.</p>
+          </div>
+        ) : (
+          messages.map((msg) => (
+            <MessageItem
+              key={msg.id}
+              message={msg}
+              onImageClick={setActiveLightboxImg}
+              currentUserId={currentUserId}
+              onToggleReaction={handleToggleReaction}
+            />
+          ))
+        )}
+        <div ref={messagesEndRef} />
+>>>>>>> f2a368bbc81da776726d5ad64e34fa4a2f5f66e1
       </div>
       
-      <MessageInput 
-        channelId={channelId} 
-        channelName={channelName} 
-        channelType={channelType} 
+      <MessageInput
+        channelId={channelId}
+        channelName={channelName}
+        channelType={channelType}
         workspaceId={workspaceId}
+        currentUser={currentUser}
+        onOptimistic={addOptimistic}
+        onOptimisticFailed={removeOptimistic}
+        onSent={handleSent}
       />
 
       {/* Image Lightbox Modal Overlay */}
@@ -136,7 +284,7 @@ export function ChatArea({
               className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border border-white/10"
               title="Tải ảnh gốc"
             >
-              📥 Tải ảnh
+              <Download size={14} /> Tải ảnh
             </a>
             <button
               type="button"

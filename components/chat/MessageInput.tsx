@@ -2,24 +2,61 @@
 
 import { useState, useRef } from 'react'
 import { sendMessage } from '@/app/actions/message'
-import { Send } from 'lucide-react'
+import { Send, Smile, File as FileIcon } from 'lucide-react'
 
-export function MessageInput({ 
-  channelId, 
-  channelName, 
-  channelType, 
-  workspaceId 
-}: { 
-  channelId: string, 
-  channelName: string, 
+const EMOJI_LIST = [
+  '😀', '😁', '😂', '🤣', '😊', '😍', '😘', '😎',
+  '🤩', '😢', '😭', '😡', '😱', '🤔', '🙄', '😴',
+  '👍', '👎', '👏', '🙏', '💪', '🤝', '👀', '🎉',
+  '❤️', '🔥', '⭐', '✅', '❌', '💯', '🚀', '☕',
+]
+
+export function MessageInput({
+  channelId,
+  channelName,
+  channelType,
+  workspaceId,
+  currentUser = null,
+  onOptimistic,
+  onOptimisticFailed,
+  onSent
+}: {
+  channelId: string,
+  channelName: string,
   channelType: string,
-  workspaceId: string
+  workspaceId: string,
+  currentUser?: { id: string; display_name: string; avatar_key: string | null } | null,
+  onOptimistic?: (message: any) => void,
+  onOptimisticFailed?: (tempId: string) => void,
+  onSent?: (message: any, tempId?: string) => void
 }) {
   const [content, setContent] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
+  const [emojiOpen, setEmojiOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const textInputRef = useRef<HTMLInputElement>(null)
+
+  // Insert an emoji at the caret position (or append if no selection).
+  const insertEmoji = (emoji: string) => {
+    const input = textInputRef.current
+    if (!input) {
+      setContent((prev) => prev + emoji)
+    } else {
+      const start = input.selectionStart ?? content.length
+      const end = input.selectionEnd ?? content.length
+      const next = content.slice(0, start) + emoji + content.slice(end)
+      setContent(next)
+      // Restore caret right after the inserted emoji.
+      requestAnimationFrame(() => {
+        input.focus()
+        const pos = start + emoji.length
+        input.setSelectionRange(pos, pos)
+      })
+    }
+    setEmojiOpen(false)
+  }
 
   const compressImage = (file: File): Promise<File> => {
     return new Promise((resolve) => {
@@ -111,13 +148,29 @@ export function MessageInput({
     setIsSending(true)
     const currentContent = content
     const currentFile = selectedFile
-    
-    setContent('') 
+
+    setContent('')
     setSelectedFile(null)
-    
+
+    // Optimistic render for text-only messages so they appear instantly,
+    // without waiting for the server round-trip. Reconciled by onSent.
+    let tempId: string | undefined
+    if (!currentFile && currentContent.trim() && currentUser) {
+      tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      onOptimistic?.({
+        id: tempId,
+        content: currentContent.trim(),
+        created_at: new Date().toISOString(),
+        sender_id: currentUser.id,
+        profiles: { display_name: currentUser.display_name, avatar_key: currentUser.avatar_key },
+        message_attachments: [],
+        message_reactions: [],
+      })
+    }
+
     try {
       let attachmentData = undefined
-      
+
       if (currentFile) {
         const formData = new FormData()
         formData.append('file', currentFile)
@@ -145,8 +198,10 @@ export function MessageInput({
       
       const res = await sendMessage(channelId, workspaceId, currentContent, attachmentData)
       if (res?.error) throw new Error(res.error)
-      
+      if (res?.message) onSent?.(res.message, tempId)
+
     } catch (err: unknown) {
+      if (tempId) onOptimisticFailed?.(tempId)
       alert((err as Error).message || 'Có lỗi xảy ra khi gửi tin nhắn')
       setContent(currentContent)
       setSelectedFile(currentFile)
@@ -207,7 +262,7 @@ export function MessageInput({
           ) : (
             /* Staging File Card Preview */
             <div className="flex items-center gap-3 bg-[#2b2d31] p-3 rounded-2xl border border-white/5 shadow-md w-max max-w-sm ml-4 animate-scale-in">
-              <div className="text-xl">📁</div>
+              <div className="text-zinc-300"><FileIcon size={20} /></div>
               <div className="min-w-0">
                 <p className="text-xs font-bold text-zinc-200 truncate max-w-[200px]">{selectedFile.name}</p>
                 <p className="text-[10px] text-zinc-400 mt-0.5">{(selectedFile.size / 1024).toFixed(1)} KB</p>
@@ -249,17 +304,47 @@ export function MessageInput({
                if (e.target.files?.[0]) handleFileSelection(e.target.files[0])
              }}
            />
-           <input 
-              type="text" 
+           <input
+              type="text"
+              ref={textInputRef}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
               disabled={isSending}
-              placeholder={isSending ? "Vui lòng đợi..." : `Nhắn tin vào ${channelType === 'voice' ? '🔊' : '#'} ${channelName}...`} 
+              placeholder={isSending ? "Vui lòng đợi..." : `Nhắn tin vào ${channelType === 'voice' ? '' : '#'}${channelName}...`}
               className="bg-transparent w-full outline-none text-xs text-white disabled:opacity-50 placeholder:text-zinc-500 font-medium mr-2"
            />
-           <button 
+           {/* Emoji picker */}
+           <div className="relative shrink-0 mr-1">
+             <button
+               type="button"
+               onClick={() => setEmojiOpen((v) => !v)}
+               disabled={isSending}
+               className="text-zinc-400 hover:text-white transition-colors cursor-pointer p-1 hover:bg-white/5 rounded-lg flex items-center justify-center disabled:opacity-30"
+               title="Chèn emoji"
+             >
+               <Smile size={16} />
+             </button>
+             {emojiOpen && (
+               <>
+                 <div className="fixed inset-0 z-10" onClick={() => setEmojiOpen(false)} />
+                 <div className="absolute z-20 bottom-10 right-0 bg-[#2b2d31] border border-white/10 rounded-2xl shadow-2xl p-2 grid grid-cols-8 gap-0.5 w-72 animate-scale-in">
+                   {EMOJI_LIST.map((e) => (
+                     <button
+                       key={e}
+                       type="button"
+                       onClick={() => insertEmoji(e)}
+                       className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-lg transition-colors cursor-pointer"
+                     >
+                       {e}
+                     </button>
+                   ))}
+                 </div>
+               </>
+             )}
+           </div>
+           <button
              type="submit" 
              disabled={isSending || (!content.trim() && !selectedFile)}
              className="text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0 disabled:opacity-30 disabled:hover:text-zinc-400 p-1 hover:bg-white/5 rounded-lg flex items-center justify-center"

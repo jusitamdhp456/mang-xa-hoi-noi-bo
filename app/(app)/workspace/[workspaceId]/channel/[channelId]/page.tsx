@@ -4,6 +4,7 @@ import { ChatArea } from '@/components/chat/ChatArea'
 import { VoiceRoom } from '@/components/workspace/VoiceRoom'
 import { NotificationBell } from '@/components/workspace/NotificationBell'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { Volume2 } from 'lucide-react'
 
 export default async function ChannelPage({ params }: { params: Promise<{ workspaceId: string, channelId: string }> }) {
   const { workspaceId, channelId } = await params;
@@ -16,17 +17,23 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
   let initialMessages = []
   const { data: msgs } = await supabase
     .from('messages')
-    .select('*, profiles(display_name, avatar_key), message_attachments(*)')
+    .select('*, profiles!messages_sender_id_fkey(display_name, avatar_key), message_attachments(*), message_reactions(emoji, user_id)')
     .eq('channel_id', channelId)
     .order('created_at', { ascending: true })
     .limit(50)
   if (msgs) initialMessages = msgs
 
-  // Get current user profile for VoiceRoom username
+  // Get current user profile for VoiceRoom username + optimistic chat rendering
   let currentUsername = 'Khách'
+  let currentUser: { id: string; display_name: string; avatar_key: string | null } | null = null
   if (user) {
-    const { data: profile } = await supabase.from('profiles').select('display_name').eq('id', user.id).single()
+    const { data: profile } = await supabase.from('profiles').select('display_name, avatar_key').eq('id', user.id).single()
     if (profile?.display_name) currentUsername = profile.display_name
+    currentUser = {
+      id: user.id,
+      display_name: profile?.display_name || currentUsername,
+      avatar_key: profile?.avatar_key || null,
+    }
   }
 
   return (
@@ -49,7 +56,7 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
               </svg>
             </Link>
 
-            <span className="text-cyan-400 mr-2 sm:mr-3 text-2xl drop-shadow-sm">{channel?.type === 'voice' ? '🔊' : '#'}</span>
+            <span className="text-cyan-400 mr-2 sm:mr-3 flex items-center drop-shadow-sm">{channel?.type === 'voice' ? <Volume2 size={22} /> : <span className="text-2xl">#</span>}</span>
             <span className="truncate">{channel?.name || channelId}</span>
             {channel?.topic && <span className="ml-4 pl-4 border-l border-white/20 text-sm text-white/70 font-medium hidden md:block truncate">{channel.topic}</span>}
             
@@ -57,32 +64,52 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
                <NotificationBell />
             </div>
          </div>
+<<<<<<< HEAD
                   {channel?.type === 'voice' ? (
             <div className="flex-1 flex flex-col h-full overflow-hidden">
               {/* Upper Part: Calling viewport */}
               <div className="h-[45%] border-b border-white/10 flex-shrink-0 relative">
+=======
+         
+         {channel?.type === 'voice' ? (
+            <div className="flex-1 flex flex-col md:flex-row h-full overflow-hidden">
+              {/* Media stage (video / screen share / future watch-party,
+                  livestream, game-live). Stacks on top on mobile, takes the
+                  majority of the width on desktop. */}
+              <div className="h-[40%] min-h-[200px] md:h-auto md:flex-1 min-w-0 flex flex-col overflow-hidden relative border-b border-white/10 md:border-b-0 md:border-r">
+>>>>>>> f2a368bbc81da776726d5ad64e34fa4a2f5f66e1
                 <VoiceRoom channelId={channelId} workspaceId={workspaceId} username={currentUsername} />
               </div>
-              {/* Lower Part: Text Chat area */}
-              <div className="flex-1 flex flex-col overflow-hidden bg-black/10">
-                <ChatArea 
-                  channelId={channelId} 
-                  channelName={channel?.name || ''} 
-                  channelType={channel?.type || 'voice'} 
+              {/* Chat: full width below on mobile, ~1/5 vertical column on desktop. */}
+              <div className="flex-1 md:flex-none md:w-1/5 md:min-w-[260px] flex flex-col overflow-hidden bg-black/10">
+                <ChatArea
+                  channelId={channelId}
+                  channelName={channel?.name || ''}
+                  channelType={channel?.type || 'voice'}
                   workspaceId={workspaceId}
+<<<<<<< HEAD
                   initialMessages={initialMessages} 
                   currentUserId={user?.id}
+=======
+                  initialMessages={initialMessages}
+                  currentUser={currentUser}
+>>>>>>> f2a368bbc81da776726d5ad64e34fa4a2f5f66e1
                 />
               </div>
             </div>
           ) : (
-            <ChatArea 
-              channelId={channelId} 
-              channelName={channel?.name || ''} 
-              channelType={channel?.type || 'text'} 
+            <ChatArea
+              channelId={channelId}
+              channelName={channel?.name || ''}
+              channelType={channel?.type || 'text'}
               workspaceId={workspaceId}
+<<<<<<< HEAD
               initialMessages={initialMessages} 
               currentUserId={user?.id}
+=======
+              initialMessages={initialMessages}
+              currentUser={currentUser}
+>>>>>>> f2a368bbc81da776726d5ad64e34fa4a2f5f66e1
             />
           )}
       </div>
