@@ -88,7 +88,7 @@ export function IntroSplash() {
         <div className="absolute inset-0 rounded-full bg-indigo-500/60 blur-3xl animate-glow-pulse" />
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/logo.png"
+          src="/logo.svg"
           alt="Logo"
           className={`relative w-64 h-64 sm:w-80 sm:h-80 object-contain drop-shadow-2xl ${phase === 'gate' ? 'opacity-90' : 'animate-logo-bounce'}`}
         />
