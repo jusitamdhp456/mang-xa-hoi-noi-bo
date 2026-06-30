@@ -32,7 +32,7 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
   return (
     <div className="flex-1 flex h-full bg-transparent">
       {/* Main Content */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-white/20">
+      <div className="flex-1 flex flex-col h-full overflow-hidden bg-black/20">
          <div className="h-16 border-b border-white/10 flex items-center px-4 sm:px-6 font-bold text-lg text-white shadow-sm shrink-0 bg-white/5 backdrop-blur-md">
             <Link 
               href={`/workspace/${workspaceId}`}
@@ -57,8 +57,7 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
                <NotificationBell />
             </div>
          </div>
-         
-         {channel?.type === 'voice' ? (
+                  {channel?.type === 'voice' ? (
             <div className="flex-1 flex flex-col h-full overflow-hidden">
               {/* Upper Part: Calling viewport */}
               <div className="h-[45%] border-b border-white/10 flex-shrink-0 relative">
@@ -72,6 +71,7 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
                   channelType={channel?.type || 'voice'} 
                   workspaceId={workspaceId}
                   initialMessages={initialMessages} 
+                  currentUserId={user?.id}
                 />
               </div>
             </div>
@@ -82,6 +82,7 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
               channelType={channel?.type || 'text'} 
               workspaceId={workspaceId}
               initialMessages={initialMessages} 
+              currentUserId={user?.id}
             />
           )}
       </div>

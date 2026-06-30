@@ -31,13 +31,15 @@ export function ChatArea({
   channelName,
   channelType,
   workspaceId,
-  initialMessages 
+  initialMessages,
+  currentUserId
 }: { 
   channelId: string, 
   channelName: string,
   channelType: string,
   workspaceId: string,
-  initialMessages: MessageRow[] 
+  initialMessages: MessageRow[],
+  currentUserId?: string
 }) {
   const [messages, setMessages] = useState<MessageRow[]>(initialMessages)
   const [activeLightboxImg, setActiveLightboxImg] = useState<string | null>(null)
@@ -94,8 +96,8 @@ export function ChatArea({
 
   return (
     <>
-      <div className="flex-1 p-4 overflow-y-auto bg-gray-50 flex flex-col scrollbar-thin scrollbar-thumb-gray-300">
-        <div className="mt-auto flex flex-col justify-end min-h-full">
+      <div className="flex-1 p-4 overflow-y-auto bg-transparent flex flex-col scrollbar-thin scrollbar-thumb-gray-300">
+        <div className="mt-auto flex flex-col justify-end min-h-full space-y-5">
           {messages.length === 0 ? (
             <div className="text-center text-gray-500 my-8">
                <div className="w-16 h-16 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center text-2xl text-gray-500">
@@ -106,7 +108,7 @@ export function ChatArea({
             </div>
           ) : (
             messages.map((msg) => (
-              <MessageItem key={msg.id} message={msg} onImageClick={setActiveLightboxImg} />
+              <MessageItem key={msg.id} message={msg} onImageClick={setActiveLightboxImg} currentUserId={currentUserId} />
             ))
           )}
           <div ref={messagesEndRef} />
