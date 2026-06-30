@@ -57,42 +57,6 @@ function LiveKitActiveSpeakersSync({ setSpeakingUserIds }: { setSpeakingUserIds:
 
 function VoiceStage({ channelId, workspaceId }: { channelId: string; workspaceId: string | null }) {
   const room = useRoomContext();
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [volumes, setVolumes] = useState<Record<string, number>>({});
-  const [mutes, setMutes] = useState<Record<string, boolean>>({});
-  const [myRole, setMyRole] = useState('member');
-  const supabase = createSupabaseBrowserClient();
-  const { currentUser } = useVoiceSettings();
-
-  useEffect(() => {
-    if (currentUser?.id && workspaceId) {
-      supabase.from('workspace_members').select('role').eq('workspace_id', workspaceId).eq('user_id', currentUser.id).single().then(({data}) => {
-        if (data) setMyRole(data.role);
-      });
-    }
-  }, [currentUser?.id, workspaceId]);
-
-  useEffect(() => {
-    if (!room) return;
-    room.remoteParticipants.forEach((p) => {
-      p.audioTrackPublications.forEach((pub) => {
-        if (pub.track) {
-          const isMuted = mutes[p.identity] || false;
-          const vol = volumes[p.identity] ?? 1;
-          // @ts-ignore
-          if (pub.track.setVolume) pub.track.setVolume(isMuted ? 0 : vol);
-        }
-      });
-    });
-  }, [volumes, mutes, room, room.remoteParticipants]);
-
-  const handleKick = async (targetId: string) => {
-    if (!confirm('Bạn có chắc muốn kích người này khỏi kênh đàm thoại?')) return;
-    setOpenMenuId(null);
-    const res = await kickParticipant(channelId, targetId);
-    if (res.error) alert(res.error);
-  };
-
   const allTracks = useTracks(
     [
       { source: Track.Source.Camera, withPlaceholder: true },
@@ -103,10 +67,44 @@ function VoiceStage({ channelId, workspaceId }: { channelId: string; workspaceId
 
   const [watchingScreenShares, setWatchingScreenShares] = useState<Set<string>>(new Set());
   const { localParticipant } = useLocalParticipant();
-  const { activeParticipants, speakingUserIds } = useVoiceSettings();
+  const { activeParticipants, speakingUserIds, currentUser } = useVoiceSettings();
   const roomParticipants = activeParticipants.filter(p => p.voice_channel_id === channelId);
-
   const livekitParticipants = useParticipants();
+
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [volumes, setVolumes] = useState<Record<string, number>>({});
+  const [mutes, setMutes] = useState<Record<string, boolean>>({});
+  const [myRole, setMyRole] = useState('member');
+  const supabase = createSupabaseBrowserClient();
+
+  useEffect(() => {
+    if (currentUser?.id && workspaceId) {
+      supabase.from('workspace_members').select('role').eq('workspace_id', workspaceId).eq('user_id', currentUser.id).single().then(({data}) => {
+        if (data) setMyRole(data.role);
+      });
+    }
+  }, [currentUser?.id, workspaceId]);
+
+  useEffect(() => {
+    livekitParticipants.forEach((p) => {
+      p.audioTrackPublications.forEach((pub) => {
+        if (pub.track) {
+          const isMuted = mutes[p.identity] || false;
+          const vol = volumes[p.identity] ?? 1;
+          const audioTrack = pub.track as any;
+          if (audioTrack.setVolume) audioTrack.setVolume(isMuted ? 0 : vol);
+        }
+      });
+    });
+  }, [volumes, mutes, livekitParticipants]);
+
+  const handleKick = async (targetId: string) => {
+    if (!confirm('Bạn có chắc muốn kích người này khỏi kênh đàm thoại?')) return;
+    setOpenMenuId(null);
+    const res = await kickParticipant(channelId, targetId);
+    if (res.error) alert(res.error);
+  };
+
   const botParticipants = livekitParticipants.filter(p => p.identity.endsWith('-bot') || p.identity.startsWith('bot-') || p.name?.includes('Bot') || p.identity.includes('bot'));
 
   const prevBots = useRef<string[]>([]);
