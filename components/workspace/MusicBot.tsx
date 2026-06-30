@@ -100,20 +100,14 @@ export function MusicBot({ channelId, workspaceId }: { channelId: string; worksp
     setCurrentSong(query);
 
     try {
-      // 1. Lấy nhạc từ SoundCloud (cực nhanh và không bao giờ bị chặn IP)
-      const searchRes = await fetch(`/api/bot/music?q=${encodeURIComponent(query)}`);
-      if (!searchRes.ok) throw new Error('Không tìm thấy bài hát trên SoundCloud');
-      const searchData = await searchRes.json();
-      
-      const audioUrl = searchData.streamUrl;
+      // 1. Bắt đầu lấy token LiveKit và tìm nhạc song song để tăng tốc
+      const tokenPromise = fetch(`/api/livekit?room=${channelId}&username=${encodeURIComponent('🎵 Bot Nhạc')}&bot=true`).then(r => r.json());
+      const searchPromise = fetch(`/api/bot/music?q=${encodeURIComponent(query)}`);
 
-      // 2. Lấy LiveKit Token cho Bot
-      // Truyền một username khác biệt để hiện avatar độc lập trong phòng
-      const tokenRes = await fetch(`/api/livekit?room=${channelId}&username=${encodeURIComponent('🎵 Bot Nhạc')}&bot=true`);
-      const tokenData = await tokenRes.json();
+      // 2. Ưu tiên kết nối LiveKit ngay lập tức để Bot hiện trên giao diện
+      const tokenData = await tokenPromise;
       if (!tokenData.token) throw new Error('Không lấy được token cho Bot');
 
-      // 3. Kết nối LiveKit
       const room = new Room({
         adaptiveStream: true,
         dynacast: true,
@@ -124,6 +118,13 @@ export function MusicBot({ channelId, workspaceId }: { channelId: string; worksp
       if (!serverUrl) throw new Error('Thiếu LIVEKIT_URL');
 
       await room.connect(serverUrl, tokenData.token);
+
+      // 3. Đợi kết quả tìm nhạc
+      const searchRes = await searchPromise;
+      if (!searchRes.ok) throw new Error('Không tìm thấy bài hát trên SoundCloud');
+      const searchData = await searchRes.json();
+      
+      const audioUrl = searchData.streamUrl;
 
       // 4. Phát nhạc qua Web Audio API & captureStream
       const audioEl = new Audio();
