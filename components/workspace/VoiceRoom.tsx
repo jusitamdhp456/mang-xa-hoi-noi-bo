@@ -308,8 +308,6 @@ function MobileVoiceControls() {
 
 
 
-import { MusicBotHost } from './MusicBotHost';
-
 export function VoiceRoom({ 
   channelId, 
   workspaceId = null, 

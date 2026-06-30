@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Room, LocalAudioTrack } from 'livekit-client';
+import { Room, LocalAudioTrack, Track } from 'livekit-client';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { playVoiceTone } from '@/components/providers/VoiceSettingsProvider';
 import { useChat } from '@livekit/components-react';
 
 export function MusicBot({ channelId, workspaceId }: { channelId: string; workspaceId: string }) {
@@ -31,7 +32,7 @@ export function MusicBot({ channelId, workspaceId }: { channelId: string; worksp
         if (query) {
           // Gửi thông báo hệ thống vào LiveKit chat thay vì Supabase
           send(`🎵 Đang yêu cầu Bot phát nhạc: **${query}**...`);
-          handlePlayCommand(query, workspaceId);
+          handlePlayCommand(query);
         }
       }
     }
@@ -45,7 +46,7 @@ export function MusicBot({ channelId, workspaceId }: { channelId: string; worksp
         { event: 'play_music' },
         async ({ payload }) => {
           if (payload.channelId === channelId) {
-            handlePlayCommand(payload.query, payload.requestedBy);
+            handlePlayCommand(payload.query);
           }
         }
       )
@@ -74,7 +75,7 @@ export function MusicBot({ channelId, workspaceId }: { channelId: string; worksp
     setBotStatus('idle');
   };
 
-  const handlePlayCommand = async (query: string, requestedBy: string) => {
+  const handlePlayCommand = async (query: string) => {
     // Nếu Bot đang chạy ở tab khác, ta có thể dùng khóa để đảm bảo chỉ 1 bot chạy.
     // Tạm thời đơn giản: ai là người gửi lệnh thì trình duyệt người đó làm Host.
     // Nếu không phải người gửi, thì bỏ qua không tạo bot (để tránh 2 người cùng host bot)
@@ -136,17 +137,13 @@ export function MusicBot({ channelId, workspaceId }: { channelId: string; worksp
       trackRef.current = localAudioTrack;
 
       // Đặt source là Microphone để LiveKit xếp nó vào giao diện dạng người dùng
-      import('livekit-client').then(({ Track }) => {
-        room.localParticipant.publishTrack(localAudioTrack, {
-          name: 'music',
-          source: Track.Source.Microphone, 
-        });
+      room.localParticipant.publishTrack(localAudioTrack, {
+        name: 'music',
+        source: Track.Source.Microphone, 
       });
 
       setBotStatus('playing');
-      import('@/components/providers/VoiceSettingsProvider').then(({ playVoiceTone }) => {
-        playVoiceTone('join');
-      });
+      playVoiceTone('join');
 
       // Khi kết thúc bài hát
       audioEl.onended = () => {
