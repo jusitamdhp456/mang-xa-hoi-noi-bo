@@ -272,3 +272,45 @@ export async function kickMember(workspaceId: string, targetUserId: string) {
   if (error) return { error: 'Lỗi xoá thành viên' }
   return { success: true }
 }
+
+// Rename a workspace (owner/admin)
+export async function updateWorkspace(workspaceId: string, name: string) {
+  if (!name?.trim()) return { error: 'Tên không được để trống' }
+  const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Chưa đăng nhập' }
+  const service = createSupabaseServiceClient()
+  const { data: m } = await service.from('workspace_members').select('role').eq('workspace_id', workspaceId).eq('user_id', user.id).maybeSingle()
+  if (!m || !['owner', 'admin'].includes(m.role)) return { error: 'Bạn không có quyền' }
+  const { error } = await service.from('workspaces').update({ name: name.trim() }).eq('id', workspaceId)
+  if (error) return { error: 'Lỗi đổi tên' }
+  return { success: true }
+}
+
+// Delete a workspace (owner only)
+export async function deleteWorkspace(workspaceId: string) {
+  const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Chưa đăng nhập' }
+  const service = createSupabaseServiceClient()
+  const { data: m } = await service.from('workspace_members').select('role').eq('workspace_id', workspaceId).eq('user_id', user.id).maybeSingle()
+  if (!m || m.role !== 'owner') return { error: 'Chỉ chủ sở hữu mới được xoá' }
+  const { error } = await service.from('workspaces').delete().eq('id', workspaceId)
+  if (error) return { error: 'Lỗi xoá không gian' }
+  return { success: true }
+}
+
+// Join a workspace via an invite code (the code is the workspace id).
+export async function joinWorkspaceByCode(code: string) {
+  const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Chưa đăng nhập' }
+  const service = createSupabaseServiceClient()
+  const { data: ws } = await service.from('workspaces').select('id, name').eq('id', code).maybeSingle()
+  if (!ws) return { error: 'Lời mời không hợp lệ hoặc đã hết hạn' }
+  const { data: existing } = await service.from('workspace_members').select('user_id').eq('workspace_id', ws.id).eq('user_id', user.id).maybeSingle()
+  if (existing) return { success: true, workspaceId: ws.id, name: ws.name }
+  const { error } = await service.from('workspace_members').insert({ workspace_id: ws.id, user_id: user.id, role: 'member' })
+  if (error) return { error: 'Lỗi tham gia không gian' }
+  return { success: true, workspaceId: ws.id, name: ws.name }
+}

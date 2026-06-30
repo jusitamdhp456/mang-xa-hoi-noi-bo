@@ -4,10 +4,10 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { Phone, Lock, Edit3, X, Search, UserPlus, MicOff, Volume2, MoreVertical, Pencil, Trash2 } from 'lucide-react'
+import { Phone, Lock, Edit3, X, Search, UserPlus, MicOff, Volume2, MoreVertical, Pencil, Trash2, Hash, ArrowUp, ArrowDown } from 'lucide-react'
 import { useVoiceSettings, playVoiceTone } from '@/components/providers/VoiceSettingsProvider'
 import { getFriends, sendDirectMessage } from '@/app/actions/friend'
-import { updateChannel, deleteChannel } from '@/app/actions/channel'
+import { updateChannel, deleteChannel, updateChannelTopic, moveChannel } from '@/app/actions/channel'
 import { useUnread } from '@/components/providers/UnreadProvider'
 
 interface ChannelItem {
@@ -85,7 +85,7 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
   // near the bottom/right edges).
   const openMenuAt = (clientX: number, clientY: number) => {
     const menuW = 200
-    const menuH = isVoice ? 150 : 110
+    const menuH = isVoice ? 240 : 210
     let x = clientX
     let y = clientY
     if (x + menuW > window.innerWidth - 8) x = window.innerWidth - menuW - 8
@@ -115,6 +115,22 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
     const res = await deleteChannel(channel.id)
     if (res?.error) { alert(res.error); return }
     if (isActive) router.push(`/workspace/${workspaceId}`)
+    router.refresh()
+  }
+
+  const handleSetTopic = async () => {
+    setMenuPosition(null)
+    const topic = prompt('Chủ đề kênh (để trống để xoá):', '')
+    if (topic === null) return
+    const res = await updateChannelTopic(channel.id, topic)
+    if (res?.error) { alert(res.error); return }
+    router.refresh()
+  }
+
+  const handleMove = async (direction: 'up' | 'down') => {
+    setMenuPosition(null)
+    const res = await moveChannel(channel.id, direction)
+    if (res?.error) { alert(res.error); return }
     router.refresh()
   }
 
@@ -328,6 +344,29 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
           >
             <Pencil size={14} className="text-zinc-300 shrink-0" />
             <span>Đổi tên kênh</span>
+          </button>
+          {!isVoice && (
+            <button
+              onClick={handleSetTopic}
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer text-left"
+            >
+              <Hash size={14} className="text-zinc-300 shrink-0" />
+              <span>Đặt chủ đề</span>
+            </button>
+          )}
+          <button
+            onClick={() => handleMove('up')}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer text-left"
+          >
+            <ArrowUp size={14} className="text-zinc-300 shrink-0" />
+            <span>Di chuyển lên</span>
+          </button>
+          <button
+            onClick={() => handleMove('down')}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer text-left"
+          >
+            <ArrowDown size={14} className="text-zinc-300 shrink-0" />
+            <span>Di chuyển xuống</span>
           </button>
           <button
             onClick={handleDeleteChannel}

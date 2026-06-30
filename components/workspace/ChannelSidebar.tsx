@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { CreateChannelModal } from './CreateChannelModal'
 import { SidebarCategoryGroup } from './SidebarCategoryGroup'
 import { UserPanel } from './UserPanel'
+import { ServerSettingsMenu } from './ServerSettingsMenu'
 
 export default async function ChannelSidebar({ workspaceId }: { workspaceId: string }) {
   const supabase = await createSupabaseServerClient()
@@ -10,7 +11,7 @@ export default async function ChannelSidebar({ workspaceId }: { workspaceId: str
   const { data: { user } } = await supabase.auth.getUser();
 
   // Run database fetches in parallel to optimize rendering speed
-  const [profileResult, workspaceResult, categoriesResult, channelsResult] = await Promise.all([
+  const [profileResult, workspaceResult, categoriesResult, channelsResult, memberResult] = await Promise.all([
     user ? supabase
       .from('profiles')
       .select('*')
@@ -30,13 +31,21 @@ export default async function ChannelSidebar({ workspaceId }: { workspaceId: str
       .from('channels')
       .select('*')
       .eq('workspace_id', workspaceId)
-      .order('sort_order', { ascending: true })
+      .order('sort_order', { ascending: true }),
+    user ? supabase
+      .from('workspace_members')
+      .select('role')
+      .eq('workspace_id', workspaceId)
+      .eq('user_id', user.id)
+      .maybeSingle() : Promise.resolve({ data: null }),
   ]);
 
   const profile = profileResult.data;
   const workspace = workspaceResult.data;
   const categories = categoriesResult.data || [];
   const channels = channelsResult.data || [];
+  const myRole = (memberResult.data as { role?: string } | null)?.role || 'member';
+  const canManageServer = myRole === 'owner' || myRole === 'admin';
 
   // Group channels globally by type
   const textChannels = channels.filter(c => c.type === 'text')
@@ -49,10 +58,17 @@ export default async function ChannelSidebar({ workspaceId }: { workspaceId: str
         <Link href={`/workspace/${workspaceId}`} className="truncate flex-1 py-4" title="Trang tổng quan không gian làm việc">
           {workspace?.name || 'Không gian làm việc'}
         </Link>
-        <CreateChannelModal 
-          workspaceId={workspaceId} 
-          categories={categories} 
-          triggerType="header" 
+        {canManageServer && (
+          <ServerSettingsMenu
+            workspaceId={workspaceId}
+            workspaceName={workspace?.name || ''}
+            isOwner={myRole === 'owner'}
+          />
+        )}
+        <CreateChannelModal
+          workspaceId={workspaceId}
+          categories={categories}
+          triggerType="header"
         />
       </div>
 

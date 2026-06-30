@@ -157,3 +157,53 @@ export async function deleteChannel(channelId: string) {
   revalidatePath(`/workspace/${channel.workspace_id}`)
   return { success: true, workspaceId: channel.workspace_id }
 }
+
+async function requireChannelManager(channelId: string) {
+  const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Chưa đăng nhập' as const }
+  const service = createSupabaseServiceClient()
+  const { data: channel } = await service.from('channels').select('workspace_id, type, sort_order').eq('id', channelId).single()
+  if (!channel) return { error: 'Kênh không tồn tại' as const }
+  const { data: m } = await supabase
+    .from('workspace_members').select('role')
+    .eq('workspace_id', channel.workspace_id).eq('user_id', user.id).maybeSingle()
+  if (!m || !['owner', 'admin', 'mod'].includes(m.role)) return { error: 'Bạn không có quyền' as const }
+  return { service, channel }
+}
+
+// Set / clear a channel's topic
+export async function updateChannelTopic(channelId: string, topic: string) {
+  const ctx = await requireChannelManager(channelId)
+  if ('error' in ctx) return { error: ctx.error }
+  const { error } = await ctx.service.from('channels').update({ topic: topic.trim() || null }).eq('id', channelId)
+  if (error) return { error: 'Lỗi cập nhật chủ đề' }
+  revalidatePath(`/workspace/${ctx.channel.workspace_id}`)
+  return { success: true }
+}
+
+// Move a channel up/down by swapping sort_order with its same-type neighbor
+export async function moveChannel(channelId: string, direction: 'up' | 'down') {
+  const ctx = await requireChannelManager(channelId)
+  if ('error' in ctx) return { error: ctx.error }
+  const { service, channel } = ctx
+  const { data: siblings } = await service
+    .from('channels')
+    .select('id, sort_order')
+    .eq('workspace_id', channel.workspace_id)
+    .eq('type', channel.type)
+    .order('sort_order', { ascending: true })
+  if (!siblings) return { error: 'Lỗi đọc danh sách kênh' }
+  const idx = siblings.findIndex((c) => c.id === channelId)
+  const target = direction === 'up' ? idx - 1 : idx + 1
+  if (idx === -1 || target < 0 || target >= siblings.length) return { success: true } // at the edge
+  // Swap positions in the array, then rewrite sequential sort_order for all
+  // (defaults are often all 0, so a plain value-swap wouldn't change anything).
+  const ordered = [...siblings]
+  ;[ordered[idx], ordered[target]] = [ordered[target], ordered[idx]]
+  await Promise.all(
+    ordered.map((c, i) => service.from('channels').update({ sort_order: i }).eq('id', c.id))
+  )
+  revalidatePath(`/workspace/${channel.workspace_id}`)
+  return { success: true }
+}
