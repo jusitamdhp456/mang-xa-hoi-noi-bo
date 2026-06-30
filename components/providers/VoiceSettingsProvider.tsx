@@ -30,6 +30,7 @@ interface VoiceSettingsContextType {
   activeParticipants: Participant[];
   changeUserNickname: (targetUserId: string, newName: string) => void;
   kickUserBroadcast: (targetUserId: string, channelId: string) => void;
+  addKickedUser: (userId: string) => void;
   currentUser: any;
   onlineUserIds: string[];
 
@@ -104,6 +105,7 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
   const [customName, setCustomName] = useState<string | null>(null);
   const [activeParticipants, setActiveParticipants] = useState<Participant[]>([]);
   const [botParticipants, setBotParticipants] = useState<Participant[]>([]);
+  const [kickedUsers, setKickedUsers] = useState<Set<string>>(new Set());
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
@@ -129,8 +131,9 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
         ];
       }
     }
-    return [...result, ...botParticipants];
-  }, [activeParticipants, botParticipants, activeChannelId, user, profile, customName, isMuted, isDeafened]);
+    const final = [...result, ...botParticipants];
+    return final.filter(p => !kickedUsers.has(p.user_id));
+  }, [activeParticipants, botParticipants, activeChannelId, user, profile, customName, isMuted, isDeafened, kickedUsers]);
 
   const supabase = createSupabaseBrowserClient();
 
@@ -386,6 +389,10 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
     });
   };
 
+  const addKickedUser = useCallback((userId: string) => {
+    setKickedUsers(prev => new Set(prev).add(userId));
+  }, []);
+
   return (
     <VoiceSettingsContext.Provider 
       value={{ 
@@ -402,6 +409,7 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
         activeParticipants: activeParticipantsWithSelf,
         changeUserNickname,
         kickUserBroadcast,
+        addKickedUser,
         currentUser: user,
         onlineUserIds,
         speakingUserIds,

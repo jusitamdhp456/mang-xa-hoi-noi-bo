@@ -67,7 +67,7 @@ function VoiceStage({ channelId, workspaceId }: { channelId: string; workspaceId
 
   const [watchingScreenShares, setWatchingScreenShares] = useState<Set<string>>(new Set());
   const { localParticipant } = useLocalParticipant();
-  const { activeParticipants, speakingUserIds, currentUser, kickUserBroadcast } = useVoiceSettings();
+  const { activeParticipants, speakingUserIds, currentUser, kickUserBroadcast, addKickedUser } = useVoiceSettings();
   const roomParticipants = activeParticipants.filter(p => p.voice_channel_id === channelId);
   const livekitParticipants = useParticipants();
 
@@ -107,6 +107,7 @@ function VoiceStage({ channelId, workspaceId }: { channelId: string; workspaceId
 
   const handleKick = async (targetId: string) => {
     setOpenMenuId(null);
+    addKickedUser(targetId); // Ẩn ngay lập tức khỏi toàn bộ giao diện (Cả sidebar và hình tròn)
     kickUserBroadcast(targetId, channelId); // Broadcast immediately for instant UI update on target client
     const res = await kickParticipant(channelId, targetId);
     if (res.error) {
@@ -220,7 +221,7 @@ function VoiceStage({ channelId, workspaceId }: { channelId: string; workspaceId
             ))}
 
             {/* Cameras and Avatars */}
-            {displayParticipants.map(p => {
+            {displayParticipants.map((p) => {
               const isSpeaking = speakingUserIds.includes(p.user_id);
               const avatarUrl = p.avatar_key 
                 ? `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${p.avatar_key}` 
