@@ -88,7 +88,7 @@ function ScreenShareOverlay({
 // no video). Kept small so the main area stays free for chat + future media.
 
 
-function VoiceStage() {
+function VoiceStage({ channelId }: { channelId: string }) {
   const allTracks = useTracks(
     [
       { source: Track.Source.Camera, withPlaceholder: true },
@@ -100,6 +100,7 @@ function VoiceStage() {
   const [watchingScreenShares, setWatchingScreenShares] = useState<Set<string>>(new Set());
   const { localParticipant } = useLocalParticipant();
   const { activeParticipants, speakingUserIds } = useVoiceSettings();
+  const roomParticipants = activeParticipants.filter(p => p.voice_channel_id === channelId);
 
   const cameraTracks = allTracks.filter(t => t.source === Track.Source.Camera);
   const screenShareTracks = allTracks.filter(t => t.source === Track.Source.ScreenShare);
@@ -143,7 +144,7 @@ function VoiceStage() {
       {/* Bottom Area: If watching screen share, show avatars. Otherwise show the standard grid. */}
       {activeScreenShare ? (
         <div className="h-20 md:h-24 shrink-0 flex items-center justify-center gap-4 bg-zinc-900/50 rounded-xl px-4 overflow-x-auto border border-white/5">
-           {activeParticipants.map(p => {
+           {roomParticipants.map(p => {
              const isSpeaking = speakingUserIds.includes(p.user_id);
              const avatarUrl = p.avatar_key 
                ? `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${p.avatar_key}` 
@@ -160,7 +161,7 @@ function VoiceStage() {
         </div>
       ) : (
         <div className="flex-1 min-h-0 flex flex-col">
-          {bottomTracks.length > 0 ? (
+          {bottomTracks.some(t => 'publication' in t && !!(t as any).publication) ? (
             <GridLayout tracks={bottomTracks} className="h-full">
               <ParticipantTile>
                 <ScreenShareOverlay setWatchingScreenShares={setWatchingScreenShares} />
@@ -168,7 +169,7 @@ function VoiceStage() {
             </GridLayout>
           ) : (
              <div className="flex-1 w-full h-full flex flex-wrap items-center justify-center gap-6 md:gap-8 p-6 md:p-8 overflow-y-auto">
-               {activeParticipants.map(p => {
+               {roomParticipants.map(p => {
                  const isSpeaking = speakingUserIds.includes(p.user_id);
                  const avatarUrl = p.avatar_key 
                    ? `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${p.avatar_key}` 
@@ -1128,7 +1129,7 @@ export function VoiceRoom({
       >
         <LiveKitSync isMuted={isMuted} isDeafened={isDeafened} />
         <LiveKitActiveSpeakersSync setSpeakingUserIds={setSpeakingUserIds} />
-        <VoiceStage />
+        <VoiceStage channelId={channelId} />
         <VoiceExtraControls />
         <MobileVoiceControls />
         {!isDeafened && <RoomAudioRenderer />}
