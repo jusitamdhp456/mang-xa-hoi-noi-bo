@@ -1149,7 +1149,7 @@ export function VoiceRoom({
         <VoiceExtraControls />
         <MobileVoiceControls />
         {!isDeafened && <RoomAudioRenderer />}
-        <MusicBot channelId={channelId} workspaceId={workspaceId} />
+        <MusicBot channelId={channelId} workspaceId={workspaceId || ''} />
       </LiveKitRoom>
     </div>
   );
