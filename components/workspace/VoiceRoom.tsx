@@ -49,10 +49,8 @@ function LiveKitActiveSpeakersSync({ setSpeakingUserIds }: { setSpeakingUserIds:
 }
 
 function ScreenShareOverlay({
-  watchingScreenShares,
   setWatchingScreenShares,
 }: {
-  watchingScreenShares: Set<string>;
   setWatchingScreenShares: React.Dispatch<React.SetStateAction<Set<string>>>;
 }) {
   const trackRef = useTrackRefContext();
@@ -63,47 +61,23 @@ function ScreenShareOverlay({
   const id = trackRef.participant.identity;
   if (id === localParticipant.identity) return null;
   
-  const isWatching = watchingScreenShares.has(id);
-  
-  if (!isWatching) {
-    return (
-      <div className="absolute inset-0 bg-zinc-900 z-10 flex flex-col items-center justify-center">
-        <Monitor size={48} className="text-white/20 mb-4" />
-        <p className="text-white font-medium mb-4">{trackRef.participant.name || 'Người dùng'} đang chia sẻ màn hình</p>
-        <button 
-          onClick={(e) => {
-            e.stopPropagation();
-            setWatchingScreenShares(prev => {
-              const next = new Set(prev);
-              next.add(id);
-              return next;
-            });
-          }}
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold shadow-lg transition-colors flex items-center gap-2"
-        >
-          <Monitor size={18} />
-          Vào xem
-        </button>
-      </div>
-    );
-  }
-  
-  // If watching, show a small "Dừng xem" button at top-left
   return (
-    <div className="absolute top-2 left-2 z-20">
+    <div className="absolute inset-0 bg-zinc-900 z-10 flex flex-col items-center justify-center">
+      <Monitor size={32} className="text-white/30 mb-3" />
+      <p className="text-white text-xs font-medium mb-3">{trackRef.participant.name || 'Người dùng'} đang chia sẻ màn hình</p>
       <button 
         onClick={(e) => {
           e.stopPropagation();
           setWatchingScreenShares(prev => {
             const next = new Set(prev);
-            next.delete(id);
+            next.add(id);
             return next;
           });
         }}
-        className="px-3 py-1.5 bg-black/60 hover:bg-black/80 backdrop-blur-md text-white rounded-md text-xs font-medium flex items-center gap-2 border border-white/10 shadow-sm transition-all"
+        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold shadow-lg transition-colors flex items-center gap-2 text-sm"
       >
-        <MonitorOff size={14} className="text-red-400" />
-        Dừng xem màn hình của {trackRef.participant.name || 'người dùng'}
+        <Monitor size={16} />
+        Vào xem
       </button>
     </div>
   );
@@ -121,14 +95,55 @@ function VoiceStage() {
   );
 
   const [watchingScreenShares, setWatchingScreenShares] = useState<Set<string>>(new Set());
+  const { localParticipant } = useLocalParticipant();
+
+  const cameraTracks = allTracks.filter(t => t.source === Track.Source.Camera);
+  const screenShareTracks = allTracks.filter(t => t.source === Track.Source.ScreenShare);
+
+  const activeScreenShare = screenShareTracks.find(t => 
+    t.participant.identity === localParticipant.identity || watchingScreenShares.has(t.participant.identity)
+  );
+
+  const bottomTracks = [
+    ...cameraTracks,
+    ...screenShareTracks.filter(t => t !== activeScreenShare)
+  ];
 
   return (
-    <div className="flex-1 min-h-0 p-2 flex flex-col relative">
-      <GridLayout tracks={allTracks} className="flex-1 min-h-0">
-        <ParticipantTile>
-          <ScreenShareOverlay watchingScreenShares={watchingScreenShares} setWatchingScreenShares={setWatchingScreenShares} />
-        </ParticipantTile>
-      </GridLayout>
+    <div className="flex-1 min-h-0 p-2 flex flex-col gap-2 relative">
+      {/* Active Screen Share Area */}
+      {activeScreenShare && (
+        <div className="flex-1 min-h-0 rounded-xl overflow-hidden relative bg-black shadow-lg border border-white/5">
+          <ParticipantTile trackRef={activeScreenShare} className="w-full h-full" />
+          
+          {activeScreenShare.participant.identity !== localParticipant.identity && (
+             <div className="absolute top-4 left-4 z-20">
+                <button 
+                  onClick={() => {
+                    setWatchingScreenShares(prev => {
+                      const next = new Set(prev);
+                      next.delete(activeScreenShare.participant.identity);
+                      return next;
+                    });
+                  }}
+                  className="px-3 py-1.5 bg-black/60 hover:bg-black/80 backdrop-blur-md text-white rounded-md text-sm font-medium flex items-center gap-2 border border-white/10 shadow-sm transition-all"
+                >
+                  <MonitorOff size={16} className="text-red-400" />
+                  Dừng xem màn hình của {activeScreenShare.participant.name || 'người dùng'}
+                </button>
+              </div>
+          )}
+        </div>
+      )}
+
+      {/* Bottom Grid for cameras and non-active screen shares */}
+      <div className={activeScreenShare ? "h-32 shrink-0 md:h-40" : "flex-1 min-h-0"}>
+        <GridLayout tracks={bottomTracks} className="h-full">
+          <ParticipantTile>
+            <ScreenShareOverlay setWatchingScreenShares={setWatchingScreenShares} />
+          </ParticipantTile>
+        </GridLayout>
+      </div>
     </div>
   );
 }
