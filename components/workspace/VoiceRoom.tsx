@@ -107,11 +107,10 @@ function VoiceStage({ channelId, workspaceId }: { channelId: string; workspaceId
 
   const handleKick = async (targetId: string) => {
     setOpenMenuId(null);
+    kickUserBroadcast(targetId, channelId); // Broadcast immediately for instant UI update on target client
     const res = await kickParticipant(channelId, targetId);
     if (res.error) {
-      alert(res.error);
-    } else {
-      kickUserBroadcast(targetId, channelId);
+      console.error(res.error);
     }
   };
 

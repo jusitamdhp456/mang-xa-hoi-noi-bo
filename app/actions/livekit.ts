@@ -36,26 +36,34 @@ export async function kickParticipant(channelId: string, targetUserId: string) {
     }
 
     // Thực hiện kick qua LiveKit Server API
-    const apiKey = process.env.LIVEKIT_API_KEY;
-    const apiSecret = process.env.LIVEKIT_API_SECRET;
-    const livekitUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL;
+    try {
+      const apiKey = process.env.LIVEKIT_API_KEY;
+      const apiSecret = process.env.LIVEKIT_API_SECRET;
+      const livekitUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL;
 
-    if (!apiKey || !apiSecret || !livekitUrl) {
-      return { error: 'Server thiếu cấu hình LiveKit API' };
+      if (apiKey && apiSecret && livekitUrl) {
+        const httpUrl = livekitUrl.replace('wss://', 'https://').replace('ws://', 'http://');
+        const roomService = new RoomServiceClient(httpUrl, apiKey, apiSecret);
+        await roomService.removeParticipant(channelId, targetUserId);
+      }
+    } catch (e) {
+      console.error('LiveKit remove error:', e);
     }
 
-    const httpUrl = livekitUrl.replace('wss://', 'https://').replace('ws://', 'http://');
-    const roomService = new RoomServiceClient(httpUrl, apiKey, apiSecret);
-    
-    // Tên phòng trong LiveKit được thiết lập bằng channelId
-    await roomService.removeParticipant(channelId, targetUserId);
-
     // Cập nhật Supabase để gỡ user khỏi phòng (để họ biến mất khỏi UI lập tức)
-    const supabaseAdmin = createSupabaseServiceClient();
-    await supabaseAdmin
-      .from('profiles')
-      .update({ voice_channel_id: null })
-      .eq('id', targetUserId);
+    try {
+      if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        const supabaseAdmin = createSupabaseServiceClient();
+        await supabaseAdmin
+          .from('profiles')
+          .update({ voice_channel_id: null })
+          .eq('id', targetUserId);
+      } else {
+        console.warn('Missing SUPABASE_SERVICE_ROLE_KEY');
+      }
+    } catch (e) {
+      console.error('Supabase admin update error:', e);
+    }
 
     return { success: true };
   } catch (error: any) {
