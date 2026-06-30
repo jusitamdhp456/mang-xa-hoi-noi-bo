@@ -153,10 +153,10 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
   ];
 
   const modalContent = isOpen && (
-        <div className="fixed inset-0 z-50 bg-[#313338] flex text-zinc-300 font-sans animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 bg-gradient-to-br from-[#0f172a] via-[#1e1b4b] to-[#0891b2] flex text-zinc-300 font-sans animate-in fade-in duration-200">
           
           {/* LEFT SIDEBAR NAVIGATION */}
-          <div className="w-[280px] bg-[#2b2d31] flex-shrink-0 flex justify-end py-12 pr-6 border-r border-white/5 overflow-y-auto">
+          <div className="w-[280px] bg-black/20 backdrop-blur-xl flex-shrink-0 flex justify-end py-12 pr-6 border-r border-white/10 overflow-y-auto">
             <div className="w-48 flex flex-col gap-1 text-xs font-semibold">
               <span className="text-[10px] text-zinc-500 uppercase tracking-wider px-2.5 mb-1.5">Cài đặt người dùng</span>
               
@@ -212,7 +212,7 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
           </div>
 
           {/* MAIN CONTENT AREA */}
-          <div className="flex-1 bg-[#313338] py-12 pl-10 pr-24 overflow-y-auto flex gap-10">
+          <div className="flex-1 bg-transparent py-12 pl-10 pr-24 overflow-y-auto flex gap-10">
             <div className="max-w-2xl flex-1">
               
               {/* TAB 1: MY ACCOUNT */}
@@ -221,7 +221,7 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
                   <h2 className="text-xl font-bold text-white mb-6">Tài khoản của tôi</h2>
                   
                   {/* Account Card Banner */}
-                  <div className="bg-[#1e1f22] rounded-2xl overflow-hidden border border-white/5 shadow-lg mb-6">
+                  <div className="bg-black/30 rounded-2xl overflow-hidden border border-white/10 shadow-lg mb-6">
                     <div 
                       className="h-28 w-full relative transition-all duration-300"
                       style={{ backgroundColor: bannerColor }}
@@ -229,7 +229,7 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
                     
                     <div className="px-6 pb-6 relative">
                       {/* Avatar Overlay */}
-                      <div className="absolute -top-12 left-6 w-20 h-20 rounded-full overflow-hidden border-[6px] border-[#1e1f22] bg-[#2b2d31]">
+                      <div className="absolute -top-12 left-6 w-20 h-20 rounded-full overflow-hidden border-[6px] border-[#1e1f22] bg-black/20 backdrop-blur-xl">
                         {avatarUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
@@ -259,7 +259,7 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
                   </div>
 
                   {/* Personal details info fields */}
-                  <div className="bg-[#2b2d31] rounded-2xl p-6 border border-white/5 space-y-4">
+                  <div className="bg-black/20 backdrop-blur-xl rounded-2xl p-6 border border-white/10 space-y-4">
                     <div className="flex justify-between items-center pb-3 border-b border-white/5">
                       <div>
                         <p className="text-xs text-zinc-500 font-bold uppercase">Tên hiển thị</p>
@@ -322,7 +322,7 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
                       placeholder="Nhập tên hiển thị..."
-                      className="w-full bg-[#1e1f22] border border-black/30 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[#5865f2] transition-colors"
+                      className="w-full bg-black/30 border border-black/30 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[#5865f2] transition-colors"
                       required
                     />
                   </div>
@@ -335,7 +335,7 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
                       value={statusText}
                       onChange={(e) => setStatusText(e.target.value)}
                       placeholder="Hôm nay bạn thế nào?..."
-                      className="w-full bg-[#1e1f22] border border-black/30 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[#5865f2] transition-colors"
+                      className="w-full bg-black/30 border border-black/30 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[#5865f2] transition-colors"
                     />
                   </div>
 
@@ -375,7 +375,7 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
                       onChange={(e) => setAboutMe(e.target.value)}
                       placeholder="Một chút thông tin về bạn..."
                       rows={4}
-                      className="w-full bg-[#1e1f22] border border-black/30 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[#5865f2] transition-colors resize-none"
+                      className="w-full bg-black/30 border border-black/30 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[#5865f2] transition-colors resize-none"
                     />
                   </div>
 
@@ -401,7 +401,7 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-xs text-zinc-400 font-bold uppercase">Thiết bị đầu vào (Mic)</label>
-                      <select className="w-full bg-[#1e1f22] border border-black/30 rounded-lg p-2.5 text-sm text-white focus:outline-none">
+                      <select className="w-full bg-black/30 border border-black/30 rounded-lg p-2.5 text-sm text-white focus:outline-none">
                         <option>Microphone mặc định</option>
                         <option>Microphone ngoài (USB)</option>
                       </select>
@@ -409,7 +409,7 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
 
                     <div className="space-y-2">
                       <label className="text-xs text-zinc-400 font-bold uppercase">Thiết bị đầu ra (Loa/Tai nghe)</label>
-                      <select className="w-full bg-[#1e1f22] border border-black/30 rounded-lg p-2.5 text-sm text-white focus:outline-none">
+                      <select className="w-full bg-black/30 border border-black/30 rounded-lg p-2.5 text-sm text-white focus:outline-none">
                         <option>Tai nghe mặc định</option>
                         <option>Loa ngoài hệ thống</option>
                       </select>
@@ -453,7 +453,7 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
                     <div className="grid grid-cols-2 gap-4">
                       <div 
                         onClick={() => setInputMode('activity')}
-                        className={`p-4 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${inputMode === 'activity' ? 'bg-[#5865f2]/10 border-[#5865f2] text-white' : 'bg-[#2b2d31] border-white/5 text-zinc-400 hover:bg-white/5'}`}
+                        className={`p-4 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${inputMode === 'activity' ? 'bg-[#5865f2]/10 border-[#5865f2] text-white' : 'bg-black/20 backdrop-blur-xl border-white/5 text-zinc-400 hover:bg-white/5'}`}
                       >
                         <div className="flex items-center gap-3">
                           <Volume2 size={20} />
@@ -464,7 +464,7 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
 
                       <div 
                         onClick={() => setInputMode('ptt')}
-                        className={`p-4 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${inputMode === 'ptt' ? 'bg-[#5865f2]/10 border-[#5865f2] text-white' : 'bg-[#2b2d31] border-white/5 text-zinc-400 hover:bg-white/5'}`}
+                        className={`p-4 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${inputMode === 'ptt' ? 'bg-[#5865f2]/10 border-[#5865f2] text-white' : 'bg-black/20 backdrop-blur-xl border-white/5 text-zinc-400 hover:bg-white/5'}`}
                       >
                         <div className="flex items-center gap-3">
                           <Laptop size={20} />
@@ -478,7 +478,7 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
                   {/* Webcam Preview Panel */}
                   <div className="space-y-3">
                     <label className="text-xs text-zinc-400 font-bold uppercase block">Kiểm tra Camera (Webcam)</label>
-                    <div className="bg-[#1e1f22] rounded-xl overflow-hidden aspect-video relative flex items-center justify-center border border-white/5">
+                    <div className="bg-black/30 rounded-xl overflow-hidden aspect-video relative flex items-center justify-center border border-white/10">
                       <video 
                         ref={videoRef} 
                         autoPlay 
@@ -511,27 +511,27 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
                       {/* Dark */}
                       <div 
                         onClick={() => setTheme('dark')}
-                        className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col gap-2 ${theme === 'dark' ? 'bg-[#5865f2]/10 border-[#5865f2] text-white' : 'bg-[#2b2d31] border-white/5 text-zinc-400 hover:bg-white/5'}`}
+                        className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col gap-2 ${theme === 'dark' ? 'bg-[#5865f2]/10 border-[#5865f2] text-white' : 'bg-black/20 backdrop-blur-xl border-white/5 text-zinc-400 hover:bg-white/5'}`}
                       >
-                        <div className="w-full h-10 bg-[#313338] rounded-md border border-white/5 mb-1"></div>
+                        <div className="w-full h-10 bg-[#313338] rounded-md border border-white/10 mb-1"></div>
                         <span className="text-sm font-semibold">Tối (Dark)</span>
                       </div>
 
                       {/* Light */}
                       <div 
                         onClick={() => setTheme('light')}
-                        className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col gap-2 ${theme === 'light' ? 'bg-[#5865f2]/10 border-[#5865f2] text-white' : 'bg-[#2b2d31] border-white/5 text-zinc-400 hover:bg-white/5'}`}
+                        className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col gap-2 ${theme === 'light' ? 'bg-[#5865f2]/10 border-[#5865f2] text-white' : 'bg-black/20 backdrop-blur-xl border-white/5 text-zinc-400 hover:bg-white/5'}`}
                       >
-                        <div className="w-full h-10 bg-[#f2f3f5] rounded-md border border-white/5 mb-1"></div>
+                        <div className="w-full h-10 bg-[#f2f3f5] rounded-md border border-white/10 mb-1"></div>
                         <span className="text-sm font-semibold">Sáng (Light)</span>
                       </div>
 
                       {/* Midnight */}
                       <div 
                         onClick={() => setTheme('midnight')}
-                        className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col gap-2 ${theme === 'midnight' ? 'bg-[#5865f2]/10 border-[#5865f2] text-white' : 'bg-[#2b2d31] border-white/5 text-zinc-400 hover:bg-white/5'}`}
+                        className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col gap-2 ${theme === 'midnight' ? 'bg-[#5865f2]/10 border-[#5865f2] text-white' : 'bg-black/20 backdrop-blur-xl border-white/5 text-zinc-400 hover:bg-white/5'}`}
                       >
-                        <div className="w-full h-10 bg-[#0c0d0e] rounded-md border border-white/5 mb-1"></div>
+                        <div className="w-full h-10 bg-[#0c0d0e] rounded-md border border-white/10 mb-1"></div>
                         <span className="text-sm font-semibold">Cực tối (Midnight)</span>
                       </div>
                     </div>
@@ -545,7 +545,7 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
                       {/* Cozy */}
                       <div 
                         onClick={() => setLayoutMode('cozy')}
-                        className={`p-4 rounded-xl border cursor-pointer transition-all flex items-start gap-4 ${layoutMode === 'cozy' ? 'bg-[#5865f2]/10 border-[#5865f2] text-white' : 'bg-[#2b2d31] border-white/5 text-zinc-400 hover:bg-white/5'}`}
+                        className={`p-4 rounded-xl border cursor-pointer transition-all flex items-start gap-4 ${layoutMode === 'cozy' ? 'bg-[#5865f2]/10 border-[#5865f2] text-white' : 'bg-black/20 backdrop-blur-xl border-white/5 text-zinc-400 hover:bg-white/5'}`}
                       >
                         <div className="w-8 h-8 rounded-full bg-[#5865f2] flex-shrink-0 flex items-center justify-center font-bold text-white">U</div>
                         <div className="flex-1">
@@ -557,7 +557,7 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
                       {/* Compact */}
                       <div 
                         onClick={() => setLayoutMode('compact')}
-                        className={`p-4 rounded-xl border cursor-pointer transition-all flex items-start gap-4 ${layoutMode === 'compact' ? 'bg-[#5865f2]/10 border-[#5865f2] text-white' : 'bg-[#2b2d31] border-white/5 text-zinc-400 hover:bg-white/5'}`}
+                        className={`p-4 rounded-xl border cursor-pointer transition-all flex items-start gap-4 ${layoutMode === 'compact' ? 'bg-[#5865f2]/10 border-[#5865f2] text-white' : 'bg-black/20 backdrop-blur-xl border-white/5 text-zinc-400 hover:bg-white/5'}`}
                       >
                         <div className="w-8 h-8 rounded-full bg-zinc-800 flex-shrink-0 flex items-center justify-center font-bold text-white/50 text-xs">C</div>
                         <div className="flex-1">
@@ -575,7 +575,7 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
                 <div className="space-y-6">
                   <h2 className="text-xl font-bold text-white mb-6">Thông báo</h2>
 
-                  <div className="bg-[#2b2d31] rounded-2xl p-6 border border-white/5 space-y-6">
+                  <div className="bg-black/20 backdrop-blur-xl rounded-2xl p-6 border border-white/10 space-y-6">
                     
                     {/* Push Toggle */}
                     <div className="flex items-center justify-between">
@@ -628,7 +628,7 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
               <div className="w-[300px] flex-shrink-0">
                 <label className="text-xs text-zinc-400 font-bold uppercase block mb-3">Xem trước hồ sơ</label>
                 
-                <div className="bg-[#1e1f22] rounded-xl overflow-hidden border border-white/10 shadow-2xl text-white">
+                <div className="bg-black/30 rounded-xl overflow-hidden border border-white/10 shadow-2xl text-white">
                   {/* Banner */}
                   <div 
                     className="h-16 w-full relative transition-all duration-300"
@@ -638,7 +638,7 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
                   {/* Content box */}
                   <div className="px-4 pb-4 pt-10 relative">
                     {/* Avatar */}
-                    <div className="absolute -top-8 left-4 w-16 h-16 rounded-full overflow-hidden border-4 border-[#1e1f22] bg-[#2b2d31]">
+                    <div className="absolute -top-8 left-4 w-16 h-16 rounded-full overflow-hidden border-4 border-[#1e1f22] bg-black/20 backdrop-blur-xl">
                       {avatarUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
