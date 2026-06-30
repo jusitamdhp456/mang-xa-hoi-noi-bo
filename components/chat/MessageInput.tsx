@@ -148,11 +148,26 @@ export function MessageInput({
     if ((!content.trim() && !selectedFile) || isSending) return
 
     setIsSending(true)
-    const currentContent = content
+    let currentContent = content
     const currentFile = selectedFile
 
     setContent('')
     setSelectedFile(null)
+    
+    // Intercept music bot commands
+    const trimmed = currentContent.trim()
+    if (trimmed.toLowerCase().startsWith('/play ') && !currentFile) {
+      const query = trimmed.slice(6).trim();
+      if (query) {
+        // Dispatch event for MusicBotHost to catch
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('play_music_request', { detail: { query, channelId } }));
+        }
+        
+        // Still send a message so everyone sees who requested it
+        currentContent = `🎵 Đang yêu cầu Bot phát nhạc: **${query}**...`;
+      }
+    }
 
     // Optimistic render for text-only messages so they appear instantly,
     // without waiting for the server round-trip. Reconciled by onSent.

@@ -295,6 +295,8 @@ function MobileVoiceControls() {
 
 
 
+import { MusicBotHost } from './MusicBotHost';
+
 export function VoiceRoom({ 
   channelId, 
   workspaceId = null, 
@@ -1124,6 +1126,7 @@ export function VoiceRoom({
         <MobileVoiceControls />
         {!isDeafened && <RoomAudioRenderer />}
       </LiveKitRoom>
+      <MusicBotHost channelId={channelId} />
     </div>
   );
 }
