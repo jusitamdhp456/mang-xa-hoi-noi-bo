@@ -208,3 +208,67 @@ export async function joinWorkspaceIfInvited(workspaceId: string) {
 
   return { success: true }
 }
+
+const ROLE_RANK: Record<string, number> = { owner: 3, admin: 2, mod: 1, member: 0 }
+
+// The current user's role in a workspace (or null if not a member).
+export async function getWorkspaceRole(workspaceId: string): Promise<string | null> {
+  const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const { data } = await supabase
+    .from('workspace_members').select('role')
+    .eq('workspace_id', workspaceId).eq('user_id', user.id).maybeSingle()
+  return data?.role || null
+}
+
+// Change a member's role. Owner can set admin/mod/member; admin can set mod/member.
+// Nobody can change an owner, assign owner, or act on someone ranked >= themselves.
+export async function updateMemberRole(workspaceId: string, targetUserId: string, newRole: string) {
+  if (!['admin', 'mod', 'member'].includes(newRole)) return { error: 'Vai trò không hợp lệ' }
+  const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Chưa đăng nhập' }
+  if (targetUserId === user.id) return { error: 'Không thể đổi vai trò của chính mình' }
+
+  const service = createSupabaseServiceClient()
+  const [{ data: me }, { data: target }] = await Promise.all([
+    service.from('workspace_members').select('role').eq('workspace_id', workspaceId).eq('user_id', user.id).maybeSingle(),
+    service.from('workspace_members').select('role').eq('workspace_id', workspaceId).eq('user_id', targetUserId).maybeSingle(),
+  ])
+  if (!me || (me.role !== 'owner' && me.role !== 'admin')) return { error: 'Bạn không có quyền' }
+  if (!target) return { error: 'Thành viên không tồn tại' }
+  if (target.role === 'owner') return { error: 'Không thể đổi vai trò chủ sở hữu' }
+  // Can't act on someone ranked at or above you, nor grant a rank >= yours.
+  if (ROLE_RANK[target.role] >= ROLE_RANK[me.role]) return { error: 'Không đủ quyền với thành viên này' }
+  if (ROLE_RANK[newRole] >= ROLE_RANK[me.role]) return { error: 'Không thể cấp vai trò ngang/cao hơn bạn' }
+
+  const { error } = await service
+    .from('workspace_members').update({ role: newRole })
+    .eq('workspace_id', workspaceId).eq('user_id', targetUserId)
+  if (error) return { error: 'Lỗi cập nhật vai trò' }
+  return { success: true }
+}
+
+// Remove a member from the workspace (owner/admin, on lower-ranked members).
+export async function kickMember(workspaceId: string, targetUserId: string) {
+  const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Chưa đăng nhập' }
+  if (targetUserId === user.id) return { error: 'Không thể tự xoá mình' }
+
+  const service = createSupabaseServiceClient()
+  const [{ data: me }, { data: target }] = await Promise.all([
+    service.from('workspace_members').select('role').eq('workspace_id', workspaceId).eq('user_id', user.id).maybeSingle(),
+    service.from('workspace_members').select('role').eq('workspace_id', workspaceId).eq('user_id', targetUserId).maybeSingle(),
+  ])
+  if (!me || (me.role !== 'owner' && me.role !== 'admin')) return { error: 'Bạn không có quyền' }
+  if (!target) return { error: 'Thành viên không tồn tại' }
+  if (ROLE_RANK[target.role] >= ROLE_RANK[me.role]) return { error: 'Không đủ quyền với thành viên này' }
+
+  const { error } = await service
+    .from('workspace_members').delete()
+    .eq('workspace_id', workspaceId).eq('user_id', targetUserId)
+  if (error) return { error: 'Lỗi xoá thành viên' }
+  return { success: true }
+}
