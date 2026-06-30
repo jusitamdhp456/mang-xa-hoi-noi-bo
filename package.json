@@ -11,7 +11,9 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1075.0",
     "@aws-sdk/s3-request-presigner": "^3.1075.0",
+    "@distube/ytdl-core": "^4.14.4",
     "@livekit/components-react": "^2.9.21",
+    "yt-search": "^2.11.1",
     "@livekit/components-styles": "^1.2.0",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.2",

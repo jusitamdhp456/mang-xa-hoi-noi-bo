@@ -12,15 +12,22 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { fileName, fileType, workspaceId, channelId } = body
+    const { fileName, fileType, workspaceId, channelId, threadId } = body
 
-    if (!fileName || !fileType || !workspaceId || !channelId) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    if (!fileName || !fileType) {
+      return NextResponse.json({ error: 'Missing required file fields' }, { status: 400 })
     }
     
-    // Tạo object key: workspaces/{workspaceId}/{channelId}/{timestamp}-{filename}
+    let objectKey = ''
     const safeFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_')
-    const objectKey = `workspaces/${workspaceId}/${channelId}/${Date.now()}-${safeFileName}`
+
+    if (threadId) {
+      objectKey = `direct/${threadId}/${Date.now()}-${safeFileName}`
+    } else if (workspaceId && channelId) {
+      objectKey = `workspaces/${workspaceId}/${channelId}/${Date.now()}-${safeFileName}`
+    } else {
+      return NextResponse.json({ error: 'Missing routing workspace/channel or thread context' }, { status: 400 })
+    }
 
     const uploadUrl = await getPresignedUploadUrl(objectKey, fileType)
 

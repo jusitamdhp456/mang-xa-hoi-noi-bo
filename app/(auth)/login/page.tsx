@@ -7,7 +7,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
 
   return (
     <div className="flex h-screen items-center justify-center bg-transparent">
-      <div className="w-full max-w-4xl rounded-3xl bg-white/10 backdrop-blur-xl shadow-2xl border border-white/20 overflow-hidden flex flex-col md:flex-row">
+      <div className="w-full max-w-4xl rounded-3xl bg-[#151b2e]/90 shadow-2xl border border-white/10 overflow-hidden flex flex-col md:flex-row animate-fade-in-up">
         
         {/* Left Side: Form */}
         <div className="flex-1 p-8 md:p-12 space-y-8">

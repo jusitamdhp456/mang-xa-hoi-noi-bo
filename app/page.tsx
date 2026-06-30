@@ -1,6 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { Navbar } from "@/components/landing/Navbar";
-import { HeroSection } from "@/components/landing/HeroSection";
+import { redirect } from "next/navigation";
 
 export const metadata = {
   title: "Mạng Xã Hội | Nơi trò chuyện và kết nối",
@@ -11,16 +10,20 @@ export default async function Home() {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   
-  const isLoggedIn = !!user;
+  if (!user) {
+    redirect("/login");
+  }
 
-  return (
-    <main className="min-h-screen bg-[#404eed] font-sans selection:bg-cyan-500 selection:text-white">
-      <Navbar isLoggedIn={isLoggedIn} />
-      <HeroSection isLoggedIn={isLoggedIn} />
-      {/* 
-        You can add more sections here below the fold if you want to extend the landing page.
-        For example: Features section, Footer, etc.
-      */}
-    </main>
-  );
+  // Fetch workspaces that this user has joined
+  const { data: userWorkspaces } = await supabase
+    .from("workspace_members")
+    .select("workspace_id")
+    .eq("user_id", user.id)
+    .limit(1);
+
+  if (userWorkspaces && userWorkspaces.length > 0) {
+    redirect(`/workspace/${userWorkspaces[0].workspace_id}`);
+  } else {
+    redirect("/onboarding");
+  }
 }

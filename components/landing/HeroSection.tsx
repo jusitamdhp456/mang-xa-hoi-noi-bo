@@ -72,37 +72,119 @@ export function HeroSection({ isLoggedIn }: HeroSectionProps) {
                 <div className="w-3/4 h-4 rounded bg-[#3f4147]"></div>
                 <div className="w-5/6 h-4 rounded bg-[#3f4147]"></div>
              </div>
-             {/* Chat area mock */}
-             <div className="flex-1 bg-[#313338] h-full p-6 flex flex-col">
-                <div className="flex-1 flex flex-col justify-end gap-6">
-                  <div className="flex gap-4 items-start">
-                    <div className="w-10 h-10 rounded-full bg-pink-500 flex-shrink-0"></div>
-                    <div className="flex flex-col gap-2 w-full">
-                       <div className="w-32 h-4 rounded bg-[#404eed]"></div>
-                       <div className="w-2/3 h-16 rounded bg-[#2b2d31]"></div>
-                    </div>
-                  </div>
-                  <div className="flex gap-4 items-start">
-                    <div className="w-10 h-10 rounded-full bg-yellow-500 flex-shrink-0"></div>
-                    <div className="flex flex-col gap-2 w-full">
-                       <div className="w-24 h-4 rounded bg-[#404eed]"></div>
-                       <div className="w-1/2 h-10 rounded bg-[#2b2d31]"></div>
-                    </div>
-                  </div>
+             {/* Document/Folder Explorer mock */}
+             <div className="flex-1 bg-[#1e1f22] h-full p-5 flex flex-col text-zinc-300 overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center justify-between pb-3 border-b border-zinc-800 mb-4 flex-shrink-0">
+                   <div className="flex items-center gap-2">
+                      <span className="text-xl">📁</span>
+                      <span className="font-semibold text-white text-sm">Tài liệu & Tệp tin</span>
+                   </div>
+                   <div className="flex gap-2">
+                      <div className="w-24 h-7 bg-[#2b2d31] rounded-lg border border-zinc-800 flex items-center justify-center text-[10px] text-zinc-400 font-medium">Tìm kiếm...</div>
+                      <div className="w-16 h-7 bg-[#5865F2] hover:bg-[#4752c4] rounded-lg text-[10px] text-white font-medium flex items-center justify-center cursor-pointer">Tải lên</div>
+                   </div>
                 </div>
-                {/* Input box */}
-                <div className="w-full h-12 bg-[#383a40] rounded-xl mt-6"></div>
+
+                {/* Folders Grid */}
+                <div className="grid grid-cols-3 gap-3 mb-4 flex-shrink-0">
+                   {/* Folder 1 */}
+                   <div className="bg-[#2b2d31] hover:bg-[#35373c] p-2.5 rounded-xl border border-zinc-800 hover:border-zinc-700 transition-all cursor-pointer flex flex-col gap-1 group">
+                      <div className="flex justify-between items-center">
+                         <span className="text-xl text-yellow-500 drop-shadow">📂</span>
+                         <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                      </div>
+                      <span className="text-xs font-semibold text-white truncate">Dự án Thiết kế</span>
+                      <span className="text-[10px] text-zinc-500 font-medium">12 tệp • 48 MB</span>
+                   </div>
+
+                   {/* Folder 2 */}
+                   <div className="bg-[#2b2d31] hover:bg-[#35373c] p-2.5 rounded-xl border border-zinc-800 hover:border-zinc-700 transition-all cursor-pointer flex flex-col gap-1 group">
+                      <div className="flex justify-between items-center">
+                         <span className="text-xl text-blue-500 drop-shadow">📂</span>
+                         <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                      </div>
+                      <span className="text-xs font-semibold text-white truncate">Báo cáo tài chính</span>
+                      <span className="text-[10px] text-zinc-500 font-medium">8 tệp • 14 MB</span>
+                   </div>
+
+                   {/* Folder 3 */}
+                   <div className="bg-[#2b2d31] hover:bg-[#35373c] p-2.5 rounded-xl border border-zinc-800 hover:border-zinc-700 transition-all cursor-pointer flex flex-col gap-1 group">
+                      <div className="flex justify-between items-center">
+                         <span className="text-xl text-purple-500 drop-shadow">📂</span>
+                         <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                      </div>
+                      <span className="text-xs font-semibold text-white truncate">Hình ảnh Truyền thông</span>
+                      <span className="text-[10px] text-zinc-500 font-medium">35 tệp • 120 MB</span>
+                   </div>
+
+                   {/* Folder 4 */}
+                   <div className="bg-[#2b2d31] hover:bg-[#35373c] p-2.5 rounded-xl border border-zinc-800 hover:border-zinc-700 transition-all cursor-pointer flex flex-col gap-1 group">
+                      <div className="flex justify-between items-center">
+                         <span className="text-xl text-red-500 drop-shadow">📂</span>
+                         <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                      </div>
+                      <span className="text-xs font-semibold text-white truncate">Tài liệu Onboarding</span>
+                      <span className="text-[10px] text-zinc-500 font-medium">18 tệp • 22 MB</span>
+                   </div>
+
+                   {/* Folder 5 */}
+                   <div className="bg-[#2b2d31] hover:bg-[#35373c] p-2.5 rounded-xl border border-zinc-800 hover:border-zinc-700 transition-all cursor-pointer flex flex-col gap-1 group">
+                      <div className="flex justify-between items-center">
+                         <span className="text-xl text-teal-500 drop-shadow">📂</span>
+                         <span className="w-1.5 h-1.5 rounded-full bg-teal-500"></span>
+                      </div>
+                      <span className="text-xs font-semibold text-white truncate">Quy trình SOP</span>
+                      <span className="text-[10px] text-zinc-500 font-medium">9 tệp • 5 MB</span>
+                   </div>
+
+                   {/* Folder 6 */}
+                   <div className="bg-[#2b2d31] hover:bg-[#35373c] p-2.5 rounded-xl border border-zinc-800 hover:border-zinc-700 transition-all cursor-pointer flex flex-col gap-1 group">
+                      <div className="flex justify-between items-center">
+                         <span className="text-xl text-pink-500 drop-shadow">📂</span>
+                         <span className="w-1.5 h-1.5 rounded-full bg-pink-500"></span>
+                      </div>
+                      <span className="text-xs font-semibold text-white truncate">Kế hoạch Quý 3</span>
+                      <span className="text-[10px] text-zinc-500 font-medium">14 tệp • 32 MB</span>
+                   </div>
+                </div>
+
+                {/* Recent Files Section */}
+                <h4 className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-2 flex-shrink-0">Tệp tin gần đây</h4>
+                <div className="flex flex-col gap-2 overflow-y-auto pr-1 flex-1">
+                   <div className="flex items-center justify-between p-2 rounded-lg bg-[#2b2d31]/50 border border-zinc-800/40 hover:bg-[#2b2d31] transition-all cursor-pointer">
+                      <div className="flex items-center gap-2.5">
+                         <span className="text-base">📄</span>
+                         <div className="flex flex-col">
+                            <span className="text-xs font-medium text-white truncate max-w-[130px]">ke-hoach-kinh-doanh.pdf</span>
+                            <span className="text-[9px] text-zinc-500">2.4 MB • Cập nhật 2 giờ trước</span>
+                         </div>
+                      </div>
+                      <span className="text-[9px] text-zinc-400 bg-zinc-800 px-1.5 py-0.5 rounded">Tải về</span>
+                   </div>
+
+                   <div className="flex items-center justify-between p-2 rounded-lg bg-[#2b2d31]/50 border border-zinc-800/40 hover:bg-[#2b2d31] transition-all cursor-pointer">
+                      <div className="flex items-center gap-2.5">
+                         <span className="text-base">📊</span>
+                         <div className="flex flex-col">
+                            <span className="text-xs font-medium text-white truncate max-w-[130px]">danh-sach-nhan-vien.xlsx</span>
+                            <span className="text-[9px] text-zinc-500">1.8 MB • Cập nhật 5 giờ trước</span>
+                         </div>
+                      </div>
+                      <span className="text-[9px] text-zinc-400 bg-zinc-800 px-1.5 py-0.5 rounded">Tải về</span>
+                   </div>
+                </div>
              </div>
           </div>
 
           {/* Floating Character 1 */}
           <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-pink-400 rounded-full border-8 border-[#404eed] flex items-center justify-center animate-bounce z-20 shadow-xl" style={{ animationDuration: '3s' }}>
-            <span className="text-5xl">👾</span>
+            <span className="text-5xl">📄</span>
           </div>
 
           {/* Floating Character 2 */}
           <div className="absolute top-10 -right-5 w-32 h-32 bg-yellow-400 rounded-full border-8 border-[#404eed] flex items-center justify-center animate-bounce z-20 shadow-xl" style={{ animationDuration: '4s', animationDelay: '1s' }}>
-            <span className="text-4xl">🎮</span>
+            <span className="text-4xl">📂</span>
           </div>
         </div>
 

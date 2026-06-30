@@ -1,6 +1,7 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { CreateChannelModal } from './CreateChannelModal'
+import { SidebarCategoryGroup } from './SidebarCategoryGroup'
 import { UserPanel } from './UserPanel'
 
 export default async function ChannelSidebar({ workspaceId }: { workspaceId: string }) {
@@ -8,75 +9,88 @@ export default async function ChannelSidebar({ workspaceId }: { workspaceId: str
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  const { data: profile } = user ? await supabase
+  // Run database fetches in parallel to optimize rendering speed
+  const [profileResult, workspaceResult, categoriesResult, channelsResult] = await Promise.all([
+    user ? supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
-      .single() : { data: null };
+      .single() : Promise.resolve({ data: null }),
+    supabase
+      .from('workspaces')
+      .select('name')
+      .eq('id', workspaceId)
+      .single(),
+    supabase
+      .from('channel_categories')
+      .select('id, name')
+      .eq('workspace_id', workspaceId)
+      .order('sort_order', { ascending: true }),
+    supabase
+      .from('channels')
+      .select('*')
+      .eq('workspace_id', workspaceId)
+      .order('sort_order', { ascending: true })
+  ]);
 
-  const { data: workspace } = await supabase
-    .from('workspaces')
-    .select('name')
-    .eq('id', workspaceId)
-    .single()
+  const profile = profileResult.data;
+  const workspace = workspaceResult.data;
+  const categories = categoriesResult.data || [];
+  const channels = channelsResult.data || [];
 
-  const { data: categories } = await supabase
-    .from('channel_categories')
-    .select('*')
-    .eq('workspace_id', workspaceId)
-    .order('sort_order', { ascending: true })
-
-  const { data: channels } = await supabase
-    .from('channels')
-    .select('*')
-    .eq('workspace_id', workspaceId)
-    .order('sort_order', { ascending: true })
-
-  const channelsWithoutCategory = channels?.filter(c => !c.category_id) || []
+  // Group channels globally by type
+  const textChannels = channels.filter(c => c.type === 'text')
+  const voiceChannels = channels.filter(c => c.type === 'voice')
 
   return (
     <div className="w-64 bg-black/20 backdrop-blur-xl border-r border-white/10 flex-shrink-0 flex flex-col h-full text-white z-10 transition-all">
-      <div className="h-16 flex items-center px-5 font-bold text-lg text-white border-b border-white/10 shadow-sm shrink-0 hover:bg-white/5 cursor-pointer transition-colors">
-        {workspace?.name || 'Không gian làm việc'}
+      {/* Workspace Header - Clicking it returns to Dashboard */}
+      <div className="h-16 flex items-center justify-between px-5 font-bold text-lg text-white border-b border-white/10 shadow-sm shrink-0 hover:bg-white/5 cursor-pointer transition-colors group/header">
+        <Link href={`/workspace/${workspaceId}`} className="truncate flex-1 py-4" title="Trang tổng quan không gian làm việc">
+          {workspace?.name || 'Không gian làm việc'}
+        </Link>
+        <CreateChannelModal 
+          workspaceId={workspaceId} 
+          categories={categories} 
+          triggerType="header" 
+        />
       </div>
+
       <div className="flex-1 overflow-y-auto p-3 scrollbar-thin scrollbar-thumb-white/20">
         
-        {channelsWithoutCategory.map(channel => (
-          <Link key={channel.id} href={`/workspace/${workspaceId}/channel/${channel.id}`}>
-            <div className="px-3 py-2 rounded-xl hover:bg-white/10 hover:shadow-sm cursor-pointer text-sm mb-1 flex items-center text-white/70 hover:text-white font-medium transition-all">
-              <span className="mr-3 text-lg leading-none">{channel.type === 'voice' ? '🔊' : '#'}</span>
-              <span className="truncate">{channel.name}</span>
-            </div>
-          </Link>
-        ))}
-
-        {categories?.map(category => {
-          const categoryChannels = channels?.filter(c => c.category_id === category.id) || []
-          return (
-            <div key={category.id} className="mt-6">
-              <div className="flex items-center justify-between px-3 mb-2 group">
-                <p className="text-xs font-bold text-white/50 uppercase tracking-wider flex-1">{category.name}</p>
-                <CreateChannelModal workspaceId={workspaceId} categoryId={category.id} />
-              </div>
-              {categoryChannels.map(channel => (
-                <Link key={channel.id} href={`/workspace/${workspaceId}/channel/${channel.id}`}>
-                  <div className="px-3 py-2 rounded-xl hover:bg-white/10 hover:shadow-sm cursor-pointer text-sm mb-1 flex items-center text-white/70 hover:text-white font-medium transition-all">
-                    <span className="mr-3 text-lg leading-none">{channel.type === 'voice' ? '🔊' : '#'}</span>
-                    <span className="truncate">{channel.name}</span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )
-        })}
-        
-        <div className="mt-6 pt-4 border-t border-white/10 mb-4">
-           <CreateChannelModal workspaceId={workspaceId} isCategory={true} />
+        {/* Duyệt các Kênh Button */}
+        <div className="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-white/10 cursor-pointer text-sm mb-4 font-bold text-white/80 hover:text-white transition-colors group select-none">
+          <span className="flex items-center gap-2">
+            <span className="text-base leading-none">🔍</span>
+            Duyệt các Kênh
+          </span>
+          <span className="bg-indigo-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider animate-pulse">
+            Mới
+          </span>
         </div>
+
+        {/* Kênh Chat collapsible group */}
+        <SidebarCategoryGroup
+          title="Kênh Chat"
+          type="text"
+          channels={textChannels}
+          workspaceId={workspaceId}
+          categories={categories}
+        />
+
+        {/* Kênh đàm thoại collapsible group */}
+        <SidebarCategoryGroup
+          title="Kênh đàm thoại"
+          type="voice"
+          channels={voiceChannels}
+          workspaceId={workspaceId}
+          categories={categories}
+        />
+        
       </div>
       
       {/* User Panel */}
-      <UserPanel user={user} profile={profile} />
+      <UserPanel user={user} profile={profile} channels={channels} workspaceName={workspace?.name} />
     </div>
   )
 }

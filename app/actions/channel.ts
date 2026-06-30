@@ -1,18 +1,49 @@
 'use server'
 
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 export async function createCategory(workspaceId: string, formData: FormData) {
   const name = formData.get('name') as string
+  
+  if (!name || name.trim() === '') {
+    return { error: 'Tên danh mục không được để trống' }
+  }
+
   const supabase = await createSupabaseServerClient()
 
-  const { error } = await supabase
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) {
+    return { error: 'Lỗi: Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn' }
+  }
+
+  // Verify workspace membership
+  const { data: member, error: memberError } = await supabase
+    .from('workspace_members')
+    .select('role')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (memberError) {
+    return { error: `Lỗi kiểm tra thành viên: ${memberError.message}` }
+  }
+
+  if (!member) {
+    return { error: 'Bạn không có quyền tạo danh mục: Bạn không phải là thành viên của không gian này.' }
+  }
+
+  // Use service client to bypass RLS constraint on insert after secure verification
+  const serviceClient = createSupabaseServiceClient()
+  const { error } = await serviceClient
     .from('channel_categories')
-    .insert({ workspace_id: workspaceId, name })
+    .insert({ workspace_id: workspaceId, name: name.trim() })
 
   if (error) {
     console.error('Error creating category:', error)
+    if (error.code === '23505') {
+      return { error: 'Tên danh mục này đã tồn tại trong không gian' }
+    }
     return { error: `Không thể tạo danh mục: ${error.message} (${error.code})` }
   }
 
@@ -25,23 +56,55 @@ export async function createChannel(workspaceId: string, categoryId: string | nu
   const type = formData.get('type') as string || 'text'
   const isPrivate = formData.get('is_private') === 'true'
   
-  const supabase = await createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  if (!name || name.trim() === '') {
+    return { error: 'Tên kênh không được để trống' }
+  }
 
-  const { error } = await supabase
+  const supabase = await createSupabaseServerClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    return { error: 'Lỗi: Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn' }
+  }
+
+  // Debug check: Verify if user is in workspace_members table
+  const { data: member, error: memberError } = await supabase
+    .from('workspace_members')
+    .select('role')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (memberError) {
+    return { error: `Lỗi kiểm tra thành viên: ${memberError.message}` }
+  }
+
+  if (!member) {
+    return { error: `Bạn không có quyền tạo kênh: Bạn không phải là thành viên của không gian này.` }
+  }
+
+  // Format channel name according to standard rules
+  const formattedName = name.trim().toLowerCase().replace(/\s+/g, '-')
+
+  // Use service client to bypass RLS constraint on insert after secure verification
+  const serviceClient = createSupabaseServiceClient()
+  const { error } = await serviceClient
     .from('channels')
     .insert({
       workspace_id: workspaceId,
       category_id: categoryId,
-      name: name.toLowerCase().replace(/\s+/g, '-'),
+      name: formattedName,
       type,
       is_private: isPrivate,
-      created_by: user?.id
+      created_by: user.id
     })
 
   if (error) {
     console.error('Error creating channel:', error)
-    return { error: 'Không thể tạo kênh' }
+    if (error.code === '23505') {
+      return { error: `Tên kênh "#${formattedName}" đã tồn tại trong không gian này` }
+    }
+    return { error: `Không thể tạo kênh: ${error.message} (${error.code})` }
   }
 
   revalidatePath(`/workspace/${workspaceId}`)
