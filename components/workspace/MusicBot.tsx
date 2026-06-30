@@ -144,6 +144,9 @@ export function MusicBot({ channelId, workspaceId }: { channelId: string; worksp
       });
 
       setBotStatus('playing');
+      import('@/components/providers/VoiceSettingsProvider').then(({ playVoiceTone }) => {
+        playVoiceTone('join');
+      });
 
       // Khi kết thúc bài hát
       audioEl.onended = () => {

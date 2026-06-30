@@ -66,6 +66,19 @@ function VoiceStage({ channelId }: { channelId: string }) {
   const { activeParticipants, speakingUserIds } = useVoiceSettings();
   const roomParticipants = activeParticipants.filter(p => p.voice_channel_id === channelId);
 
+  const livekitParticipants = useParticipants();
+  const botParticipant = livekitParticipants.find(p => p.identity.endsWith('-bot') || p.name?.includes('Bot'));
+
+  const displayParticipants = [...roomParticipants];
+  if (botParticipant && !displayParticipants.find(p => p.user_id === botParticipant.identity)) {
+    displayParticipants.push({
+      user_id: botParticipant.identity,
+      display_name: botParticipant.name || '🎵 Bot Nhạc',
+      avatar_key: null,
+      voice_channel_id: channelId
+    } as any);
+  }
+
   const cameraTracks = allTracks.filter(t => t.source === Track.Source.Camera);
   const screenShareTracks = allTracks.filter(t => t.source === Track.Source.ScreenShare);
 
@@ -108,7 +121,7 @@ function VoiceStage({ channelId }: { channelId: string }) {
       {/* Bottom Area: If watching screen share, show avatars. Otherwise show the standard grid. */}
       {activeScreenShare ? (
         <div className="h-20 md:h-24 shrink-0 flex items-center justify-center gap-4 bg-zinc-900/50 rounded-xl px-4 overflow-x-auto border border-white/5">
-           {roomParticipants.map(p => {
+           {displayParticipants.map(p => {
              const isSpeaking = speakingUserIds.includes(p.user_id);
              const avatarUrl = p.avatar_key 
                ? `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${p.avatar_key}` 
@@ -148,7 +161,7 @@ function VoiceStage({ channelId }: { channelId: string }) {
             ))}
 
             {/* Cameras and Avatars */}
-            {roomParticipants.map(p => {
+            {displayParticipants.map(p => {
               const isSpeaking = speakingUserIds.includes(p.user_id);
               const avatarUrl = p.avatar_key 
                 ? `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${p.avatar_key}` 
@@ -1127,7 +1140,6 @@ export function VoiceRoom({
         {!isDeafened && <RoomAudioRenderer />}
         <MusicBot channelId={channelId} workspaceId={workspaceId} />
       </LiveKitRoom>
-      <MusicBotHost channelId={channelId} />
     </div>
   );
 }
