@@ -32,6 +32,7 @@ import {
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { VoiceRoom } from '@/components/workspace/VoiceRoom';
 import { RichText } from '@/lib/richtext';
+import { EmbedList } from '@/lib/embeds';
 import { VoiceInviteCard } from '@/components/chat/VoiceInviteCard';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { 
@@ -1981,7 +1982,10 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                                     }
                                   })()
                                 ) : (
-                                  <RichText text={msg.content} />
+                                  <>
+                                    <RichText text={msg.content} />
+                                    <EmbedList text={msg.content} />
+                                  </>
                                 )}
                               </div>
                             )}

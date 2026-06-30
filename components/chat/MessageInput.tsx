@@ -7,11 +7,11 @@ import { Send, Smile, File as FileIcon } from 'lucide-react'
 
 type MemberHint = { id: string; name: string; avatar: string | null }
 
-const EMOJI_LIST = [
-  '😀', '😁', '😂', '🤣', '😊', '😍', '😘', '😎',
-  '🤩', '😢', '😭', '😡', '😱', '🤔', '🙄', '😴',
-  '👍', '👎', '👏', '🙏', '💪', '🤝', '👀', '🎉',
-  '❤️', '🔥', '⭐', '✅', '❌', '💯', '🚀', '☕',
+const EMOJI_CATEGORIES: { name: string; emojis: string[] }[] = [
+  { name: 'Mặt cười', emojis: ['😀','😃','😄','😁','😆','😅','😂','🤣','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🤐','😐','😑','😶','😏','😒','🙄','😬','😮‍💨','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🥵','🥶','🥴','😵','🤯','🤠','🥳','😎','🤓','🧐','😕','😟','🙁','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','👿','💀','💩','🤡','👻','👽'] },
+  { name: 'Cử chỉ', emojis: ['👍','👎','👊','✊','🤛','🤜','🤞','✌️','🤟','🤘','👌','🤌','🤏','👈','👉','👆','👇','☝️','✋','🤚','🖐️','🖖','👋','🤙','💪','🙏','🤝','👏','🙌','👐','🤲','🤦','🤷','💅','👀','👁️','🧠','❤️‍🔥'] },
+  { name: 'Trái tim', emojis: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❤️‍🩹','💕','💞','💓','💗','💖','💘','💝','💟','♥️'] },
+  { name: 'Biểu tượng', emojis: ['🔥','⭐','🌟','✨','⚡','💥','💫','💯','✅','❌','❓','❗','💢','💦','💨','🎉','🎊','🎁','🎈','🏆','🥇','🚀','☕','🍺','🍻','🥂','🍕','🍔','🌹','🎵','🎮','💡','💰','📌','🔔','👑'] },
 ]
 
 export function MessageInput({
@@ -46,6 +46,11 @@ export function MessageInput({
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
   const [emojiOpen, setEmojiOpen] = useState(false)
+  const [pickerTab, setPickerTab] = useState<'emoji' | 'gif'>('emoji')
+  const [gifQuery, setGifQuery] = useState('')
+  const [gifs, setGifs] = useState<{ id: string; url: string; preview: string }[]>([])
+  const [gifLoading, setGifLoading] = useState(false)
+  const TENOR_KEY = process.env.NEXT_PUBLIC_TENOR_KEY
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textInputRef = useRef<HTMLInputElement>(null)
 
@@ -99,6 +104,31 @@ export function MessageInput({
   }
 
   // Insert an emoji at the caret position (or append if no selection).
+  const searchGifs = async (q: string) => {
+    if (!TENOR_KEY) return
+    setGifLoading(true)
+    try {
+      const base = q.trim()
+        ? `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(q)}`
+        : 'https://tenor.googleapis.com/v2/featured?'
+      const res = await fetch(`${base}&key=${TENOR_KEY}&limit=21&media_filter=gif,tinygif&client_key=intrasocial`)
+      const data = await res.json()
+      setGifs((data.results || []).map((r: any) => ({
+        id: r.id,
+        url: r.media_formats?.gif?.url,
+        preview: r.media_formats?.tinygif?.url || r.media_formats?.gif?.url,
+      })).filter((g: any) => g.url))
+    } catch { /* ignore */ } finally {
+      setGifLoading(false)
+    }
+  }
+
+  const insertGif = (url: string) => {
+    setEmojiOpen(false)
+    setContent((prev) => (prev ? prev + ' ' : '') + url + ' ')
+    requestAnimationFrame(() => textInputRef.current?.focus())
+  }
+
   const insertEmoji = (emoji: string) => {
     const input = textInputRef.current
     if (!input) {
@@ -479,17 +509,54 @@ export function MessageInput({
              {emojiOpen && (
                <>
                  <div className="fixed inset-0 z-10" onClick={() => setEmojiOpen(false)} />
-                 <div className="absolute z-20 bottom-10 right-0 bg-[#2b2d31] border border-white/10 rounded-2xl shadow-2xl p-2 grid grid-cols-8 gap-0.5 w-72 animate-scale-in">
-                   {EMOJI_LIST.map((e) => (
-                     <button
-                       key={e}
-                       type="button"
-                       onClick={() => insertEmoji(e)}
-                       className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-lg transition-colors cursor-pointer"
-                     >
-                       {e}
-                     </button>
-                   ))}
+                 <div className="absolute z-20 bottom-10 right-0 bg-[#2b2d31] border border-white/10 rounded-2xl shadow-2xl w-80 animate-scale-in overflow-hidden">
+                   {/* Tabs */}
+                   <div className="flex items-center gap-1 p-1.5 border-b border-white/10">
+                     <button type="button" onClick={() => setPickerTab('emoji')} className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${pickerTab === 'emoji' ? 'bg-white/10 text-white' : 'text-zinc-400 hover:text-white'}`}>Emoji</button>
+                     <button type="button" onClick={() => { setPickerTab('gif'); if (gifs.length === 0) searchGifs('') }} className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${pickerTab === 'gif' ? 'bg-white/10 text-white' : 'text-zinc-400 hover:text-white'}`}>GIF</button>
+                   </div>
+
+                   {pickerTab === 'emoji' ? (
+                     <div className="max-h-64 overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-white/10">
+                       {EMOJI_CATEGORIES.map((cat) => (
+                         <div key={cat.name} className="mb-2">
+                           <p className="text-[9px] font-extrabold uppercase tracking-wider text-zinc-500 px-1 mb-1 select-none">{cat.name}</p>
+                           <div className="grid grid-cols-8 gap-0.5">
+                             {cat.emojis.map((e, idx) => (
+                               <button key={`${e}-${idx}`} type="button" onClick={() => insertEmoji(e)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-lg transition-colors cursor-pointer">{e}</button>
+                             ))}
+                           </div>
+                         </div>
+                       ))}
+                     </div>
+                   ) : (
+                     <div className="p-2">
+                       {!TENOR_KEY ? (
+                         <p className="text-[11px] text-zinc-400 text-center py-6 px-3 leading-relaxed">Cần khoá Tenor miễn phí để bật GIF.<br />Thêm <code className="text-cyan-300">NEXT_PUBLIC_TENOR_KEY</code> vào biến môi trường.</p>
+                       ) : (
+                         <>
+                           <input
+                             value={gifQuery}
+                             onChange={(e) => { setGifQuery(e.target.value); searchGifs(e.target.value) }}
+                             placeholder="Tìm GIF trên Tenor…"
+                             className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-indigo-500 mb-2"
+                           />
+                           <div className="max-h-56 overflow-y-auto grid grid-cols-3 gap-1 scrollbar-thin scrollbar-thumb-white/10">
+                             {gifLoading ? (
+                               <p className="col-span-3 text-[11px] text-zinc-500 text-center py-6 animate-pulse">Đang tải…</p>
+                             ) : gifs.length === 0 ? (
+                               <p className="col-span-3 text-[11px] text-zinc-500 text-center py-6">Không có kết quả</p>
+                             ) : (
+                               gifs.map((g) => (
+                                 // eslint-disable-next-line @next/next/no-img-element
+                                 <img key={g.id} src={g.preview} alt="gif" onClick={() => insertGif(g.url)} className="w-full h-20 object-cover rounded-lg cursor-pointer hover:ring-2 hover:ring-indigo-500 transition-all" />
+                               ))
+                             )}
+                           </div>
+                         </>
+                       )}
+                     </div>
+                   )}
                  </div>
                </>
              )}

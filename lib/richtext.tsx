@@ -21,7 +21,7 @@ function Spoiler({ children }: { children: React.ReactNode }) {
 // Inline formatting: spoiler, bold, strike, code, italic, @mention, #channel.
 function renderInline(text: string, keyBase: string): React.ReactNode[] {
   const out: React.ReactNode[] = []
-  const regex = /(\|\|[^|]+\|\|)|(\*\*[^*]+\*\*)|(~~[^~]+~~)|(`[^`]+`)|(\*[^*\n]+\*)|(_[^_\n]+_)|(@everyone|@here|@[\p{L}\d_.]+)|(#[\p{L}\d_-]+)/gu
+  const regex = /(https?:\/\/[^\s]+)|(\|\|[^|]+\|\|)|(\*\*[^*]+\*\*)|(~~[^~]+~~)|(`[^`]+`)|(\*[^*\n]+\*)|(_[^_\n]+_)|(@everyone|@here|@[\p{L}\d_.]+)|(#[\p{L}\d_-]+)/gu
   let last = 0
   let m: RegExpExecArray | null
   let i = 0
@@ -29,7 +29,8 @@ function renderInline(text: string, keyBase: string): React.ReactNode[] {
     if (m.index > last) out.push(text.slice(last, m.index))
     const t = m[0]
     const key = `${keyBase}-${i++}`
-    if (t.startsWith('||')) out.push(<Spoiler key={key}>{t.slice(2, -2)}</Spoiler>)
+    if (t.startsWith('http')) out.push(<a key={key} href={t} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-cyan-300 underline underline-offset-2 hover:text-cyan-200 break-all">{t}</a>)
+    else if (t.startsWith('||')) out.push(<Spoiler key={key}>{t.slice(2, -2)}</Spoiler>)
     else if (t.startsWith('**')) out.push(<strong key={key} className="font-extrabold">{t.slice(2, -2)}</strong>)
     else if (t.startsWith('~~')) out.push(<s key={key} className="opacity-70">{t.slice(2, -2)}</s>)
     else if (t.startsWith('`')) out.push(<code key={key} className="bg-black/40 border border-white/10 rounded px-1 py-0.5 text-[0.85em] font-mono">{t.slice(1, -1)}</code>)

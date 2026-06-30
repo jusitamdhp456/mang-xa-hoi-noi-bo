@@ -5,6 +5,7 @@ import { SmilePlus, FileText, Reply, Pencil, Trash2, Pin, Check, X } from 'lucid
 import { type MessageRow } from './ChatArea'
 import { VoiceInviteCard } from './VoiceInviteCard'
 import { RichText } from '@/lib/richtext'
+import { EmbedList } from '@/lib/embeds'
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '🎉', '😮', '😢', '🔥', '👀']
 
@@ -138,7 +139,9 @@ export function MessageItem({
               )
             )
           )}
-          
+
+          {!isVoiceInvite && message.content && <EmbedList text={message.content} />}
+
           {attachment && (
             <div className="mt-2">
               {attachment.mime_type?.startsWith('image/') ? (
