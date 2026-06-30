@@ -9,13 +9,15 @@ import {
   useTracks,
   useLocalParticipant,
   useParticipants,
+  useRoomContext,
   VideoTrack
 } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import { Monitor, MonitorOff, AlertTriangle } from 'lucide-react';
 import { useVoiceSettings, playVoiceTone } from '@/components/providers/VoiceSettingsProvider';
 import { useRouter } from 'next/navigation';
-import { Edit3, Check, X, Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Volume2, VolumeX, Settings } from 'lucide-react';
+import { Edit3, Check, X, Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Volume2, VolumeX, Settings, UserMinus, MoreVertical } from 'lucide-react';
+import { kickParticipant } from '@/app/actions/livekit';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { MusicBot } from './MusicBot';
 
@@ -53,7 +55,44 @@ function LiveKitActiveSpeakersSync({ setSpeakingUserIds }: { setSpeakingUserIds:
 // no video). Kept small so the main area stays free for chat + future media.
 
 
-function VoiceStage({ channelId }: { channelId: string }) {
+function VoiceStage({ channelId, workspaceId }: { channelId: string; workspaceId: string | null }) {
+  const room = useRoomContext();
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [volumes, setVolumes] = useState<Record<string, number>>({});
+  const [mutes, setMutes] = useState<Record<string, boolean>>({});
+  const [myRole, setMyRole] = useState('member');
+  const supabase = createSupabaseBrowserClient();
+  const { currentUser } = useVoiceSettings();
+
+  useEffect(() => {
+    if (currentUser?.id && workspaceId) {
+      supabase.from('workspace_members').select('role').eq('workspace_id', workspaceId).eq('user_id', currentUser.id).single().then(({data}) => {
+        if (data) setMyRole(data.role);
+      });
+    }
+  }, [currentUser?.id, workspaceId]);
+
+  useEffect(() => {
+    if (!room) return;
+    room.participants.forEach((p) => {
+      p.audioTrackPublications.forEach((pub) => {
+        if (pub.track) {
+          const isMuted = mutes[p.identity] || false;
+          const vol = volumes[p.identity] ?? 1;
+          // @ts-ignore
+          if (pub.track.setVolume) pub.track.setVolume(isMuted ? 0 : vol);
+        }
+      });
+    });
+  }, [volumes, mutes, room, room.participants]);
+
+  const handleKick = async (targetId: string) => {
+    if (!confirm('Bạn có chắc muốn kích người này khỏi kênh đàm thoại?')) return;
+    setOpenMenuId(null);
+    const res = await kickParticipant(channelId, targetId);
+    if (res.error) alert(res.error);
+  };
+
   const allTracks = useTracks(
     [
       { source: Track.Source.Camera, withPlaceholder: true },
@@ -192,11 +231,64 @@ function VoiceStage({ channelId }: { channelId: string }) {
               }
 
               return (
-                <div key={p.user_id} className="flex flex-col items-center gap-3 md:gap-4 shrink-0">
-                  <div className={`w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden border-4 transition-all duration-300 ${isSpeaking ? 'border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.5)] scale-105' : 'border-white/5'}`}>
+                <div key={p.user_id} className="relative flex flex-col items-center gap-3 md:gap-4 shrink-0">
+                  <div 
+                    onClick={() => p.user_id !== localParticipant.identity && setOpenMenuId(openMenuId === p.user_id ? null : p.user_id)}
+                    className={`cursor-pointer w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden border-4 transition-all duration-300 ${isSpeaking ? 'border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.5)] scale-105' : 'border-white/5'} hover:border-indigo-500`}
+                  >
                     <img src={avatarUrl} alt={p.display_name} className="w-full h-full object-cover" />
                   </div>
                   <span className="text-sm md:text-base font-semibold text-zinc-300 max-w-[150px] truncate text-center bg-black/40 px-4 py-1.5 rounded-full border border-white/5">{p.display_name}</span>
+                  
+                  {/* Context Menu Popover */}
+                  {openMenuId === p.user_id && (
+                    <div className="absolute top-28 z-50 w-64 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl p-4 flex flex-col gap-4 animate-in fade-in zoom-in duration-200">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-white uppercase tracking-wider">Tùy chỉnh</span>
+                        <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); }} className="text-zinc-500 hover:text-white">
+                          <X size={14} />
+                        </button>
+                      </div>
+                      
+                      <div className="flex items-center gap-3">
+                        <Volume2 size={16} className="text-zinc-400" />
+                        <input 
+                          type="range" 
+                          min="0" max="1" step="0.05"
+                          value={mutes[p.user_id] ? 0 : (volumes[p.user_id] ?? 1)}
+                          onChange={(e) => {
+                            setVolumes(prev => ({ ...prev, [p.user_id]: parseFloat(e.target.value) }));
+                            if (mutes[p.user_id] && parseFloat(e.target.value) > 0) {
+                              setMutes(prev => ({ ...prev, [p.user_id]: false }));
+                            }
+                          }}
+                          className="flex-1 accent-indigo-500 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between border-t border-white/5 pt-3">
+                        <button 
+                          onClick={() => setMutes(prev => ({ ...prev, [p.user_id]: !prev[p.user_id] }))}
+                          className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-semibold transition-colors ${mutes[p.user_id] ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}
+                        >
+                          {mutes[p.user_id] ? <MicOff size={14} /> : <Mic size={14} />}
+                          {mutes[p.user_id] ? 'Bỏ Tắt Âm' : 'Tắt Âm Cục Bộ'}
+                        </button>
+                      </div>
+
+                      {myRole === 'owner' && (
+                        <div className="border-t border-white/5 pt-3">
+                          <button 
+                            onClick={() => handleKick(p.user_id)}
+                            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-bold bg-red-600/20 text-red-500 hover:bg-red-600 hover:text-white transition-colors border border-red-500/20"
+                          >
+                            <UserMinus size={14} />
+                            Kích khỏi phòng đàm thoại
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -1145,7 +1237,7 @@ export function VoiceRoom({
       >
         <LiveKitSync isMuted={isMuted} isDeafened={isDeafened} />
         <LiveKitActiveSpeakersSync setSpeakingUserIds={setSpeakingUserIds} />
-        <VoiceStage channelId={channelId} />
+        <VoiceStage channelId={channelId} workspaceId={workspaceId} />
         <VoiceExtraControls />
         <MobileVoiceControls />
         {!isDeafened && <RoomAudioRenderer />}
