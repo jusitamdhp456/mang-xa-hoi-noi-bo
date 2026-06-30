@@ -66,8 +66,8 @@ export function MusicBotHost({ channelId }: { channelId: string }) {
                   const audioStreams = pipedData.audioStreams || [];
                   if (audioStreams.length > 0) {
                     const best = audioStreams.sort((a: any, b: any) => b.bitrate - a.bitrate)[0];
-                    // Proxy the resolved URL through our own proxy to satisfy CORS for WebRTC
-                    streamUrl = `/api/bot/proxy?url=${encodeURIComponent(best.url)}`;
+                    // Idea 1: Do NOT proxy through our server. Use Piped proxy directly to bypass IP blocks!
+                    streamUrl = best.url;
                     fallbackSuccess = true;
                     console.log(`Found client fallback stream via ${instance}`);
                     break;
