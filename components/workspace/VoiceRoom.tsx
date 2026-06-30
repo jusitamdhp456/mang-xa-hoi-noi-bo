@@ -21,6 +21,14 @@ import { kickParticipant } from '@/app/actions/livekit';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { MusicBot } from './MusicBot';
 
+// High-framerate, motion-optimized screen share (best the browser/WebRTC allow,
+// ~60fps; good for game streaming). Browsers cap screen capture ~30-60fps.
+const SCREEN_SHARE_OPTIONS = {
+  audio: true,
+  contentHint: 'motion' as const,
+  resolution: { width: 1920, height: 1080, frameRate: 60 },
+};
+
 function LiveKitSync({ isMuted, isDeafened }: { isMuted: boolean; isDeafened: boolean }) {
   const { localParticipant } = useLocalParticipant();
 
@@ -342,7 +350,7 @@ function VoiceExtraControls() {
   const toggleScreen = async () => {
     try {
       const next = !screenOn;
-      await localParticipant.setScreenShareEnabled(next);
+      await localParticipant.setScreenShareEnabled(next, next ? SCREEN_SHARE_OPTIONS : undefined);
       setScreenOn(next);
     } catch (e) {
       console.warn('Screen share toggle failed:', e);
@@ -382,7 +390,7 @@ function MobileVoiceControls() {
     catch (e) { console.warn('Camera toggle failed:', e); }
   };
   const toggleScreen = async () => {
-    try { const n = !screenOn; await localParticipant.setScreenShareEnabled(n); setScreenOn(n); }
+    try { const n = !screenOn; await localParticipant.setScreenShareEnabled(n, n ? SCREEN_SHARE_OPTIONS : undefined); setScreenOn(n); }
     catch (e) { console.warn('Screen share toggle failed:', e); }
   };
   const leave = () => {
