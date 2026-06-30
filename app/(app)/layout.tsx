@@ -2,6 +2,7 @@ import React from 'react';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 import { VoiceSettingsProvider } from '@/components/providers/VoiceSettingsProvider';
+import { GlobalVoiceMount } from '@/components/workspace/GlobalVoiceMount';
 import { UserSettingsModal } from '@/components/auth/UserSettingsModal';
 import { Settings } from 'lucide-react';
 
@@ -93,6 +94,7 @@ export default async function AppLayout({
       {/* Main Content (Dark) */}
       <div className="main-content-wrapper flex-1 flex overflow-hidden rounded-3xl shadow-xl bg-black/20 backdrop-blur-xl border border-white/10 z-10 text-white">
         <VoiceSettingsProvider>
+          <GlobalVoiceMount username={userProfile?.display_name || user?.email?.split('@')[0] || 'Khách'} />
           {children}
         </VoiceSettingsProvider>
       </div>

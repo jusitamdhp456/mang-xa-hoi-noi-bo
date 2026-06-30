@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import MemberList from '@/components/workspace/MemberList'
 import { ChatArea } from '@/components/chat/ChatArea'
-import { VoiceRoom } from '@/components/workspace/VoiceRoom'
+import { JoinVoiceChannel } from '@/components/workspace/JoinVoiceChannel'
 import { NotificationBell } from '@/components/workspace/NotificationBell'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { Volume2 } from 'lucide-react'
@@ -80,9 +80,10 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
               {/* Media stage (video / screen share / future watch-party,
                   livestream, game-live). Stacks on top on mobile, takes the
                   majority of the width on desktop. */}
-              <div className="h-[40%] min-h-[200px] md:h-auto md:flex-1 min-w-0 flex flex-col overflow-hidden relative border-b border-white/10 md:border-b-0 md:border-r">
-                <VoiceRoom channelId={channelId} workspaceId={workspaceId} username={currentUsername} />
-              </div>
+              {/* Joining this page connects voice globally; the persistent
+                  GlobalVoiceMount portals the live stage into this slot. */}
+              <JoinVoiceChannel channelId={channelId} workspaceId={workspaceId} />
+              <div id="voice-stage-slot" className="h-[40%] min-h-[200px] md:h-auto md:flex-1 min-w-0 flex flex-col overflow-hidden relative border-b border-white/10 md:border-b-0 md:border-r bg-[#121214]" />
               {/* Chat: full width below on mobile, ~1/5 vertical column on desktop. */}
               <div className="flex-1 md:flex-none md:w-1/5 md:min-w-[260px] flex flex-col overflow-hidden bg-black/10">
                 <ChatArea

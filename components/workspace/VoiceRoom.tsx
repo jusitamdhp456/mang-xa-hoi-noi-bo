@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import '@livekit/components-styles';
 import {
@@ -421,20 +421,45 @@ function MobileVoiceControls() {
 
 
 
-export function VoiceRoom({ 
-  channelId, 
-  workspaceId = null, 
-  username, 
+// Renders children into the DOM node #slotId (when it exists), preserving React
+// context so LiveKit hooks keep working. Polls so it follows client navigation.
+function SlotPortal({ slotId, children }: { slotId: string; children: ReactNode }) {
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const check = () => {
+      const el = document.getElementById(slotId);
+      setSlot((prev) => (prev === el ? prev : el));
+    };
+    check();
+    const id = setInterval(check, 400);
+    return () => clearInterval(id);
+  }, [slotId]);
+  if (!slot) return null;
+  return createPortal(children, slot);
+}
+
+export function VoiceRoom({
+  channelId,
+  workspaceId = null,
+  username,
   video = false,
   partnerId = '',
-  userId = ''
-}: { 
-  channelId: string; 
-  workspaceId?: string | null; 
-  username: string; 
+  userId = '',
+  global = false,
+  stageSlotId,
+  manageActiveChannel = true,
+}: {
+  channelId: string;
+  workspaceId?: string | null;
+  username: string;
   video?: boolean;
   partnerId?: string;
   userId?: string;
+  // Persistent layout-level mode: keeps the connection alive across navigation
+  // and portals the visible stage into stageSlotId (Discord-style).
+  global?: boolean;
+  stageSlotId?: string;
+  manageActiveChannel?: boolean;
 }) {
   const [token, setToken] = useState('');
   const [disconnected, setDisconnected] = useState(false);
@@ -480,11 +505,14 @@ export function VoiceRoom({
   const otherParticipants = activeParticipants.filter(p => p.user_id !== myUserId && p.voice_channel_id === channelId);
   const matchedPartnerId = otherParticipants[0]?.user_id || '';
 
-  // Sync connection state with presence tracking provider
+  // Sync connection state with presence tracking provider.
+  // The global (layout) instance reads activeChannelId rather than setting it,
+  // so it must not write back (avoids loops); pages set it on mount instead.
   useEffect(() => {
+    if (!manageActiveChannel) return;
     setActiveChannelId(channelId);
     setWorkspaceId(workspaceId);
-  }, [channelId, workspaceId, setActiveChannelId, setWorkspaceId]);
+  }, [channelId, workspaceId, manageActiveChannel, setActiveChannelId, setWorkspaceId]);
 
   // Fetch LiveKit Token - switch to P2P fallback on failure or missing keys
   useEffect(() => {
@@ -929,6 +957,39 @@ export function VoiceRoom({
     }
     setIsEditingName(false);
   };
+
+  // Persistent (layout) mode: keep the LiveKit connection mounted regardless of
+  // the current page; portal the visible stage into the page's slot when present.
+  if (global) {
+    if (!token || disconnected) return null;
+    return (
+      <div style={{ display: 'contents' }} data-lk-theme="default">
+        <LiveKitRoom
+          video={video}
+          audio={!isMuted}
+          token={token}
+          serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL}
+          connect={true}
+          onDisconnected={() => setDisconnected(true)}
+          style={{ display: 'contents' }}
+        >
+          <LiveKitSync isMuted={isMuted} isDeafened={isDeafened} />
+          <LiveKitActiveSpeakersSync setSpeakingUserIds={setSpeakingUserIds} />
+          <VoiceExtraControls />
+          {!isDeafened && <RoomAudioRenderer />}
+          <MusicBot channelId={channelId} workspaceId={workspaceId || ''} />
+          {stageSlotId && (
+            <SlotPortal slotId={stageSlotId}>
+              <div className="w-full h-full flex flex-col bg-transparent">
+                <VoiceStage channelId={channelId} workspaceId={workspaceId} />
+                <MobileVoiceControls />
+              </div>
+            </SlotPortal>
+          )}
+        </LiveKitRoom>
+      </div>
+    );
+  }
 
   if (disconnected) {
     return (
