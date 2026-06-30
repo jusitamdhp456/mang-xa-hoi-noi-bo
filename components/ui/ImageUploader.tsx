@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
+import { ImagePlus } from 'lucide-react';
 import { generateUploadUrl } from '@/app/actions/upload';
 
 interface ImageUploaderProps {
@@ -42,9 +43,9 @@ export function ImageUploader({ onUploadSuccess, folder = 'messages', className 
 
     try {
       // 1. Lấy presigned URL từ server
-      const { uploadUrl, publicUrl, error: presignError } = await generateUploadUrl(file.name, file.type, folder);
-      
-      if (presignError || !uploadUrl) {
+      const { uploadUrl, key, error: presignError } = await generateUploadUrl(file.name, file.type, folder);
+
+      if (presignError || !uploadUrl || !key) {
         throw new Error(presignError || 'Không thể lấy link upload');
       }
 
@@ -74,8 +75,8 @@ export function ImageUploader({ onUploadSuccess, folder = 'messages', className 
         xhr.send(file);
       });
 
-      // 3. Hoàn tất
-      onUploadSuccess(publicUrl as string);
+      // 3. Hoàn tất — trả về key tương đối (khớp cách hiển thị avatar trong app)
+      onUploadSuccess(key);
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'Lỗi khi upload ảnh');
@@ -103,7 +104,7 @@ export function ImageUploader({ onUploadSuccess, folder = 'messages', className 
           <img src={preview} alt="Preview" className="w-full h-full object-cover" />
         ) : (
           <div className="text-zinc-400 flex flex-col items-center">
-            <span className="text-3xl mb-2">📸</span>
+            <ImagePlus size={28} className="mb-2" />
             <span className="text-sm font-medium">Bấm để tải ảnh lên</span>
           </div>
         )}
