@@ -13,6 +13,7 @@ export function MusicBot({ channelId, workspaceId }: { channelId: string; worksp
   const roomRef = useRef<Room | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const trackRef = useRef<any>(null);
+  const botPresenceChannelRef = useRef<any>(null);
   
   const { chatMessages, send } = useChat();
   const processedMsgsRef = useRef<Set<string>>(new Set());
@@ -81,6 +82,10 @@ export function MusicBot({ channelId, workspaceId }: { channelId: string; worksp
       roomRef.current.disconnect();
       roomRef.current = null;
     }
+    if (botPresenceChannelRef.current) {
+      botPresenceChannelRef.current.unsubscribe();
+      botPresenceChannelRef.current = null;
+    }
     setBotStatus('idle');
   };
 
@@ -118,6 +123,28 @@ export function MusicBot({ channelId, workspaceId }: { channelId: string; worksp
       if (!serverUrl) throw new Error('Thiếu LIVEKIT_URL');
 
       await room.connect(serverUrl, tokenData.token);
+
+      // 2.5 Theo dõi Presence của Bot trên Supabase để hiện trên thanh Sidebar
+      const botIdentity = room.localParticipant.identity;
+      const supabase = createSupabaseBrowserClient();
+      const botPresenceChannel = supabase.channel(`workspace_presence:${workspaceId}_bots`, {
+        config: { presence: { key: botIdentity } },
+      });
+      botPresenceChannelRef.current = botPresenceChannel;
+      
+      botPresenceChannel.subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await botPresenceChannel.track({
+            user_id: botIdentity,
+            display_name: '🎵 Bot Nhạc',
+            avatar_key: null,
+            voice_channel_id: channelId,
+            custom_name: '🎵 Bot Nhạc',
+            is_muted: false,
+            is_deafened: false,
+          });
+        }
+      });
 
       // 3. Đợi kết quả tìm nhạc
       const searchRes = await searchPromise;

@@ -100,30 +100,34 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [customName, setCustomName] = useState<string | null>(null);
   const [activeParticipants, setActiveParticipants] = useState<Participant[]>([]);
+  const [botParticipants, setBotParticipants] = useState<Participant[]>([]);
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
   const [speakingUserIds, setSpeakingUserIds] = useState<string[]>([]);
 
-  // Optimistic merged participants list so the current user shows up instantly upon joining
-  const mergedParticipants = React.useMemo(() => {
-    if (!activeChannelId || !user) return activeParticipants;
-    const hasSelf = activeParticipants.some(p => p.user_id === user.id);
-    if (hasSelf) return activeParticipants;
-    
-    return [
-      {
-        user_id: user.id,
-        display_name: profile?.display_name || user.email?.split('@')[0] || 'User',
-        avatar_key: profile?.avatar_key || null,
-        voice_channel_id: activeChannelId,
-        custom_name: customName || null,
-        is_muted: isMuted,
-        is_deafened: isDeafened,
-      },
-      ...activeParticipants
-    ];
-  }, [activeParticipants, activeChannelId, user, profile, customName, isMuted, isDeafened]);
+  // Derived state: combine real users (with self) and bots
+  const activeParticipantsWithSelf = useMemo(() => {
+    let result = activeParticipants;
+    if (activeChannelId && user) {
+      const hasSelf = activeParticipants.some(p => p.user_id === user.id);
+      if (!hasSelf) {
+        result = [
+          {
+            user_id: user.id,
+            display_name: profile?.display_name || user.email?.split('@')[0] || 'User',
+            avatar_key: profile?.avatar_key || null,
+            voice_channel_id: activeChannelId,
+            custom_name: customName || null,
+            is_muted: isMuted,
+            is_deafened: isDeafened,
+          },
+          ...activeParticipants
+        ];
+      }
+    }
+    return [...result, ...botParticipants];
+  }, [activeParticipants, botParticipants, activeChannelId, user, profile, customName, isMuted, isDeafened]);
 
   const supabase = createSupabaseBrowserClient();
 
@@ -177,6 +181,7 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
   useEffect(() => {
     if (!workspaceId || !user) {
       setActiveParticipants([]);
+      setBotParticipants([]);
       setOnlineUserIds([]);
       presenceChannelRef.current = null;
       return;
@@ -272,9 +277,40 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
         }
       });
 
+    // --- Add Bot Presence Channel ---
+    const botChannel = supabase.channel(`workspace_presence:${workspaceId}_bots`, {
+      config: { presence: { key: user.id } },
+    });
+
+    const onBotSync = () => {
+      const state = botChannel.presenceState();
+      const botsList: Participant[] = [];
+      Object.keys(state).forEach((key) => {
+        const presenceList = state[key] as any[];
+        presenceList.forEach((presence) => {
+          if (presence && presence.user_id) {
+            botsList.push({
+              user_id: presence.user_id,
+              display_name: presence.display_name || 'Bot',
+              avatar_key: presence.avatar_key,
+              voice_channel_id: presence.voice_channel_id,
+              custom_name: presence.custom_name,
+              is_muted: presence.is_muted,
+              is_deafened: presence.is_deafened,
+            });
+          }
+        });
+      });
+      setBotParticipants(botsList);
+    };
+
+    botChannel.on('presence', { event: 'sync' }, onBotSync);
+    botChannel.subscribe();
+
     return () => {
       presenceChannelRef.current = null;
       supabase.removeChannel(channel);
+      supabase.removeChannel(botChannel);
     };
   }, [workspaceId, user, profile, supabase]);
 
