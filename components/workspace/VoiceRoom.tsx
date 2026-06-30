@@ -1125,7 +1125,7 @@ export function VoiceRoom({
         serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL}
         connect={true}
         onDisconnected={() => setDisconnected(true)}
-        className="h-full w-full flex flex-col flex-1"
+        className="h-full w-full flex flex-col flex-1 !bg-transparent"
       >
         <LiveKitSync isMuted={isMuted} isDeafened={isDeafened} />
         <LiveKitActiveSpeakersSync setSpeakingUserIds={setSpeakingUserIds} />
