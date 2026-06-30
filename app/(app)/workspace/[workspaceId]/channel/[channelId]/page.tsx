@@ -45,7 +45,7 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
          </div>
          
          {channel?.type === 'voice' ? (
-           <VoiceRoom channelId={channelId} username={currentUsername} />
+           <VoiceRoom channelId={channelId} workspaceId={workspaceId} username={currentUsername} />
          ) : (
            <ChatArea 
              channelId={channelId} 

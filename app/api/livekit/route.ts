@@ -28,8 +28,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const isBot = searchParams.get('bot') === 'true';
+    const identity = isBot ? `${user.id}-bot` : user.id;
+
     const at = new AccessToken(apiKey, apiSecret, {
-      identity: user.id,
+      identity: identity,
       name: username,
     });
     

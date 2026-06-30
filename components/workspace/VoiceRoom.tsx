@@ -8,8 +8,9 @@ import {
 } from '@livekit/components-react';
 import { useEffect, useState } from 'react';
 import { useVoiceSettings } from '@/components/providers/VoiceSettingsProvider';
+import { MusicBot } from './MusicBot';
 
-export function VoiceRoom({ channelId, username }: { channelId: string; username: string }) {
+export function VoiceRoom({ channelId, workspaceId, username }: { channelId: string; workspaceId: string; username: string }) {
   const [token, setToken] = useState('');
   const [disconnected, setDisconnected] = useState(false);
   const { isMuted, isDeafened } = useVoiceSettings();
@@ -80,6 +81,7 @@ export function VoiceRoom({ channelId, username }: { channelId: string; username
       >
         <VideoConference />
         {!isDeafened && <RoomAudioRenderer />}
+        <MusicBot channelId={channelId} workspaceId={workspaceId} />
       </LiveKitRoom>
     </div>
   );

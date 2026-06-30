@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { sendMessage } from '@/app/actions/message'
+import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 
 export function MessageInput({ 
   channelId, 
@@ -31,6 +32,30 @@ export function MessageInput({
     setSelectedFile(null)
     
     try {
+      if (currentContent.trim().toLowerCase().startsWith('/play ')) {
+        const query = currentContent.trim().substring(6).trim();
+        if (query) {
+          // Send system message
+          await sendMessage(
+            channelId, 
+            workspaceId, 
+            `🎵 Đang yêu cầu Bot phát nhạc: **${query}**...`
+          );
+          
+          // Broadcast bot command via Supabase Realtime
+          const supabase = createSupabaseBrowserClient();
+          const channel = supabase.channel(`workspace:${workspaceId}:bot-commands`);
+          await channel.send({
+            type: 'broadcast',
+            event: 'play_music',
+            payload: { query, channelId, requestedBy: workspaceId }
+          });
+          
+          setIsSending(false);
+          return;
+        }
+      }
+
       let attachmentData = undefined
       
       if (currentFile) {
