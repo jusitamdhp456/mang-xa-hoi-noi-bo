@@ -11,6 +11,7 @@ import {
   useTracks,
   useLocalParticipant,
   useParticipants,
+  useTrackContext
 } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import { Monitor, MonitorOff, AlertTriangle } from 'lucide-react';
@@ -47,6 +48,67 @@ function LiveKitActiveSpeakersSync({ setSpeakingUserIds }: { setSpeakingUserIds:
   return null;
 }
 
+function ScreenShareOverlay({
+  watchingScreenShares,
+  setWatchingScreenShares,
+}: {
+  watchingScreenShares: Set<string>;
+  setWatchingScreenShares: React.Dispatch<React.SetStateAction<Set<string>>>;
+}) {
+  const trackRef = useTrackContext();
+  const { localParticipant } = useLocalParticipant();
+  
+  if (trackRef.source !== Track.Source.ScreenShare) return null;
+  
+  const id = trackRef.participant.identity;
+  if (id === localParticipant.identity) return null;
+  
+  const isWatching = watchingScreenShares.has(id);
+  
+  if (!isWatching) {
+    return (
+      <div className="absolute inset-0 bg-zinc-900 z-10 flex flex-col items-center justify-center">
+        <Monitor size={48} className="text-white/20 mb-4" />
+        <p className="text-white font-medium mb-4">{trackRef.participant.name || 'Người dùng'} đang chia sẻ màn hình</p>
+        <button 
+          onClick={(e) => {
+            e.stopPropagation();
+            setWatchingScreenShares(prev => {
+              const next = new Set(prev);
+              next.add(id);
+              return next;
+            });
+          }}
+          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold shadow-lg transition-colors flex items-center gap-2"
+        >
+          <Monitor size={18} />
+          Vào xem
+        </button>
+      </div>
+    );
+  }
+  
+  // If watching, show a small "Dừng xem" button at top-left
+  return (
+    <div className="absolute top-2 left-2 z-20">
+      <button 
+        onClick={(e) => {
+          e.stopPropagation();
+          setWatchingScreenShares(prev => {
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+          });
+        }}
+        className="px-3 py-1.5 bg-black/60 hover:bg-black/80 backdrop-blur-md text-white rounded-md text-xs font-medium flex items-center gap-2 border border-white/10 shadow-sm transition-all"
+      >
+        <MonitorOff size={14} className="text-red-400" />
+        Dừng xem màn hình của {trackRef.participant.name || 'người dùng'}
+      </button>
+    </div>
+  );
+}
+
 // Compact media stage: shows camera/screen-share tiles (avatar placeholder when
 // no video). Kept small so the main area stays free for chat + future media.
 function VoiceStage() {
@@ -59,49 +121,13 @@ function VoiceStage() {
   );
 
   const [watchingScreenShares, setWatchingScreenShares] = useState<Set<string>>(new Set());
-  const { localParticipant } = useLocalParticipant();
-
-  const cameraTracks = allTracks.filter(t => t.source === Track.Source.Camera);
-  const screenShareTracks = allTracks.filter(t => t.source === Track.Source.ScreenShare);
-
-  const tracksToRender = [
-    ...cameraTracks,
-    ...screenShareTracks.filter(t => {
-      // Always show my own screenshare or if I am watching it
-      return t.participant.identity === localParticipant.identity || watchingScreenShares.has(t.participant.identity);
-    })
-  ];
 
   return (
     <div className="flex-1 min-h-0 p-2 flex flex-col relative">
-      {screenShareTracks.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-2 shrink-0 justify-center absolute top-4 left-0 right-0 z-10 pointer-events-none">
-          {screenShareTracks.map(t => {
-             const id = t.participant.identity;
-             if (id === localParticipant.identity) return null; // don't need a button for my own
-             const isWatching = watchingScreenShares.has(id);
-             return (
-               <button 
-                 key={id}
-                 onClick={() => {
-                   setWatchingScreenShares(prev => {
-                     const next = new Set(prev);
-                     if (isWatching) next.delete(id);
-                     else next.add(id);
-                     return next;
-                   });
-                 }}
-                 className="px-3 py-1.5 bg-zinc-800/90 hover:bg-zinc-700/90 text-white rounded-lg text-sm font-medium flex items-center gap-2 border border-white/10 shadow-lg transition-all pointer-events-auto backdrop-blur-md"
-               >
-                 <Monitor size={16} className={isWatching ? 'text-red-400' : 'text-emerald-400'} />
-                 {isWatching ? `Dừng xem màn hình của ${t.participant.name || 'người dùng'}` : `Vào xem màn hình của ${t.participant.name || 'người dùng'}`}
-               </button>
-             )
-          })}
-        </div>
-      )}
-      <GridLayout tracks={tracksToRender} className="flex-1 min-h-0">
-        <ParticipantTile />
+      <GridLayout tracks={allTracks} className="flex-1 min-h-0">
+        <ParticipantTile>
+          <ScreenShareOverlay watchingScreenShares={watchingScreenShares} setWatchingScreenShares={setWatchingScreenShares} />
+        </ParticipantTile>
       </GridLayout>
     </div>
   );
