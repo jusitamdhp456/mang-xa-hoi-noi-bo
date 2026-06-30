@@ -11,16 +11,6 @@ import {
   useParticipants,
   VideoTrack
 } from '@livekit/components-react';
-<<<<<<< HEAD
-import { useEffect, useState } from 'react';
-import { useVoiceSettings } from '@/components/providers/VoiceSettingsProvider';
-import { MusicBot } from './MusicBot';
-
-export function VoiceRoom({ channelId, workspaceId, username }: { channelId: string; workspaceId: string; username: string }) {
-  const [token, setToken] = useState('');
-  const [disconnected, setDisconnected] = useState(false);
-  const { isMuted, isDeafened } = useVoiceSettings();
-=======
 import { Track } from 'livekit-client';
 import { Monitor, MonitorOff, AlertTriangle } from 'lucide-react';
 import { useVoiceSettings, playVoiceTone } from '@/components/providers/VoiceSettingsProvider';
@@ -30,7 +20,6 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
 function LiveKitSync({ isMuted, isDeafened }: { isMuted: boolean; isDeafened: boolean }) {
   const { localParticipant } = useLocalParticipant();
->>>>>>> 41e59431ec898a2a0e3460a056baad5097935999
 
   useEffect(() => {
     if (localParticipant) {
