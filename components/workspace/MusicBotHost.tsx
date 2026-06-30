@@ -47,12 +47,40 @@ export function MusicBotHost({ channelId }: { channelId: string }) {
 
         // 5. Setup Audio Element & Web Audio API
         if (audioRef.current) {
-          // Pre-flight check to see if stream API is failing
-          const streamUrl = `/api/bot/stream?v=${data.videoId}`;
-          const checkRes = await fetch(streamUrl, { method: 'GET', headers: { 'Range': 'bytes=0-100' } });
-          if (!checkRes.ok) {
-            const errText = await checkRes.text().catch(() => 'Unknown stream error');
-            throw new Error(`Lỗi luồng âm thanh (Stream API): ${errText}`);
+          let streamUrl = `/api/bot/stream?v=${data.videoId}`;
+          
+          // Pre-flight check to see if server stream API is failing (due to YouTube bot block)
+          try {
+            const checkRes = await fetch(streamUrl, { method: 'GET', headers: { 'Range': 'bytes=0-100' } });
+            if (!checkRes.ok) throw new Error('Server stream failed');
+          } catch (e) {
+            console.warn("Server stream failed, trying client-side Piped API fallback...");
+            let fallbackSuccess = false;
+            const pipedInstances = ['pipedapi.kavin.rocks', 'api.piped.projectsegfau.lt', 'pipedapi.in.projectsegfau.lt'];
+            
+            for (const instance of pipedInstances) {
+              try {
+                const pipedRes = await fetch(`https://${instance}/streams/${data.videoId}`);
+                if (pipedRes.ok) {
+                  const pipedData = await pipedRes.json();
+                  const audioStreams = pipedData.audioStreams || [];
+                  if (audioStreams.length > 0) {
+                    const best = audioStreams.sort((a: any, b: any) => b.bitrate - a.bitrate)[0];
+                    // Proxy the resolved URL through our own proxy to satisfy CORS for WebRTC
+                    streamUrl = `/api/bot/proxy?url=${encodeURIComponent(best.url)}`;
+                    fallbackSuccess = true;
+                    console.log(`Found client fallback stream via ${instance}`);
+                    break;
+                  }
+                }
+              } catch (err) {
+                console.warn(`Piped instance ${instance} failed client-side.`);
+              }
+            }
+            
+            if (!fallbackSuccess) {
+              throw new Error("Tất cả máy chủ dự phòng đều bị từ chối kết nối.");
+            }
           }
 
           audioRef.current.src = streamUrl;
