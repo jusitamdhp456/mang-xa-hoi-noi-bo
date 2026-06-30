@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Room, LocalAudioTrack, Track } from 'livekit-client';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { createClient } from '@supabase/supabase-js';
 import { playVoiceTone } from '@/components/providers/VoiceSettingsProvider';
 import { useChat } from '@livekit/components-react';
 
@@ -126,8 +127,11 @@ export function MusicBot({ channelId, workspaceId }: { channelId: string; worksp
 
       // 2.5 Theo dõi Presence của Bot trên Supabase để hiện trên thanh Sidebar
       const botIdentity = room.localParticipant.identity;
-      const supabase = createSupabaseBrowserClient();
-      const botPresenceChannel = supabase.channel(`workspace_presence:${workspaceId}_bots`, {
+      const botSupabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      const botPresenceChannel = botSupabase.channel(`workspace_presence:${workspaceId}_bots`, {
         config: { presence: { key: botIdentity } },
       });
       botPresenceChannelRef.current = botPresenceChannel;
