@@ -65,18 +65,6 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
             </div>
          </div>
          {channel?.type === 'voice' ? (
-<<<<<<< HEAD
-           <VoiceRoom channelId={channelId} workspaceId={workspaceId} username={currentUsername} />
-         ) : (
-           <ChatArea 
-             channelId={channelId} 
-             channelName={channel?.name || ''} 
-             channelType={channel?.type || 'text'} 
-             workspaceId={workspaceId}
-             initialMessages={initialMessages} 
-           />
-         )}
-=======
             <div className="flex-1 flex flex-col md:flex-row h-full overflow-hidden">
               {/* Media stage (video / screen share / future watch-party,
                   livestream, game-live). Stacks on top on mobile, takes the
@@ -106,7 +94,6 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
               currentUser={currentUser}
             />
           )}
->>>>>>> 41e59431ec898a2a0e3460a056baad5097935999
       </div>
       
       {/* Member Sidebar */}
