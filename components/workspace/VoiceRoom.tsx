@@ -13,7 +13,7 @@ import {
   VideoTrack
 } from '@livekit/components-react';
 import { Track } from 'livekit-client';
-import { Monitor, MonitorOff, AlertTriangle } from 'lucide-react';
+import { Monitor, MonitorOff, AlertTriangle, Maximize, Minimize } from 'lucide-react';
 import { useVoiceSettings, playVoiceTone } from '@/components/providers/VoiceSettingsProvider';
 import { useRouter } from 'next/navigation';
 import { Edit3, Check, X, Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Volume2, VolumeX, Settings, UserMinus, MoreVertical } from 'lucide-react';
@@ -159,13 +159,38 @@ function VoiceStage({ channelId, workspaceId }: { channelId: string; workspaceId
     ...screenShareTracks.filter(t => t !== activeScreenShare)
   ];
 
+  // Fullscreen toggle for the screen-share viewport.
+  const screenShareRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    } else {
+      screenShareRef.current?.requestFullscreen().catch(() => {});
+    }
+  };
+
   return (
     <div className="flex-1 min-h-0 p-2 flex flex-col gap-2 relative bg-transparent">
       {/* Active Screen Share Area */}
       {activeScreenShare && (
-        <div className="flex-1 min-h-0 rounded-xl overflow-hidden relative bg-black shadow-lg border border-white/5 flex items-center justify-center">
+        <div ref={screenShareRef} className="flex-1 min-h-0 rounded-xl overflow-hidden relative bg-black shadow-lg border border-white/5 flex items-center justify-center">
           <VideoTrack trackRef={activeScreenShare as any} className="w-full h-full object-contain" />
-          
+
+          {/* Fullscreen toggle */}
+          <button
+            onClick={toggleFullscreen}
+            title={isFullscreen ? 'Thu nhỏ' : 'Phóng to toàn màn hình'}
+            className="absolute top-4 right-4 z-20 w-9 h-9 flex items-center justify-center bg-black/60 hover:bg-black/80 text-white rounded-md border border-white/10 shadow-sm transition-all cursor-pointer"
+          >
+            {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
+          </button>
+
           {activeScreenShare.participant.identity !== localParticipant.identity && (
              <div className="absolute top-4 left-4 z-20">
                 <button 
