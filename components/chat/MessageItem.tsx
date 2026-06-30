@@ -75,7 +75,7 @@ export function MessageItem({
   }
 
   return (
-    <div className={`group flex gap-3 items-end max-w-[85%] sm:max-w-[75%] transition-all mb-4 ${isMe ? 'self-end flex-row-reverse' : 'self-start flex-row'}`}>
+    <div id={`msg-${message.id}`} className={`group flex gap-3 items-end max-w-[85%] sm:max-w-[75%] transition-all mb-4 ${isMe ? 'self-end flex-row-reverse' : 'self-start flex-row'}`}>
        {/* Avatar */}
        <div className="relative flex-shrink-0 mb-0.5">
          {avatar ? (

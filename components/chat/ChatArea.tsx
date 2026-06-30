@@ -4,8 +4,8 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { toggleReaction } from '@/app/actions/reaction'
-import { editMessage, deleteMessage, togglePin, getPinnedMessages } from '@/app/actions/message'
-import { Volume2, Download, Pin } from 'lucide-react'
+import { editMessage, deleteMessage, togglePin, getPinnedMessages, searchMessages } from '@/app/actions/message'
+import { Volume2, Download, Pin, Search, X } from 'lucide-react'
 import { MessageItem } from './MessageItem'
 import { MessageInput } from './MessageInput'
 
@@ -223,6 +223,27 @@ export function ChatArea({
   }, [channelId, refreshPinned])
   useEffect(() => { refreshPinned() }, [refreshPinned])
 
+  // --- Search ---
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<MessageRow[]>([])
+  const [searching, setSearching] = useState(false)
+  const runSearch = useCallback(async (q: string) => {
+    if (!q.trim()) { setSearchResults([]); return }
+    setSearching(true)
+    const res = (await searchMessages(channelId, q)) as unknown as MessageRow[]
+    setSearchResults(res)
+    setSearching(false)
+  }, [channelId])
+  const jumpToMessage = useCallback((id: string) => {
+    const el = document.getElementById(`msg-${id}`)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      el.classList.add('ring-2', 'ring-amber-400', 'rounded-2xl')
+      setTimeout(() => el.classList.remove('ring-2', 'ring-amber-400', 'rounded-2xl'), 1800)
+    }
+  }, [])
+
   // --- Typing indicator ---
   const [typingNames, setTypingNames] = useState<string[]>([])
   const typingTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
@@ -331,6 +352,55 @@ export function ChatArea({
 
   return (
     <>
+      {/* Search bar */}
+      <div className="shrink-0 border-b border-white/10 bg-black/10">
+        {!searchOpen ? (
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="w-full flex items-center gap-2 px-4 py-1.5 text-[11px] font-bold text-zinc-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+          >
+            <Search size={12} /> Tìm tin nhắn trong kênh
+          </button>
+        ) : (
+          <div className="p-2">
+            <div className="flex items-center gap-2 bg-black/30 border border-white/10 rounded-xl px-3 py-1.5 focus-within:border-indigo-500 transition-colors">
+              <Search size={13} className="text-zinc-400 shrink-0" />
+              <input
+                autoFocus
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); runSearch(e.target.value); }}
+                placeholder="Nhập từ khóa…"
+                className="bg-transparent w-full outline-none text-xs text-white placeholder:text-zinc-500"
+              />
+              <button onClick={() => { setSearchOpen(false); setSearchQuery(''); setSearchResults([]); }} className="text-zinc-400 hover:text-white shrink-0 cursor-pointer"><X size={14} /></button>
+            </div>
+            {searchQuery.trim() && (
+              <div className="max-h-64 overflow-y-auto mt-2 space-y-1.5">
+                {searching ? (
+                  <p className="text-[11px] text-zinc-500 text-center py-3 animate-pulse">Đang tìm…</p>
+                ) : searchResults.length === 0 ? (
+                  <p className="text-[11px] text-zinc-500 text-center py-3">Không có kết quả</p>
+                ) : (
+                  searchResults.map((r) => (
+                    <button
+                      key={r.id}
+                      onClick={() => jumpToMessage(r.id)}
+                      className="w-full text-left bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl p-2.5 text-xs transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-bold text-white/90 truncate">{r.profiles?.display_name || 'Người dùng'}</span>
+                        <span className="text-[10px] text-zinc-500 shrink-0">{new Date(r.created_at).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                      <p className="text-zinc-300 break-words line-clamp-2 mt-0.5">{r.content || '(tệp đính kèm)'}</p>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Pinned messages bar */}
       {pinned.length > 0 && (
         <div className="shrink-0 border-b border-white/10 bg-black/20 backdrop-blur-md">

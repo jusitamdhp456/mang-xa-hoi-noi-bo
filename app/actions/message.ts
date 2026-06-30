@@ -212,6 +212,24 @@ export async function togglePin(messageId: string, channelId: string) {
   return { success: true, pinned: true }
 }
 
+// Search messages in a channel by content
+export async function searchMessages(channelId: string, query: string) {
+  const q = query?.trim()
+  if (!q) return []
+  const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+  const service = createSupabaseServiceClient()
+  const { data } = await service
+    .from('messages')
+    .select('id, content, created_at, sender_id, profiles!messages_sender_id_fkey(display_name, avatar_key)')
+    .eq('channel_id', channelId)
+    .ilike('content', `%${q}%`)
+    .order('created_at', { ascending: false })
+    .limit(30)
+  return data || []
+}
+
 // Get pinned messages for a channel
 export async function getPinnedMessages(channelId: string) {
   const supabase = await createSupabaseServerClient()
