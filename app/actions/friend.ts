@@ -327,7 +327,7 @@ export async function getFriendRequests() {
 }
 
 // Send a direct message in a DM thread
-export async function sendDirectMessage(threadId: string, content: string, type: 'text' | 'image' | 'file' | 'voice' = 'text') {
+export async function sendDirectMessage(threadId: string, content: string, type: 'text' | 'image' | 'file' | 'voice' = 'text', replyToId?: string) {
   const supabaseUserClient = await createSupabaseServerClient();
   const { data: { user } } = await supabaseUserClient.auth.getUser();
 
@@ -359,7 +359,8 @@ export async function sendDirectMessage(threadId: string, content: string, type:
       thread_id: threadId,
       sender_id: user.id,
       content: content.trim(),
-      type: type
+      type: type,
+      reply_to_id: replyToId || null
     });
 
   if (error) {
@@ -367,6 +368,42 @@ export async function sendDirectMessage(threadId: string, content: string, type:
     throw new Error(error.message);
   }
 
+  return { success: true };
+}
+
+// Edit own direct message
+export async function editDirectMessage(messageId: string, content: string) {
+  if (!content?.trim()) return { error: 'Nội dung trống' };
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Chưa đăng nhập' };
+
+  const admin = createSupabaseServiceClient();
+  const { data: msg } = await admin.from('direct_messages').select('sender_id').eq('id', messageId).single();
+  if (!msg) return { error: 'Tin không tồn tại' };
+  if (msg.sender_id !== user.id) return { error: 'Bạn chỉ sửa được tin của mình' };
+
+  const { error } = await admin
+    .from('direct_messages')
+    .update({ content: content.trim(), edited_at: new Date().toISOString() })
+    .eq('id', messageId);
+  if (error) return { error: 'Lỗi sửa tin' };
+  return { success: true };
+}
+
+// Delete own direct message
+export async function deleteDirectMessage(messageId: string) {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Chưa đăng nhập' };
+
+  const admin = createSupabaseServiceClient();
+  const { data: msg } = await admin.from('direct_messages').select('sender_id').eq('id', messageId).single();
+  if (!msg) return { error: 'Tin không tồn tại' };
+  if (msg.sender_id !== user.id) return { error: 'Bạn chỉ xoá được tin của mình' };
+
+  const { error } = await admin.from('direct_messages').delete().eq('id', messageId);
+  if (error) return { error: 'Lỗi xoá tin' };
   return { success: true };
 }
 
@@ -383,7 +420,7 @@ export async function getDirectMessages(threadId: string) {
 
   const { data: messages, error } = await supabaseAdmin
     .from('direct_messages')
-    .select('*')
+    .select('*, reply_to:reply_to_id(id, content, sender_id, profiles!direct_messages_sender_id_fkey(display_name))')
     .eq('thread_id', threadId)
     .order('created_at', { ascending: true });
 

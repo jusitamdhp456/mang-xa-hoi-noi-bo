@@ -21,10 +21,13 @@ import {
   Activity, 
   Edit3, 
   ChevronRight, 
-  Volume2, 
+  Volume2,
   Settings,
   AlertCircle,
-  MoreVertical
+  MoreVertical,
+  Reply,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { VoiceRoom } from '@/components/workspace/VoiceRoom';
@@ -37,6 +40,8 @@ import {
   getFriends, 
   getFriendRequests,
   sendDirectMessage,
+  editDirectMessage,
+  deleteDirectMessage,
   getDirectMessages,
   removeFriend,
   loadFriendsDashboardData
@@ -219,6 +224,13 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
   const [friendRequests, setFriendRequests] = useState<any[]>([]);
   const [dbMessages, setDbMessages] = useState<any[]>([]);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
+  // DM reply / edit / typing
+  const [dmReplyTo, setDmReplyTo] = useState<any | null>(null);
+  const [editingDmId, setEditingDmId] = useState<string | null>(null);
+  const [editDmText, setEditDmText] = useState('');
+  const [dmTypingName, setDmTypingName] = useState<string | null>(null);
+  const dmTypingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastDmTypingSent = useRef(0);
 
   // Dropdown, Preview & Notification Toast States
   const [activeMenuFriendId, setActiveMenuFriendId] = useState<string | null>(null);
@@ -640,6 +652,23 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
             }
           }
         })
+        .on('broadcast', { event: 'dm_edit' }, (payload) => {
+          const { id, content } = payload.payload || {};
+          if (selectedChatId !== friend.threadId || !id) return;
+          setDbMessages(prev => prev.map(m => (m.id === id ? { ...m, content, edited_at: new Date().toISOString() } : m)));
+        })
+        .on('broadcast', { event: 'dm_delete' }, (payload) => {
+          const { id } = payload.payload || {};
+          if (selectedChatId !== friend.threadId || !id) return;
+          setDbMessages(prev => prev.filter(m => m.id !== id));
+        })
+        .on('broadcast', { event: 'dm_typing' }, (payload) => {
+          const { senderId, name } = payload.payload || {};
+          if (selectedChatId !== friend.threadId || senderId === user.id) return;
+          setDmTypingName(name || 'Đang gõ');
+          if (dmTypingTimer.current) clearTimeout(dmTypingTimer.current);
+          dmTypingTimer.current = setTimeout(() => setDmTypingName(null), 3500);
+        })
         .on('broadcast', { event: 'incoming_call_invite' }, (payload) => {
           const info = payload.payload;
           if (info.senderId !== user.id) {
@@ -733,6 +762,37 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
 
   const activeChatPartner = profilesWithStatus.find(p => p.threadId === selectedChatId);
 
+  // DM: typing / edit / delete
+  const handleDmTyping = () => {
+    const now = Date.now();
+    if (now - lastDmTypingSent.current < 2000 || !selectedChatId) return;
+    lastDmTypingSent.current = now;
+    createSupabaseBrowserClient().channel(`room-dm-${selectedChatId}`).send({
+      type: 'broadcast', event: 'dm_typing', payload: { senderId: user.id, name: displayName },
+    });
+  };
+
+  const handleEditDm = async (id: string, content: string) => {
+    const t = content.trim();
+    setEditingDmId(null);
+    if (!t) return;
+    setDbMessages(prev => prev.map(m => (m.id === id ? { ...m, content: t, edited_at: new Date().toISOString() } : m)));
+    const res = await editDirectMessage(id, t);
+    if (res?.error) return;
+    createSupabaseBrowserClient().channel(`room-dm-${selectedChatId}`).send({
+      type: 'broadcast', event: 'dm_edit', payload: { id, content: t },
+    });
+  };
+
+  const handleDeleteDm = async (id: string) => {
+    setDbMessages(prev => prev.filter(m => m.id !== id));
+    const res = await deleteDirectMessage(id);
+    if (res?.error) { alert(res.error); return; }
+    createSupabaseBrowserClient().channel(`room-dm-${selectedChatId}`).send({
+      type: 'broadcast', event: 'dm_delete', payload: { id },
+    });
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if ((!currentMessageInput.trim() && !selectedFile) || !selectedChatId || isUploading) return;
@@ -778,6 +838,9 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
         msgType = uploadData.mimeType.startsWith('image/') ? 'image' : 'file';
       }
 
+      const replyTarget = dmReplyTo;
+      setDmReplyTo(null);
+
       const tempMessageId = `msg-temp-${Date.now()}`;
       const messagePayload = {
         id: tempMessageId,
@@ -785,7 +848,9 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
         sender_id: user.id,
         content: finalContent,
         type: msgType,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        reply_to_id: replyTarget?.id || null,
+        reply_to: replyTarget ? { id: replyTarget.id, content: replyTarget.content, profiles: { display_name: replyTarget.sender_id === user.id ? displayName : (activeChatPartner?.display_name || 'Bạn') } } : null,
       };
 
       // Render locally immediately
@@ -811,7 +876,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
       }
 
       // Save in database
-      await sendDirectMessage(selectedChatId, finalContent, msgType as any);
+      await sendDirectMessage(selectedChatId, finalContent, msgType as any, replyTarget?.id);
     } catch (err: any) {
       console.error('Failed to send DM:', err);
       alert(err.message || 'Gửi tin nhắn hoặc tệp tin thất bại');
@@ -1785,9 +1850,9 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                       const timeStr = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
                       return (
-                        <div 
-                          key={msg.id || index} 
-                          className={`flex gap-3 items-end max-w-[85%] sm:max-w-[75%] transition-all ${isMe ? 'self-end flex-row-reverse' : 'self-start flex-row'}`}
+                        <div
+                          key={msg.id || index}
+                          className={`group flex gap-3 items-end max-w-[85%] sm:max-w-[75%] transition-all ${isMe ? 'self-end flex-row-reverse' : 'self-start flex-row'}`}
                         >
                           {/* Avatar */}
                           <div className="relative flex-shrink-0 mb-0.5">
@@ -1817,8 +1882,41 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                               <span>{isMe ? 'Bạn' : partnerName}</span>
                               <span>•</span>
                               <span>{timeStr}</span>
+                              {msg.edited_at && <span className="text-zinc-500 font-normal italic">(đã sửa)</span>}
                             </div>
 
+                            {/* Reply preview */}
+                            {msg.reply_to && (
+                              <div className={`mb-1 px-2.5 py-1 rounded-lg bg-black/20 border-l-2 border-indigo-400/60 ${isMe ? 'self-end' : 'self-start'}`}>
+                                <p className="text-[10px] font-bold text-indigo-300 truncate">↩ {msg.reply_to.profiles?.display_name || 'tin nhắn'}</p>
+                                <p className="text-[11px] text-zinc-400 truncate max-w-[220px]">{(() => { const c = msg.reply_to.content || ''; return c.startsWith('{') ? '(tệp đính kèm)' : c; })()}</p>
+                              </div>
+                            )}
+
+                            {/* Inline edit */}
+                            {editingDmId === msg.id ? (
+                              <div className="flex items-center gap-1.5 w-full">
+                                <input
+                                  value={editDmText}
+                                  onChange={(e) => setEditDmText(e.target.value)}
+                                  onKeyDown={(e) => { if (e.key === 'Enter') handleEditDm(msg.id, editDmText); if (e.key === 'Escape') setEditingDmId(null); }}
+                                  autoFocus
+                                  className="flex-1 bg-black/40 border border-indigo-500/50 rounded-xl px-3 py-2 text-[14px] text-white outline-none"
+                                />
+                                <button onClick={() => handleEditDm(msg.id, editDmText)} className="text-emerald-400 hover:text-emerald-300 p-1 cursor-pointer"><Check size={16} /></button>
+                                <button onClick={() => setEditingDmId(null)} className="text-red-400 hover:text-red-300 p-1 cursor-pointer"><X size={16} /></button>
+                              </div>
+                            ) : (
+                            <div className="flex items-end gap-1.5">
+                            {/* Hover actions (text messages only) */}
+                            {msg.type !== 'image' && !msg.content?.startsWith('[VOICE_INVITE]:') && (
+                              <div className={`flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity self-center ${isMe ? '' : 'order-last'}`}>
+                                <button onClick={() => setDmReplyTo(msg)} title="Trả lời" className="w-6 h-6 flex items-center justify-center rounded-md text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"><Reply size={13} /></button>
+                                {isMe && msg.type !== 'file' && <button onClick={() => { setEditDmText(msg.content || ''); setEditingDmId(msg.id); }} title="Sửa" className="w-6 h-6 flex items-center justify-center rounded-md text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"><Pencil size={13} /></button>}
+                                {isMe && <button onClick={() => { if (confirm('Xoá tin nhắn này?')) handleDeleteDm(msg.id); }} title="Xoá" className="w-6 h-6 flex items-center justify-center rounded-md text-zinc-400 hover:text-red-400 hover:bg-white/10 cursor-pointer"><Trash2 size={13} /></button>}
+                              </div>
+                            )}
+                            <div className="min-w-0">
                             {/* Bubble Body: Conditional styling if it's an image */}
                             {msg.type === 'image' ? (
                               (() => {
@@ -1886,6 +1984,9 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                                 )}
                               </div>
                             )}
+                            </div>
+                            </div>
+                            )}
                           </div>
                         </div>
                       );
@@ -1894,6 +1995,18 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                   </div>
                 </div>
 
+                {dmTypingName && (
+                  <div className="px-5 pb-1 text-[11px] text-zinc-400 italic animate-pulse shrink-0">{dmTypingName} đang gõ…</div>
+                )}
+                {dmReplyTo && (
+                  <div className="mx-4 mb-1 flex items-center justify-between gap-2 bg-black/30 border border-white/10 rounded-xl px-3 py-2 animate-fade-in-up">
+                    <div className="min-w-0 text-xs">
+                      <span className="text-indigo-300 font-bold">Đang trả lời {dmReplyTo.sender_id === user.id ? 'chính bạn' : (activeChatPartner?.display_name || 'tin nhắn')}</span>
+                      <p className="text-zinc-400 truncate">{(dmReplyTo.content || '').startsWith('{') ? '(tệp đính kèm)' : dmReplyTo.content}</p>
+                    </div>
+                    <button type="button" onClick={() => setDmReplyTo(null)} className="text-zinc-400 hover:text-white shrink-0 cursor-pointer" title="Hủy trả lời">×</button>
+                  </div>
+                )}
                 <form onSubmit={handleSendMessage} className="p-4 bg-transparent border-t border-white/10 flex flex-col gap-3 flex-shrink-0">
                   {/* File Upload Preview */}
                   {selectedFile && (
@@ -1968,7 +2081,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                       type="text" 
                       placeholder={isUploading ? "Vui lòng đợi..." : `Nhắn tin cho @${activeChatPartner?.display_name || 'user'}`}
                       value={currentMessageInput}
-                      onChange={e => setCurrentMessageInput(e.target.value)}
+                      onChange={e => { setCurrentMessageInput(e.target.value); handleDmTyping(); }}
                       onPaste={handlePaste}
                       disabled={isUploading}
                       className="bg-transparent w-full outline-none text-xs text-white disabled:opacity-50 placeholder:text-zinc-500 font-medium mr-2"
