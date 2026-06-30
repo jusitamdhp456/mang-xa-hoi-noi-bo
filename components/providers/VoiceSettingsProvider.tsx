@@ -29,6 +29,7 @@ interface VoiceSettingsContextType {
   setCustomName: (name: string | null) => void;
   activeParticipants: Participant[];
   changeUserNickname: (targetUserId: string, newName: string) => void;
+  kickUserBroadcast: (targetUserId: string, channelId: string) => void;
   currentUser: any;
   onlineUserIds: string[];
 
@@ -375,6 +376,16 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
     });
   };
 
+  const kickUserBroadcast = (targetUserId: string, channelId: string) => {
+    if (!workspaceId) return;
+    
+    supabase.channel(`workspace_presence:${workspaceId}`).send({
+      type: 'broadcast',
+      event: 'kick_user',
+      payload: { target_user_id: targetUserId, channel_id: channelId }
+    });
+  };
+
   return (
     <VoiceSettingsContext.Provider 
       value={{ 
@@ -390,6 +401,7 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
         setCustomName,
         activeParticipants: activeParticipantsWithSelf,
         changeUserNickname,
+        kickUserBroadcast,
         currentUser: user,
         onlineUserIds,
         speakingUserIds,
