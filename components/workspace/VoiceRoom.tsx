@@ -101,7 +101,15 @@ function VoiceStage({ channelId, workspaceId }: { channelId: string; workspaceId
   const handleKick = async (targetId: string) => {
     setOpenMenuId(null);
     const res = await kickParticipant(channelId, targetId);
-    if (res.error) alert(res.error);
+    if (res.error) {
+      alert(res.error);
+    } else {
+      supabase.channel(`workspace_presence:${workspaceId}`).send({
+        type: 'broadcast',
+        event: 'kick_user',
+        payload: { target_user_id: targetId, channel_id: channelId }
+      });
+    }
   };
 
   const botParticipants = livekitParticipants.filter(p => p.identity.endsWith('-bot') || p.identity.startsWith('bot-') || p.name?.includes('Bot') || p.identity.includes('bot'));

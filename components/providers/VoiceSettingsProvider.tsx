@@ -256,11 +256,20 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
       }
     };
 
+    const onKickUser = (payload: any) => {
+      const { target_user_id, channel_id } = payload.payload || {};
+      if (target_user_id === user.id && activeChannelIdRef.current === channel_id) {
+        setActiveChannelId(null);
+        alert('Bạn đã bị quản trị viên kích khỏi kênh đàm thoại.');
+      }
+    };
+
     channel
       .on('presence', { event: 'sync' }, onSync)
       .on('presence', { event: 'join' }, onJoin)
       .on('presence', { event: 'leave' }, onLeave)
       .on('broadcast', { event: 'change_nickname' }, onNicknameChange)
+      .on('broadcast', { event: 'kick_user' }, onKickUser)
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           await channel.track({
