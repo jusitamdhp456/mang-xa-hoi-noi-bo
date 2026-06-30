@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useRef, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
 interface Participant {
@@ -91,6 +92,7 @@ export function playVoiceTone(type: 'join' | 'leave') {
 }
 
 export function VoiceSettingsProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [isMuted, setIsMuted] = useState(false);
   const [isDeafened, setIsDeafened] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -261,6 +263,11 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
       if (target_user_id === user.id && activeChannelIdRef.current === channel_id) {
         setActiveChannelId(null);
         alert('Bạn đã bị quản trị viên kích khỏi kênh đàm thoại.');
+        if (workspaceId) {
+          router.push(`/workspace/${workspaceId}`);
+        } else {
+          router.push('/channels/me');
+        }
       }
     };
 
