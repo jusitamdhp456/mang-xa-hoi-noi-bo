@@ -21,14 +21,14 @@ import { kickParticipant } from '@/app/actions/livekit';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { MusicBot } from './MusicBot';
 
-// Screen share tuned for reliability: 1080p @ 30fps, motion-optimized.
-// 60fps overwhelmed the encoder/decoder over typical links and corrupted the
-// video (green/purple artifacts), so 30fps is the stable sweet spot.
-const SCREEN_SHARE_OPTIONS = {
+// Screen share options at a chosen frame rate (1080p, motion-optimized).
+// 30fps = stable on most links; 60fps = smoother but needs strong network/CPU
+// (can corrupt the video if the link can't keep up).
+const screenShareOptions = (fps: number) => ({
   audio: true,
   contentHint: 'motion' as const,
-  resolution: { width: 1920, height: 1080, frameRate: 30 },
-};
+  resolution: { width: 1920, height: 1080, frameRate: fps },
+});
 
 function LiveKitSync({ isMuted, isDeafened }: { isMuted: boolean; isDeafened: boolean }) {
   const { localParticipant } = useLocalParticipant();
@@ -350,6 +350,7 @@ function VoiceExtraControls() {
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   const [cameraOn, setCameraOn] = useState(false);
   const [screenOn, setScreenOn] = useState(false);
+  const [fpsMenu, setFpsMenu] = useState(false);
 
   // Wait for the portal target in the sidebar to exist.
   useEffect(() => {
@@ -373,13 +374,23 @@ function VoiceExtraControls() {
     }
   };
 
-  const toggleScreen = async () => {
+  const startScreen = async (fps: number) => {
+    setFpsMenu(false);
     try {
-      const next = !screenOn;
-      await localParticipant.setScreenShareEnabled(next, next ? SCREEN_SHARE_OPTIONS : undefined);
-      setScreenOn(next);
+      await localParticipant.setScreenShareEnabled(true, screenShareOptions(fps));
+      setScreenOn(true);
     } catch (e) {
-      console.warn('Screen share toggle failed:', e);
+      console.warn('Screen share start failed:', e);
+    }
+  };
+
+  const stopScreen = async () => {
+    setFpsMenu(false);
+    try {
+      await localParticipant.setScreenShareEnabled(false);
+      setScreenOn(false);
+    } catch (e) {
+      console.warn('Screen share stop failed:', e);
     }
   };
 
@@ -394,9 +405,31 @@ function VoiceExtraControls() {
       <button onClick={toggleCamera} className={`${btn} ${cameraOn ? active : idle}`} title={cameraOn ? 'Tắt camera' : 'Bật camera'}>
         {cameraOn ? <VideoIcon size={15} /> : <VideoOff size={15} />}
       </button>
-      <button onClick={toggleScreen} className={`${btn} ${screenOn ? active : idle}`} title={screenOn ? 'Dừng chia sẻ màn hình' : 'Chia sẻ màn hình'}>
-        {screenOn ? <MonitorOff size={15} /> : <Monitor size={15} />}
-      </button>
+      <div className="relative">
+        <button
+          onClick={() => (screenOn ? stopScreen() : setFpsMenu((v) => !v))}
+          className={`${btn} ${screenOn ? active : idle}`}
+          title={screenOn ? 'Dừng chia sẻ màn hình' : 'Chia sẻ màn hình'}
+        >
+          {screenOn ? <MonitorOff size={15} /> : <Monitor size={15} />}
+        </button>
+        {fpsMenu && !screenOn && (
+          <>
+            <div className="fixed inset-0 z-10" onClick={() => setFpsMenu(false)} />
+            <div className="absolute z-20 bottom-9 right-0 w-44 bg-[#1e1f22] border border-white/10 rounded-xl shadow-2xl p-1.5 animate-scale-in">
+              <p className="text-[9px] font-extrabold uppercase tracking-wider text-zinc-500 px-2 py-1 select-none">Chia sẻ màn hình</p>
+              <button onClick={() => startScreen(30)} className="w-full text-left px-2 py-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer">
+                <p className="text-xs font-bold text-white">30 FPS</p>
+                <p className="text-[10px] text-zinc-400">Ổn định, hợp mọi mạng</p>
+              </button>
+              <button onClick={() => startScreen(60)} className="w-full text-left px-2 py-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer">
+                <p className="text-xs font-bold text-white">60 FPS</p>
+                <p className="text-[10px] text-zinc-400">Mượt hơn, cần mạng/máy khỏe</p>
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     </>,
     slot
   );
@@ -410,14 +443,21 @@ function MobileVoiceControls() {
   const { isMuted, toggleMute, isDeafened, toggleDeafen, setActiveChannelId, setWorkspaceId } = useVoiceSettings();
   const [cameraOn, setCameraOn] = useState(false);
   const [screenOn, setScreenOn] = useState(false);
+  const [fpsMenu, setFpsMenu] = useState(false);
 
   const toggleCamera = async () => {
     try { const n = !cameraOn; await localParticipant.setCameraEnabled(n); setCameraOn(n); }
     catch (e) { console.warn('Camera toggle failed:', e); }
   };
-  const toggleScreen = async () => {
-    try { const n = !screenOn; await localParticipant.setScreenShareEnabled(n, n ? SCREEN_SHARE_OPTIONS : undefined); setScreenOn(n); }
-    catch (e) { console.warn('Screen share toggle failed:', e); }
+  const startScreen = async (fps: number) => {
+    setFpsMenu(false);
+    try { await localParticipant.setScreenShareEnabled(true, screenShareOptions(fps)); setScreenOn(true); }
+    catch (e) { console.warn('Screen share start failed:', e); }
+  };
+  const stopScreen = async () => {
+    setFpsMenu(false);
+    try { await localParticipant.setScreenShareEnabled(false); setScreenOn(false); }
+    catch (e) { console.warn('Screen share stop failed:', e); }
   };
   const leave = () => {
     playVoiceTone('leave');
@@ -443,9 +483,31 @@ function MobileVoiceControls() {
       <button onClick={toggleCamera} className={`${btn} ${cameraOn ? active : idle}`} title={cameraOn ? 'Tắt camera' : 'Bật camera'}>
         {cameraOn ? <VideoIcon size={18} /> : <VideoOff size={18} />}
       </button>
-      <button onClick={toggleScreen} className={`${btn} ${screenOn ? active : idle}`} title={screenOn ? 'Dừng chia sẻ' : 'Chia sẻ màn hình'}>
-        {screenOn ? <MonitorOff size={18} /> : <Monitor size={18} />}
-      </button>
+      <div className="relative">
+        <button
+          onClick={() => (screenOn ? stopScreen() : setFpsMenu((v) => !v))}
+          className={`${btn} ${screenOn ? active : idle}`}
+          title={screenOn ? 'Dừng chia sẻ' : 'Chia sẻ màn hình'}
+        >
+          {screenOn ? <MonitorOff size={18} /> : <Monitor size={18} />}
+        </button>
+        {fpsMenu && !screenOn && (
+          <>
+            <div className="fixed inset-0 z-10" onClick={() => setFpsMenu(false)} />
+            <div className="absolute z-20 bottom-14 left-1/2 -translate-x-1/2 w-44 bg-[#1e1f22] border border-white/10 rounded-xl shadow-2xl p-1.5 animate-scale-in">
+              <p className="text-[9px] font-extrabold uppercase tracking-wider text-zinc-500 px-2 py-1 select-none">Chia sẻ màn hình</p>
+              <button onClick={() => startScreen(30)} className="w-full text-left px-2 py-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer">
+                <p className="text-xs font-bold text-white">30 FPS</p>
+                <p className="text-[10px] text-zinc-400">Ổn định, hợp mọi mạng</p>
+              </button>
+              <button onClick={() => startScreen(60)} className="w-full text-left px-2 py-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer">
+                <p className="text-xs font-bold text-white">60 FPS</p>
+                <p className="text-[10px] text-zinc-400">Mượt hơn, cần mạng/máy khỏe</p>
+              </button>
+            </div>
+          </>
+        )}
+      </div>
       <button onClick={leave} className={`${btn} ${danger}`} title="Rời kênh thoại">
         <PhoneOff size={18} />
       </button>
