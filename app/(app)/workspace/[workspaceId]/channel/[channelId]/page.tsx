@@ -83,7 +83,7 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
               {/* Joining this page connects voice globally; the persistent
                   GlobalVoiceMount portals the live stage into this slot. */}
               <JoinVoiceChannel channelId={channelId} workspaceId={workspaceId} />
-              <div id="voice-stage-slot" className="h-[40%] min-h-[200px] md:h-auto md:flex-1 min-w-0 flex flex-col overflow-hidden relative border-b border-white/10 md:border-b-0 md:border-r bg-[#121214]" />
+              <div id="voice-stage-slot" className="h-[40%] min-h-[200px] md:h-auto md:flex-1 min-w-0 flex flex-col overflow-hidden relative border-b border-white/10 md:border-b-0 md:border-r bg-transparent" />
               {/* Chat: full width below on mobile, ~1/5 vertical column on desktop. */}
               <div className="flex-1 md:flex-none md:w-1/5 md:min-w-[260px] flex flex-col overflow-hidden bg-black/10">
                 <ChatArea
