@@ -17,17 +17,17 @@ export function MusicBotHost({ channelId }: { channelId: string }) {
       setBotState({ videoId: '', title: detail.query, status: 'Đang tìm kiếm...' });
 
       try {
-        // 1. Search YouTube
-        const searchRes = await fetch(`/api/bot/search?q=${encodeURIComponent(detail.query)}`);
+        // 1. Search & Get Stream from SoundCloud
+        const musicRes = await fetch(`/api/bot/music?q=${encodeURIComponent(detail.query)}`);
         
-        if (!searchRes.ok) {
-          const errData = await searchRes.json().catch(() => ({}));
-          throw new Error(errData.error || 'Không tìm thấy bài hát hoặc lỗi server');
+        if (!musicRes.ok) {
+          const errData = await musicRes.json().catch(() => ({}));
+          throw new Error(errData.error || 'Không tìm thấy bài hát hoặc lỗi máy chủ');
         }
         
-        const data = await searchRes.json();
+        const data = await musicRes.json();
         
-        setBotState({ videoId: data.videoId, title: data.title, status: 'Đang kết nối...' });
+        setBotState({ videoId: data.trackId, title: data.title, status: 'Đang kết nối...' });
 
         // 2. Disconnect existing bot if any
         if (roomRef.current) {
@@ -47,43 +47,8 @@ export function MusicBotHost({ channelId }: { channelId: string }) {
 
         // 5. Setup Audio Element & Web Audio API
         if (audioRef.current) {
-          let streamUrl = `/api/bot/stream?v=${data.videoId}`;
-          
-          // Pre-flight check to see if server stream API is failing (due to YouTube bot block)
-          try {
-            const checkRes = await fetch(streamUrl, { method: 'GET', headers: { 'Range': 'bytes=0-100' } });
-            if (!checkRes.ok) throw new Error('Server stream failed');
-          } catch (e) {
-            console.warn("Server stream failed, trying client-side Piped API fallback...");
-            let fallbackSuccess = false;
-            const pipedInstances = ['pipedapi.kavin.rocks', 'api.piped.projectsegfau.lt', 'pipedapi.in.projectsegfau.lt'];
-            
-            for (const instance of pipedInstances) {
-              try {
-                const pipedRes = await fetch(`https://${instance}/streams/${data.videoId}`);
-                if (pipedRes.ok) {
-                  const pipedData = await pipedRes.json();
-                  const audioStreams = pipedData.audioStreams || [];
-                  if (audioStreams.length > 0) {
-                    const best = audioStreams.sort((a: any, b: any) => b.bitrate - a.bitrate)[0];
-                    // Idea 1: Do NOT proxy through our server. Use Piped proxy directly to bypass IP blocks!
-                    streamUrl = best.url;
-                    fallbackSuccess = true;
-                    console.log(`Found client fallback stream via ${instance}`);
-                    break;
-                  }
-                }
-              } catch (err) {
-                console.warn(`Piped instance ${instance} failed client-side.`);
-              }
-            }
-            
-            if (!fallbackSuccess) {
-              throw new Error("Tất cả máy chủ dự phòng đều bị từ chối kết nối.");
-            }
-          }
-
-          audioRef.current.src = streamUrl;
+          // Trình duyệt sẽ phát trực tiếp streamUrl này mà không cần proxy vì SoundCloud cấp sẵn CORS
+          audioRef.current.src = data.streamUrl;
           audioRef.current.crossOrigin = 'anonymous';
           
           if (!audioCtxRef.current) {
@@ -105,7 +70,7 @@ export function MusicBotHost({ channelId }: { channelId: string }) {
           
           if (audioTrack) {
             await room.localParticipant.publishTrack(audioTrack, { name: 'music', source: Track.Source.Microphone });
-            setBotState({ videoId: data.videoId, title: data.title, status: 'Đang phát' });
+            setBotState({ videoId: data.trackId, title: data.title, status: 'Đang phát' });
           } else {
             throw new Error('Không thể lấy luồng âm thanh');
           }
