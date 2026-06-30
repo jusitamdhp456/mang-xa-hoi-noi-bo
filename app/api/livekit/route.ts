@@ -28,10 +28,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-<<<<<<< HEAD
     const isBot = searchParams.get('bot') === 'true';
     const identity = isBot ? `${user.id}-bot` : user.id;
-=======
+
     // Verify the user is a member of the workspace that owns this channel (room = channelId)
     const { data: channel } = await supabase
       .from('channels')
@@ -53,7 +52,6 @@ export async function GET(request: Request) {
     if (!membership) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
->>>>>>> 41e59431ec898a2a0e3460a056baad5097935999
 
     const at = new AccessToken(apiKey, apiSecret, {
       identity: identity,

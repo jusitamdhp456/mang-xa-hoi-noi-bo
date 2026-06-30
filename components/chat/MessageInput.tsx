@@ -2,11 +2,8 @@
 
 import { useState, useRef } from 'react'
 import { sendMessage } from '@/app/actions/message'
-<<<<<<< HEAD
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
-=======
 import { Send, Smile, File as FileIcon } from 'lucide-react'
->>>>>>> 41e59431ec898a2a0e3460a056baad5097935999
 
 const EMOJI_LIST = [
   '😀', '😁', '😂', '🤣', '😊', '😍', '😘', '😎',
