@@ -118,7 +118,7 @@ function VoiceStage() {
       {/* Active Screen Share Area */}
       {activeScreenShare && (
         <div className="flex-1 min-h-0 rounded-xl overflow-hidden relative bg-black shadow-lg border border-white/5 flex items-center justify-center">
-          <VideoTrack trackRef={activeScreenShare} className="w-full h-full object-contain" />
+          <VideoTrack trackRef={activeScreenShare as any} className="w-full h-full object-contain" />
           
           {activeScreenShare.participant.identity !== localParticipant.identity && (
              <div className="absolute top-4 left-4 z-20">
