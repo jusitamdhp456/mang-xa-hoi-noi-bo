@@ -129,6 +129,23 @@ export function ChatArea({
     setMessages((prev) => prev.filter((m) => m.id !== tempId))
   }, [])
 
+  // Send the message over realtime immediately for zero-latency feel for text messages
+  const handleBroadcastInstantly = useCallback((message: MessageRow) => {
+    channelRef.current?.send({
+      type: 'broadcast',
+      event: 'new_message',
+      payload: { message },
+    })
+  }, [])
+
+  const handleBroadcastFailed = useCallback((tempId: string) => {
+    channelRef.current?.send({
+      type: 'broadcast',
+      event: 'delete_message',
+      payload: { tempId },
+    })
+  }, [])
+
   // After the server confirms: replace the optimistic placeholder with the real
   // message and notify other clients with the full payload.
   const handleSent = useCallback((message: MessageRow, tempId?: string) => {
@@ -137,6 +154,7 @@ export function ChatArea({
       if (withoutTemp.some((m) => m.id === message.id)) return withoutTemp
       return [...withoutTemp, message]
     })
+    // We broadcast again just in case there are attachments or modifications
     channelRef.current?.send({
       type: 'broadcast',
       event: 'new_message',
@@ -191,6 +209,14 @@ export function ChatArea({
           if (messageId) refreshReactions(messageId)
         }
       )
+      .on(
+        'broadcast',
+        { event: 'delete_message' },
+        (payload) => {
+          const tempId = payload?.payload?.tempId
+          if (tempId) removeOptimistic(tempId)
+        }
+      )
       .subscribe()
 
     channelRef.current = channel
@@ -238,7 +264,11 @@ export function ChatArea({
         workspaceId={workspaceId}
         currentUser={currentUser}
         onOptimistic={addOptimistic}
-        onOptimisticFailed={removeOptimistic}
+        onOptimisticFailed={(tempId) => {
+          removeOptimistic(tempId)
+          handleBroadcastFailed(tempId)
+        }}
+        onBroadcastInstantly={handleBroadcastInstantly}
         onSent={handleSent}
       />
 

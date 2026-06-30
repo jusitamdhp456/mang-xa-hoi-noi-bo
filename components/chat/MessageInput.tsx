@@ -28,6 +28,7 @@ export function MessageInput({
   currentUser?: { id: string; display_name: string; avatar_key: string | null } | null,
   onOptimistic?: (message: any) => void,
   onOptimisticFailed?: (tempId: string) => void,
+  onBroadcastInstantly?: (message: any) => void,
   onSent?: (message: any, tempId?: string) => void
 }) {
   const [content, setContent] = useState('')
@@ -155,9 +156,12 @@ export function MessageInput({
     // Optimistic render for text-only messages so they appear instantly,
     // without waiting for the server round-trip. Reconciled by onSent.
     let tempId: string | undefined
+    let messageId: string | undefined
+    
     if (!currentFile && currentContent.trim() && currentUser) {
-      tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`
-      onOptimistic?.({
+      messageId = crypto.randomUUID()
+      tempId = messageId // Use the real UUID as tempId so UI doesn't flicker
+      const optimisticMsg = {
         id: tempId,
         content: currentContent.trim(),
         created_at: new Date().toISOString(),
@@ -165,7 +169,10 @@ export function MessageInput({
         profiles: { display_name: currentUser.display_name, avatar_key: currentUser.avatar_key },
         message_attachments: [],
         message_reactions: [],
-      })
+      }
+      onOptimistic?.(optimisticMsg)
+      // Broadcast to other clients immediately before DB insert for zero-latency feel
+      onBroadcastInstantly?.(optimisticMsg)
     }
 
     try {
@@ -196,7 +203,7 @@ export function MessageInput({
         }
       }
       
-      const res = await sendMessage(channelId, workspaceId, currentContent, attachmentData)
+      const res = await sendMessage(channelId, workspaceId, currentContent, attachmentData, messageId)
       if (res?.error) throw new Error(res.error)
       if (res?.message) onSent?.(res.message, tempId)
 

@@ -6,7 +6,8 @@ export async function sendMessage(
   channelId: string, 
   workspaceId: string,
   content: string, 
-  attachment?: { objectKey: string, fileName: string, mimeType: string, sizeBytes: number }
+  attachment?: { objectKey: string, fileName: string, mimeType: string, sizeBytes: number },
+  messageId?: string
 ) {
   if (!content?.trim() && !attachment) return { error: 'Tin nhắn không được để trống' }
   
@@ -59,6 +60,7 @@ export async function sendMessage(
   const { data: message, error } = await serviceClient
     .from('messages')
     .insert({
+      ...(messageId ? { id: messageId } : {}),
       channel_id: channelId,
       sender_id: user.id,
       content: content?.trim() || null,
