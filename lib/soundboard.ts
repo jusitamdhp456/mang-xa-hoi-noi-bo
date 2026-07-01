@@ -70,6 +70,17 @@ function noiseHit(c: AudioContext, t: number, dur: number, vol = 0.4) {
   src.start(t)
 }
 
+// Play an uploaded sound file (custom soundboard entry) from a URL.
+export function playUrl(url: string) {
+  try {
+    const a = new Audio(url)
+    a.volume = 0.9
+    a.play().catch(() => {})
+  } catch {
+    /* ignore */
+  }
+}
+
 export function playSound(id: SoundId) {
   const c = ac()
   if (!c) return

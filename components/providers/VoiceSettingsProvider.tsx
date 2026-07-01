@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
-import { playSound, type SoundId } from '@/lib/soundboard';
+import { playSound, playUrl, type SoundId } from '@/lib/soundboard';
 
 interface Participant {
   user_id: string;
@@ -46,6 +46,7 @@ interface VoiceSettingsContextType {
 
   // Soundboard
   playSoundboard: (id: SoundId) => void;
+  playCustomSound: (objectKey: string) => void;
 }
 
 const VoiceSettingsContext = createContext<VoiceSettingsContextType | undefined>(undefined);
@@ -344,9 +345,12 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
 
     // Soundboard: play a sound for everyone in the same voice channel.
     const onSoundboard = (payload: any) => {
-      const { sound, channel_id, user_id } = payload.payload || {};
+      const { sound, url, channel_id, user_id } = payload.payload || {};
       if (user_id === user.id) return; // sender already heard it locally
-      if (channel_id && channel_id === activeChannelIdRef.current) playSound(sound);
+      if (channel_id && channel_id === activeChannelIdRef.current) {
+        if (sound === '__custom__' && url) playUrl(`/api/media/${url}`);
+        else playSound(sound);
+      }
     };
 
     channel
@@ -489,6 +493,17 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
     }
   };
 
+  const playCustomSound = (objectKey: string) => {
+    playUrl(`/api/media/${objectKey}`);
+    if (workspaceId && activeChannelId && user) {
+      supabase.channel(`workspace_presence:${workspaceId}`).send({
+        type: 'broadcast',
+        event: 'soundboard',
+        payload: { sound: '__custom__', url: objectKey, channel_id: activeChannelId, user_id: user.id },
+      });
+    }
+  };
+
   return (
     <VoiceSettingsContext.Provider 
       value={{ 
@@ -513,7 +528,8 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
         pttEnabled,
         togglePtt,
         pttActive,
-        playSoundboard
+        playSoundboard,
+        playCustomSound
       }}
     >
       {children}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, type ReactNode } from 'react';
+import { useEffect, useState, useRef, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import '@livekit/components-styles';
 import {
@@ -16,8 +16,9 @@ import { Track } from 'livekit-client';
 import { Monitor, MonitorOff, AlertTriangle, Maximize, Minimize } from 'lucide-react';
 import { useVoiceSettings, playVoiceTone } from '@/components/providers/VoiceSettingsProvider';
 import { useRouter } from 'next/navigation';
-import { Edit3, Check, X, Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Volume2, VolumeX, Settings, UserMinus, MoreVertical, Music, Hand } from 'lucide-react';
+import { Edit3, Check, X, Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Volume2, VolumeX, Settings, UserMinus, MoreVertical, Music, Hand, Upload, Pencil, Trash2 } from 'lucide-react';
 import { SOUNDBOARD } from '@/lib/soundboard';
+import { getCustomSounds, addCustomSound, renameCustomSound, deleteCustomSound } from '@/app/actions/sound';
 import { kickParticipant } from '@/app/actions/livekit';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { MusicBot } from './MusicBot';
@@ -348,12 +349,73 @@ function VoiceStage({ channelId, workspaceId }: { channelId: string; workspaceId
 // the bottom-left. Mic/deafen/leave already live in UserPanel via VoiceSettings.
 function VoiceExtraControls() {
   const { localParticipant } = useLocalParticipant();
-  const { pttEnabled, togglePtt, playSoundboard } = useVoiceSettings();
+  const { pttEnabled, togglePtt, playSoundboard, playCustomSound, workspaceId } = useVoiceSettings();
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   const [cameraOn, setCameraOn] = useState(false);
   const [screenOn, setScreenOn] = useState(false);
   const [fpsMenu, setFpsMenu] = useState(false);
   const [sbMenu, setSbMenu] = useState(false);
+  const sbBtnRef = useRef<HTMLButtonElement>(null);
+  const sbFileRef = useRef<HTMLInputElement>(null);
+  const [sbAnchor, setSbAnchor] = useState<{ right: number; bottom: number } | null>(null);
+  const [customSounds, setCustomSounds] = useState<{ id: string; name: string; object_key: string }[]>([]);
+  const [uploadingSound, setUploadingSound] = useState(false);
+
+  const loadSounds = useCallback(() => {
+    if (workspaceId) getCustomSounds(workspaceId).then(setCustomSounds);
+  }, [workspaceId]);
+
+  const openSoundboard = () => {
+    setSbMenu((v) => {
+      if (!v) {
+        const el = sbBtnRef.current;
+        if (el) {
+          const r = el.getBoundingClientRect();
+          setSbAnchor({ right: Math.max(8, window.innerWidth - r.right), bottom: window.innerHeight - r.top + 8 });
+        }
+        loadSounds();
+      }
+      return !v;
+    });
+  };
+
+  const onUploadSound = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !workspaceId) return;
+    setUploadingSound(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('folder', 'avatars');
+      const up = await fetch('/api/upload', { method: 'POST', body: fd });
+      if (!up.ok) throw new Error('Tải lên thất bại');
+      const d = await up.json();
+      const name = file.name.replace(/\.[^.]+$/, '').slice(0, 40) || 'Âm thanh';
+      const res = await addCustomSound(workspaceId, name, d.objectKey);
+      if (res?.error) throw new Error(res.error);
+      loadSounds();
+    } catch (err) {
+      alert((err as Error).message);
+    } finally {
+      setUploadingSound(false);
+    }
+  };
+
+  const renameSound = async (id: string, current: string) => {
+    const name = prompt('Tên âm thanh:', current);
+    if (name === null) return;
+    const res = await renameCustomSound(id, name);
+    if (res?.error) { alert(res.error); return; }
+    loadSounds();
+  };
+
+  const removeSound = async (id: string) => {
+    if (!confirm('Xoá âm thanh này?')) return;
+    const res = await deleteCustomSound(id);
+    if (res?.error) { alert(res.error); return; }
+    loadSounds();
+  };
 
   // Wait for the portal target in the sidebar to exist.
   useEffect(() => {
@@ -436,14 +498,21 @@ function VoiceExtraControls() {
 
       {/* Soundboard */}
       <div className="relative">
-        <button onClick={() => setSbMenu((v) => !v)} className={`${btn} ${sbMenu ? active : idle}`} title="Bảng âm thanh">
+        <button ref={sbBtnRef} onClick={openSoundboard} className={`${btn} ${sbMenu ? active : idle}`} title="Bảng âm thanh">
           <Music size={15} />
         </button>
-        {sbMenu && (
+        <input ref={sbFileRef} type="file" accept="audio/*" className="hidden" onChange={onUploadSound} />
+        {sbMenu && createPortal(
           <>
-            <div className="fixed inset-0 z-10" onClick={() => setSbMenu(false)} />
-            <div className="absolute z-20 bottom-9 right-0 w-48 bg-[#1e1f22] border border-white/10 rounded-xl shadow-2xl p-1.5 animate-scale-in">
-              <p className="text-[9px] font-extrabold uppercase tracking-wider text-zinc-500 px-2 py-1 select-none">Bảng âm thanh</p>
+            <div className="fixed inset-0 z-[80]" onClick={() => setSbMenu(false)} />
+            <div style={{ position: 'fixed', right: sbAnchor?.right ?? 8, bottom: sbAnchor?.bottom ?? 60 }} className="z-[81] w-56 max-w-[calc(100vw-1rem)] bg-[#1e1f22] border border-white/10 rounded-xl shadow-2xl p-2 animate-scale-in max-h-[70vh] overflow-y-auto">
+              <div className="flex items-center justify-between px-1 py-1">
+                <p className="text-[9px] font-extrabold uppercase tracking-wider text-zinc-500 select-none">Bảng âm thanh</p>
+                <button onClick={() => sbFileRef.current?.click()} disabled={uploadingSound} className="text-[10px] font-bold text-indigo-300 hover:text-indigo-200 flex items-center gap-1 cursor-pointer disabled:opacity-50" title="Tải âm thanh của bạn">
+                  <Upload size={11} /> {uploadingSound ? '...' : 'Tải lên'}
+                </button>
+              </div>
+
               <div className="grid grid-cols-3 gap-1">
                 {SOUNDBOARD.map((s) => (
                   <button
@@ -457,8 +526,27 @@ function VoiceExtraControls() {
                   </button>
                 ))}
               </div>
+
+              {customSounds.length > 0 && (
+                <>
+                  <p className="text-[9px] font-extrabold uppercase tracking-wider text-zinc-500 px-1 pt-2 pb-1 select-none">Của nhóm</p>
+                  <div className="flex flex-col gap-0.5">
+                    {customSounds.map((s) => (
+                      <div key={s.id} className="flex items-center gap-1 group/snd rounded-lg hover:bg-white/5">
+                        <button onClick={() => playCustomSound(s.object_key)} className="flex items-center gap-2 px-2 py-1.5 flex-1 min-w-0 cursor-pointer text-left">
+                          <Music size={12} className="text-cyan-400 shrink-0" />
+                          <span className="text-[11px] font-bold text-zinc-200 truncate">{s.name}</span>
+                        </button>
+                        <button onClick={() => renameSound(s.id, s.name)} className="opacity-0 group-hover/snd:opacity-100 text-zinc-400 hover:text-white p-1 cursor-pointer shrink-0"><Pencil size={11} /></button>
+                        <button onClick={() => removeSound(s.id)} className="opacity-0 group-hover/snd:opacity-100 text-zinc-400 hover:text-red-400 p-1 cursor-pointer shrink-0 mr-0.5"><Trash2 size={11} /></button>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
-          </>
+          </>,
+          document.body
         )}
       </div>
 
