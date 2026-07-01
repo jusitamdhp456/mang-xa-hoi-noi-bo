@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Barlow } from "next/font/google";
 import "./globals.css";
 import { IntroSplash } from "@/components/ui/IntroSplash";
+import { ServiceWorkerRegister } from "@/components/ui/ServiceWorkerRegister";
 
 const barlow = Barlow({
   weight: ['400', '500', '600', '700', '800'],
@@ -12,11 +13,21 @@ const barlow = Barlow({
 export const metadata: Metadata = {
   title: "IntraSocial",
   description: "Mạng xã hội giao tiếp nội bộ",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "IntraSocial",
+    statusBarStyle: "black-translucent",
+  },
   icons: {
     icon: "/logo.png",
     shortcut: "/logo.png",
     apple: "/logo.png",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0f172a",
 };
 
 export default function RootLayout({
@@ -35,6 +46,7 @@ export default function RootLayout({
         <link rel="preload" href="/logo.png" as="image" />
       </head>
       <body className="min-h-full flex flex-col">
+        <ServiceWorkerRegister />
         <IntroSplash />
         {children}
       </body>
