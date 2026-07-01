@@ -1039,38 +1039,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
             <span>Bạn bè</span>
           </button>
 
-          <div className="pt-4 pb-1 px-3 flex items-center justify-between text-[10px] font-black text-zinc-500 tracking-wider uppercase group">
-            <span>Kênh thoại nhóm</span>
-            <button 
-              onClick={() => setIsCreateVoiceRoomOpen(true)}
-              className="hover:text-zinc-300 transition-colors"
-              title="Tạo kênh thoại mới"
-            >
-              <Plus size={12} />
-            </button>
-          </div>
-
-          <div className="space-y-0.5">
-            {voiceRooms.map(room => {
-              return (
-                <button
-                  key={room.id}
-                  onClick={() => {
-                    setSelectedChatId(null);
-                    setActiveVoiceRoomId(room.id);
-                    setActiveView('voice');
-                    setMobileShowSidebar(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-bold transition-all text-left ${activeView === 'voice' && activeVoiceRoomId === room.id ? 'bg-white/15 text-white shadow-sm' : 'hover:bg-white/5 text-zinc-400 hover:text-zinc-200'}`}
-                >
-                  <span className="text-sm shrink-0">🔊</span>
-                  <span className="truncate">{room.name}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="pt-4 pb-1 px-3 flex items-center justify-between text-[10px] font-black text-zinc-500 tracking-wider uppercase group border-t border-white/5 mt-3">
+          <div className="pt-4 pb-1 px-3 flex items-center justify-between text-[10px] font-black text-zinc-500 tracking-wider uppercase group mt-1">
             <span>Tin nhắn trực tiếp</span>
           </div>
 
