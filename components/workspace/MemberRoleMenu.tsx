@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { MoreVertical, Shield, UserMinus, Ban, Check } from 'lucide-react'
 import { updateMemberRole, kickMember } from '@/app/actions/workspace'
@@ -28,15 +29,17 @@ export function MemberRoleMenu({
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const [pos, setPos] = useState<{ right: number; top: number } | null>(null)
 
-  useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+  const openMenu = () => {
+    const el = btnRef.current
+    if (el) {
+      const r = el.getBoundingClientRect()
+      setPos({ right: Math.max(8, window.innerWidth - r.right), top: r.bottom + 4 })
     }
-    if (open) document.addEventListener('mousedown', onClick)
-    return () => document.removeEventListener('mousedown', onClick)
-  }, [open])
+    setOpen((v) => !v)
+  }
 
   const setRole = async (role: string) => {
     setBusy(true)
@@ -63,16 +66,19 @@ export function MemberRoleMenu({
   }
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative">
       <button
-        onClick={() => setOpen((v) => !v)}
+        ref={btnRef}
+        onClick={openMenu}
         className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center rounded-md text-zinc-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer shrink-0"
         title="Quản lý thành viên"
       >
         <MoreVertical size={14} />
       </button>
-      {open && (
-        <div className="absolute right-0 top-7 z-30 w-44 bg-[#1e1b4b]/95 border border-white/15 backdrop-blur-2xl rounded-xl p-1.5 shadow-2xl animate-scale-in">
+      {open && createPortal(
+        <>
+        <div className="fixed inset-0 z-[90]" onClick={() => setOpen(false)} />
+        <div style={{ position: 'fixed', right: pos?.right ?? 8, top: pos?.top ?? 60 }} className="z-[91] w-44 max-w-[calc(100vw-1rem)] bg-[#1e1b4b]/95 border border-white/15 backdrop-blur-2xl rounded-xl p-1.5 shadow-2xl animate-scale-in">
           {canManage && (
             <>
               <p className="text-[9px] font-extrabold uppercase tracking-wider text-zinc-500 px-2 py-1 select-none flex items-center gap-1">
@@ -107,6 +113,8 @@ export function MemberRoleMenu({
             {isBlocked ? <Check size={13} /> : <Ban size={13} />} {isBlocked ? 'Bỏ chặn' : 'Chặn người dùng'}
           </button>
         </div>
+        </>,
+        document.body
       )}
     </div>
   )
