@@ -37,7 +37,8 @@ export function ServerSettingsMenu({
     const d = await up.json()
     const res = await updateWorkspaceIcon(workspaceId, d.objectKey)
     if (res?.error) { alert(res.error); return }
-    router.refresh()
+    // Hard reload so the server-rail (cached in the app layout) shows the new icon.
+    window.location.reload()
   }
 
   useEffect(() => {
