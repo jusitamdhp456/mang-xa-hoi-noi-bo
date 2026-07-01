@@ -9,6 +9,22 @@ import { getCustomEmojis } from '@/app/actions/emoji'
 
 type MemberHint = { id: string; name: string; avatar: string | null }
 
+const SLASH_COMMANDS: { cmd: string; desc: string; transform: (arg: string) => string }[] = [
+  { cmd: 'shrug', desc: 'Nhún vai ¯\\_(ツ)_/¯', transform: (a) => (a ? a + ' ' : '') + '¯\\_(ツ)_/¯' },
+  { cmd: 'tableflip', desc: 'Lật bàn (╯°□°)╯︵ ┻━┻', transform: () => '(╯°□°)╯︵ ┻━┻' },
+  { cmd: 'unflip', desc: 'Dựng bàn ┬─┬ノ( º _ ºノ)', transform: () => '┬─┬ノ( º _ ºノ)' },
+  { cmd: 'me', desc: 'Hành động (in nghiêng)', transform: (a) => (a ? `*${a}*` : '') },
+  { cmd: 'spoiler', desc: 'Ẩn nội dung (spoiler)', transform: (a) => (a ? `||${a}||` : '') },
+]
+
+function applySlashCommand(text: string): string {
+  const m = text.match(/^\/(\w+)(?:\s+([\s\S]*))?$/)
+  if (!m) return text
+  const c = SLASH_COMMANDS.find((s) => s.cmd === m[1].toLowerCase())
+  if (!c) return text
+  return c.transform((m[2] || '').trim())
+}
+
 const EMOJI_CATEGORIES: { name: string; emojis: string[] }[] = [
   { name: 'Mặt cười', emojis: ['😀','😃','😄','😁','😆','😅','😂','🤣','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🤐','😐','😑','😶','😏','😒','🙄','😬','😮‍💨','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🥵','🥶','🥴','😵','🤯','🤠','🥳','😎','🤓','🧐','😕','😟','🙁','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','👿','💀','💩','🤡','👻','👽'] },
   { name: 'Cử chỉ', emojis: ['👍','👎','👊','✊','🤛','🤜','🤞','✌️','🤟','🤘','👌','🤌','🤏','👈','👉','👆','👇','☝️','✋','🤚','🖐️','🖖','👋','🤙','💪','🙏','🤝','👏','🙌','👐','🤲','🤦','🤷','💅','👀','👁️','🧠','❤️‍🔥'] },
@@ -335,7 +351,7 @@ export function MessageInput({
     if ((!content.trim() && !selectedFile) || isSending) return
 
     setIsSending(true)
-    let currentContent = content
+    let currentContent = applySlashCommand(content)
     const currentFile = selectedFile
 
     setContent('')
@@ -485,6 +501,25 @@ export function MessageInput({
       )}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        {content.startsWith('/') && !content.includes(' ') && (() => {
+          const results = SLASH_COMMANDS.filter((s) => s.cmd.startsWith(content.slice(1).toLowerCase()))
+          if (results.length === 0) return null
+          return (
+            <div className="bg-[#2b2d31] border border-white/10 rounded-xl shadow-2xl p-1.5 ml-1 animate-fade-in-up">
+              {results.map((s) => (
+                <button
+                  key={s.cmd}
+                  type="button"
+                  onClick={() => { setContent(`/${s.cmd} `); requestAnimationFrame(() => textInputRef.current?.focus()) }}
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer text-left"
+                >
+                  <span className="text-xs font-extrabold text-cyan-300">/{s.cmd}</span>
+                  <span className="text-[11px] text-zinc-400 truncate">{s.desc}</span>
+                </button>
+              ))}
+            </div>
+          )
+        })()}
         {replyingTo && (
           <div className="flex items-center justify-between gap-2 bg-black/30 border border-white/10 rounded-xl px-3 py-2 ml-1 animate-fade-in-up">
             <div className="min-w-0 text-xs">

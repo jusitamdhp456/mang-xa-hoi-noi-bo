@@ -32,6 +32,7 @@ import {
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { VoiceRoom } from '@/components/workspace/VoiceRoom';
 import { RichText } from '@/lib/richtext';
+import { getBlockedIds } from '@/app/actions/block';
 import { EmbedList } from '@/lib/embeds';
 import { VoiceInviteCard } from '@/components/chat/VoiceInviteCard';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
@@ -225,6 +226,8 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
   const [friendsProfiles, setFriendsProfiles] = useState<any[]>([]);
   const [friendRequests, setFriendRequests] = useState<any[]>([]);
   const [dbMessages, setDbMessages] = useState<any[]>([]);
+  const [blockedIds, setBlockedIds] = useState<Set<string>>(new Set());
+  useEffect(() => { getBlockedIds().then((ids) => setBlockedIds(new Set(ids))); }, []);
   const [currentMessageInput, setCurrentMessageInput] = useState('');
   // DM reply / edit / typing
   const [dmReplyTo, setDmReplyTo] = useState<any | null>(null);
@@ -1845,7 +1848,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                   </div>
 
                   <div className="flex-1 space-y-5 flex flex-col justify-end">
-                    {dbMessages.map((msg, index) => {
+                    {dbMessages.filter((msg) => !blockedIds.has(msg.sender_id)).map((msg, index) => {
                       const isMe = msg.sender_id === user.id;
                       const partnerName = activeChatPartner?.display_name || 'Bạn';
                       const partnerAvatar = activeChatPartner?.avatar_key ? `/api/media/${activeChatPartner.avatar_key}` : null;
