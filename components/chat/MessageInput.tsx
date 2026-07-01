@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { sendMessage } from '@/app/actions/message'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
-import { Send, Smile, File as FileIcon } from 'lucide-react'
+import { Send, Smile, File as FileIcon, Mic, Trash2, BarChart3, Plus, X } from 'lucide-react'
+import { POLL_PREFIX } from './PollCard'
 
 type MemberHint = { id: string; name: string; avatar: string | null }
 
@@ -51,6 +52,39 @@ export function MessageInput({
   const [gifs, setGifs] = useState<{ id: string; url: string; preview: string }[]>([])
   const [gifLoading, setGifLoading] = useState(false)
   const TENOR_KEY = process.env.NEXT_PUBLIC_TENOR_KEY
+
+  // --- Voice message recording ---
+  const [recording, setRecording] = useState(false)
+  const [recSec, setRecSec] = useState(0)
+  const recRef = useRef<MediaRecorder | null>(null)
+  const recChunks = useRef<Blob[]>([])
+  const recStream = useRef<MediaStream | null>(null)
+  const recTimer = useRef<ReturnType<typeof setInterval> | null>(null)
+  const recCancelled = useRef(false)
+
+  // --- Poll composer ---
+  const [pollOpen, setPollOpen] = useState(false)
+  const [pollQuestion, setPollQuestion] = useState('')
+  const [pollOptions, setPollOptions] = useState<string[]>(['', ''])
+
+  const createPoll = async () => {
+    const q = pollQuestion.trim()
+    const opts = pollOptions.map((o) => o.trim()).filter(Boolean)
+    if (!q || opts.length < 2) { alert('Cần câu hỏi và ít nhất 2 lựa chọn'); return }
+    setPollOpen(false)
+    setPollQuestion(''); setPollOptions(['', ''])
+    setIsSending(true)
+    try {
+      const content = POLL_PREFIX + JSON.stringify({ question: q, options: opts.slice(0, 10) })
+      const res = await sendMessage(channelId, workspaceId, content)
+      if (res?.error) throw new Error(res.error)
+      if (res?.message) onSent?.(res.message)
+    } catch (e) {
+      alert((e as Error).message || 'Lỗi tạo bình chọn')
+    } finally {
+      setIsSending(false)
+    }
+  }
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textInputRef = useRef<HTMLInputElement>(null)
 
@@ -127,6 +161,59 @@ export function MessageInput({
     setEmojiOpen(false)
     setContent((prev) => (prev ? prev + ' ' : '') + url + ' ')
     requestAnimationFrame(() => textInputRef.current?.focus())
+  }
+
+  const sendVoice = async (file: File) => {
+    setIsSending(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('workspaceId', workspaceId)
+      fd.append('channelId', channelId)
+      const up = await fetch('/api/upload', { method: 'POST', body: fd })
+      if (!up.ok) throw new Error('Tải tin nhắn thoại thất bại')
+      const d = await up.json()
+      const res = await sendMessage(channelId, workspaceId, '', {
+        objectKey: d.objectKey, fileName: d.fileName || 'voice-message.webm', mimeType: d.mimeType || 'audio/webm', sizeBytes: d.sizeBytes || file.size,
+      })
+      if (res?.error) throw new Error(res.error)
+      if (res?.message) onSent?.(res.message)
+    } catch (e) {
+      alert((e as Error).message || 'Lỗi gửi tin nhắn thoại')
+    } finally {
+      setIsSending(false)
+    }
+  }
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      recStream.current = stream
+      const mr = new MediaRecorder(stream)
+      recChunks.current = []
+      recCancelled.current = false
+      mr.ondataavailable = (e) => { if (e.data.size) recChunks.current.push(e.data) }
+      mr.onstop = () => {
+        recStream.current?.getTracks().forEach((t) => t.stop())
+        if (recTimer.current) clearInterval(recTimer.current)
+        if (recCancelled.current) return
+        const blob = new Blob(recChunks.current, { type: 'audio/webm' })
+        if (blob.size > 0) sendVoice(new File([blob], `voice-${Date.now()}.webm`, { type: 'audio/webm' }))
+      }
+      recRef.current = mr
+      mr.start()
+      setRecording(true)
+      setRecSec(0)
+      recTimer.current = setInterval(() => setRecSec((s) => s + 1), 1000)
+    } catch {
+      alert('Không truy cập được micro. Hãy cho phép quyền micro.')
+    }
+  }
+
+  const stopRecording = (cancel: boolean) => {
+    recCancelled.current = cancel
+    recRef.current?.stop()
+    setRecording(false)
   }
 
   const insertEmoji = (emoji: string) => {
@@ -467,9 +554,22 @@ export function MessageInput({
             </div>
           </div>
         )}
-        <div className="bg-[#383a40]/60 border border-white/5 rounded-2xl py-3 px-4 flex items-center shadow-lg focus-within:border-indigo-500 focus-within:bg-[#383a40]/80 transition-all">
-           <button 
-             type="button" 
+        <div className="relative bg-[#383a40]/60 border border-white/5 rounded-2xl py-3 px-4 flex items-center shadow-lg focus-within:border-indigo-500 focus-within:bg-[#383a40]/80 transition-all">
+           {recording && (
+             <div className="absolute inset-0 rounded-2xl bg-[#383a40] flex items-center gap-3 px-4 z-30">
+               <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse shrink-0" />
+               <span className="text-xs font-bold text-white">Đang ghi âm… {Math.floor(recSec / 60)}:{String(recSec % 60).padStart(2, '0')}</span>
+               <div className="flex-1" />
+               <button type="button" onClick={() => stopRecording(true)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer">
+                 <Trash2 size={14} /> Huỷ
+               </button>
+               <button type="button" onClick={() => stopRecording(false)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors cursor-pointer">
+                 <Send size={14} /> Gửi
+               </button>
+             </div>
+           )}
+           <button
+             type="button"
              onClick={() => fileInputRef.current?.click()}
              className="text-zinc-400 hover:text-white mr-3 shrink-0 flex items-center justify-center w-7 h-7 bg-white/5 hover:bg-white/10 rounded-full transition-colors cursor-pointer text-base font-bold animate-pulse-subtle"
              title="Đính kèm tệp tin / hình ảnh"
@@ -561,8 +661,66 @@ export function MessageInput({
                </>
              )}
            </div>
+           {/* Poll */}
+           <div className="relative shrink-0 mr-1">
+             <button
+               type="button"
+               onClick={() => setPollOpen((v) => !v)}
+               disabled={isSending}
+               className="text-zinc-400 hover:text-white transition-colors cursor-pointer disabled:opacity-30 p-1 hover:bg-white/5 rounded-lg flex items-center justify-center"
+               title="Tạo bình chọn"
+             >
+               <BarChart3 size={16} />
+             </button>
+             {pollOpen && (
+               <>
+                 <div className="fixed inset-0 z-10" onClick={() => setPollOpen(false)} />
+                 <div className="absolute z-20 bottom-10 right-0 w-72 bg-[#2b2d31] border border-white/10 rounded-2xl shadow-2xl p-3 animate-scale-in">
+                   <p className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-400 mb-2">Tạo bình chọn</p>
+                   <input
+                     value={pollQuestion}
+                     onChange={(e) => setPollQuestion(e.target.value)}
+                     placeholder="Câu hỏi…"
+                     className="w-full bg-black/30 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-indigo-500 mb-2"
+                   />
+                   <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto">
+                     {pollOptions.map((opt, i) => (
+                       <div key={i} className="flex items-center gap-1">
+                         <input
+                           value={opt}
+                           onChange={(e) => setPollOptions((prev) => prev.map((o, j) => (j === i ? e.target.value : o)))}
+                           placeholder={`Lựa chọn ${i + 1}`}
+                           className="flex-1 bg-black/30 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-indigo-500"
+                         />
+                         {pollOptions.length > 2 && (
+                           <button type="button" onClick={() => setPollOptions((prev) => prev.filter((_, j) => j !== i))} className="text-zinc-500 hover:text-red-400 cursor-pointer p-1"><X size={13} /></button>
+                         )}
+                       </div>
+                     ))}
+                   </div>
+                   {pollOptions.length < 10 && (
+                     <button type="button" onClick={() => setPollOptions((prev) => [...prev, ''])} className="flex items-center gap-1 mt-1.5 text-[11px] font-bold text-indigo-300 hover:text-indigo-200 cursor-pointer">
+                       <Plus size={12} /> Thêm lựa chọn
+                     </button>
+                   )}
+                   <button type="button" onClick={createPoll} className="w-full mt-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-colors cursor-pointer">
+                     Gửi bình chọn
+                   </button>
+                 </div>
+               </>
+             )}
+           </div>
            <button
-             type="submit" 
+             type="button"
+             onClick={startRecording}
+             disabled={isSending}
+             className="text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0 disabled:opacity-30 p-1 hover:bg-white/5 rounded-lg flex items-center justify-center mr-1"
+             title="Ghi âm tin nhắn thoại"
+           >
+             <Mic size={16} />
+           </button>
+           <button
+             type="submit"
              disabled={isSending || (!content.trim() && !selectedFile)}
              className="text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0 disabled:opacity-30 disabled:hover:text-zinc-400 p-1 hover:bg-white/5 rounded-lg flex items-center justify-center"
              title="Gửi tin nhắn"

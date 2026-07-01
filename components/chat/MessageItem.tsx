@@ -6,6 +6,7 @@ import { type MessageRow } from './ChatArea'
 import { VoiceInviteCard } from './VoiceInviteCard'
 import { RichText } from '@/lib/richtext'
 import { EmbedList } from '@/lib/embeds'
+import { PollCard, parsePoll } from './PollCard'
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '🎉', '😮', '😢', '🔥', '👀']
 
@@ -38,6 +39,7 @@ export function MessageItem({
   const attachment = message.message_attachments?.[0]
   const isMe = currentUserId && message.sender_id === currentUserId
   const isVoiceInvite = !!message.content?.startsWith('[VOICE_INVITE]:')
+  const poll = message.content ? parsePoll(message.content) : null
 
   const [pickerOpen, setPickerOpen] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -52,6 +54,7 @@ export function MessageItem({
   // Group reactions by emoji with count + whether the current user reacted.
   const reactionGroups = (message.message_reactions || []).reduce<Record<string, { count: number; mine: boolean }>>(
     (acc, r) => {
+      if (r.emoji.startsWith('poll:')) return acc // poll votes are shown in the poll card
       const g = acc[r.emoji] || { count: 0, mine: false }
       g.count += 1
       if (currentUserId && r.user_id === currentUserId) g.mine = true
@@ -115,6 +118,15 @@ export function MessageItem({
             message.content && (
               isVoiceInvite ? (
                 <VoiceInviteCard payload={message.content.slice('[VOICE_INVITE]:'.length)} />
+              ) : poll ? (
+                <PollCard
+                  question={poll.question}
+                  options={poll.options}
+                  messageId={message.id}
+                  reactions={message.message_reactions || []}
+                  currentUserId={currentUserId}
+                  onVote={onToggleReaction}
+                />
               ) : (
                 <div className="flex items-end gap-1.5">
                   <div
@@ -168,6 +180,8 @@ export function MessageItem({
                     />
                   </a>
                 )
+              ) : attachment.mime_type?.startsWith('audio/') ? (
+                 <audio controls src={`/api/media/${attachment.object_key}`} className="mt-1 max-w-[240px] h-10" />
               ) : (
                  <div className="flex items-center gap-3 bg-black/25 p-3 rounded-xl border border-white/5 max-w-sm mt-1">
                    <span className="text-2xl shrink-0">📎</span>

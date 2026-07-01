@@ -115,9 +115,12 @@ export function MessageToasts() {
               if (isChannelMuted(channelId)) return; // muted: no toast, sound, or unread
               // Mark the channel unread in the sidebar.
               window.dispatchEvent(new CustomEvent('app:channel-activity', { detail: { channelId } }));
-              const content = (message.content || '').startsWith('[VOICE_INVITE]:')
+              const raw = message.content || ''
+              const content = raw.startsWith('[VOICE_INVITE]:')
                 ? 'Đã gửi lời mời đàm thoại'
-                : (message.content || 'Đã gửi một tệp đính kèm');
+                : raw.startsWith('[POLL]:')
+                  ? 'Đã tạo một bình chọn'
+                  : (raw || 'Đã gửi một tệp đính kèm');
               notify({
                 id: `${channelId}-${Date.now()}`,
                 name: message.profiles?.display_name || 'Thành viên',
