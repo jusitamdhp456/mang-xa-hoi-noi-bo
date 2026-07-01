@@ -197,10 +197,10 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
       onContextMenu={handleContextMenu}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
-      className={`relative px-3 py-2 rounded-xl cursor-pointer text-sm mb-1 flex items-center font-medium transition-all group select-none ${
-        isActive 
-          ? 'bg-white/15 text-white shadow-sm border border-white/5' 
-          : 'hover:bg-white/10 text-white/70 hover:text-white hover:shadow-sm'
+      className={`relative px-2 py-[6px] rounded cursor-pointer text-[15px] mb-0.5 flex items-center font-medium transition-colors group select-none ${
+        isActive
+          ? 'bg-white/15 text-white'
+          : 'hover:bg-white/[0.08] text-white/60 hover:text-white/90'
       }`}
     >
       {/* Unread pill on the left edge (Discord-style) */}

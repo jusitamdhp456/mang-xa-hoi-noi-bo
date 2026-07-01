@@ -4,6 +4,7 @@ import { CreateChannelModal } from './CreateChannelModal'
 import { SidebarCategoryGroup } from './SidebarCategoryGroup'
 import { UserPanel } from './UserPanel'
 import { ServerSettingsMenu } from './ServerSettingsMenu'
+import { Compass } from 'lucide-react'
 
 export default async function ChannelSidebar({ workspaceId }: { workspaceId: string }) {
   const supabase = await createSupabaseServerClient()
@@ -72,18 +73,16 @@ export default async function ChannelSidebar({ workspaceId }: { workspaceId: str
         />
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 scrollbar-thin scrollbar-thumb-white/20">
-        
-        {/* Duyệt các Kênh Button */}
-        <div className="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-white/10 cursor-pointer text-sm mb-4 font-bold text-white/80 hover:text-white transition-colors group select-none">
-          <span className="flex items-center gap-2">
-            <span className="text-base leading-none">🔍</span>
-            Duyệt các Kênh
-          </span>
-          <span className="bg-indigo-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider animate-pulse">
-            Mới
-          </span>
-        </div>
+      <div className="flex-1 overflow-y-auto px-2 py-3 scrollbar-thin scrollbar-thumb-white/20">
+
+        {/* Browse channels (Discord-style muted row) */}
+        <Link
+          href={`/workspace/${workspaceId}`}
+          className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-white/10 cursor-pointer text-sm mb-3 font-medium text-white/60 hover:text-white transition-colors select-none"
+        >
+          <Compass size={18} className="shrink-0" />
+          Duyệt các kênh
+        </Link>
 
         {/* Kênh Chat collapsible group */}
         <SidebarCategoryGroup
