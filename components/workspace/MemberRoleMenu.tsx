@@ -2,8 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { MoreVertical, Shield, UserMinus } from 'lucide-react'
+import { MoreVertical, Shield, UserMinus, Ban, Check } from 'lucide-react'
 import { updateMemberRole, kickMember } from '@/app/actions/workspace'
+import { blockUser, unblockUser } from '@/app/actions/block'
 
 const ROLE_OPTIONS: { value: string; label: string }[] = [
   { value: 'admin', label: 'Quản trị' },
@@ -15,10 +16,14 @@ export function MemberRoleMenu({
   workspaceId,
   targetUserId,
   currentRole,
+  canManage = false,
+  isBlocked = false,
 }: {
   workspaceId: string
   targetUserId: string
   currentRole: string
+  canManage?: boolean
+  isBlocked?: boolean
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -50,6 +55,13 @@ export function MemberRoleMenu({
     router.refresh()
   }
 
+  const toggleBlock = async () => {
+    setOpen(false)
+    const res = isBlocked ? await unblockUser(targetUserId) : await blockUser(targetUserId)
+    if (res?.error) { alert(res.error); return }
+    router.refresh()
+  }
+
   return (
     <div className="relative" ref={ref}>
       <button
@@ -61,27 +73,38 @@ export function MemberRoleMenu({
       </button>
       {open && (
         <div className="absolute right-0 top-7 z-30 w-44 bg-[#1e1b4b]/95 border border-white/15 backdrop-blur-2xl rounded-xl p-1.5 shadow-2xl animate-scale-in">
-          <p className="text-[9px] font-extrabold uppercase tracking-wider text-zinc-500 px-2 py-1 select-none flex items-center gap-1">
-            <Shield size={10} /> Đổi vai trò
-          </p>
-          {ROLE_OPTIONS.map((r) => (
-            <button
-              key={r.value}
-              disabled={busy || r.value === currentRole}
-              onClick={() => setRole(r.value)}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
-                r.value === currentRole ? 'text-indigo-300 bg-white/5' : 'text-white hover:bg-white/10'
-              }`}
-            >
-              {r.label}{r.value === currentRole ? ' ✓' : ''}
-            </button>
-          ))}
-          <div className="h-px bg-white/10 my-1" />
+          {canManage && (
+            <>
+              <p className="text-[9px] font-extrabold uppercase tracking-wider text-zinc-500 px-2 py-1 select-none flex items-center gap-1">
+                <Shield size={10} /> Đổi vai trò
+              </p>
+              {ROLE_OPTIONS.map((r) => (
+                <button
+                  key={r.value}
+                  disabled={busy || r.value === currentRole}
+                  onClick={() => setRole(r.value)}
+                  className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                    r.value === currentRole ? 'text-indigo-300 bg-white/5' : 'text-white hover:bg-white/10'
+                  }`}
+                >
+                  {r.label}{r.value === currentRole ? ' ✓' : ''}
+                </button>
+              ))}
+              <div className="h-px bg-white/10 my-1" />
+              <button
+                onClick={kick}
+                className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold text-red-400 hover:bg-red-600 hover:text-white transition-colors cursor-pointer"
+              >
+                <UserMinus size={13} /> Xoá khỏi nhóm
+              </button>
+              <div className="h-px bg-white/10 my-1" />
+            </>
+          )}
           <button
-            onClick={kick}
-            className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold text-red-400 hover:bg-red-600 hover:text-white transition-colors cursor-pointer"
+            onClick={toggleBlock}
+            className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${isBlocked ? 'text-emerald-400 hover:bg-white/10' : 'text-red-400 hover:bg-red-600 hover:text-white'}`}
           >
-            <UserMinus size={13} /> Xoá khỏi nhóm
+            {isBlocked ? <Check size={13} /> : <Ban size={13} />} {isBlocked ? 'Bỏ chặn' : 'Chặn người dùng'}
           </button>
         </div>
       )}

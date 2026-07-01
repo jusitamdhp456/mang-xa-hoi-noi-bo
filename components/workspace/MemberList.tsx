@@ -1,6 +1,7 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import MemberStatus from './MemberStatus'
 import { MemberRoleMenu } from './MemberRoleMenu'
+import { getBlockedIds } from '@/app/actions/block'
 
 const ROLE_META: Record<string, { label: string; color: string; rank: number }> = {
   owner: { label: 'Chủ sở hữu', color: 'text-amber-400', rank: 3 },
@@ -24,6 +25,7 @@ export default async function MemberList({ workspaceId }: { channelId?: string, 
     .select('role, profiles(id, display_name, status_text, avatar_key)')
     .eq('workspace_id', workspaceId)
 
+  const blockedSet = new Set(await getBlockedIds())
   const list = (members as unknown as MemberRow[])?.filter((m) => m.profiles) || []
   const myRole = list.find((m) => m.profiles?.id === user?.id)?.role || 'member'
   const myRank = ROLE_META[myRole]?.rank ?? 0
@@ -48,7 +50,8 @@ export default async function MemberList({ workspaceId }: { channelId?: string, 
               {g.members.map((m) => {
                 const p = m.profiles!
                 const targetRank = ROLE_META[m.role]?.rank ?? 0
-                const showMenu = canManage && p.id !== user?.id && targetRank < myRank
+                const isSelf = p.id === user?.id
+                const canManageTarget = canManage && !isSelf && targetRank < myRank
                 return (
                   <div key={p.id} className="flex items-center gap-3 hover:bg-white/10 p-2 -mx-2 rounded-xl transition-all group">
                     <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center shrink-0 shadow-sm bg-white/80 border border-white text-pink-500 font-bold">
@@ -66,7 +69,7 @@ export default async function MemberList({ workspaceId }: { channelId?: string, 
                       </p>
                       <MemberStatus userId={p.id} defaultStatus={p.status_text} />
                     </div>
-                    {showMenu && <MemberRoleMenu workspaceId={workspaceId} targetUserId={p.id} currentRole={m.role} />}
+                    {!isSelf && <MemberRoleMenu workspaceId={workspaceId} targetUserId={p.id} currentRole={m.role} canManage={canManageTarget} isBlocked={blockedSet.has(p.id)} />}
                   </div>
                 )
               })}

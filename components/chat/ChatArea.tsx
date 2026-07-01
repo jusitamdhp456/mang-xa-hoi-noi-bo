@@ -5,6 +5,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { toggleReaction } from '@/app/actions/reaction'
 import { editMessage, deleteMessage, togglePin, getPinnedMessages, searchMessages } from '@/app/actions/message'
+import { getBlockedIds } from '@/app/actions/block'
 import { Volume2, Download, Pin, Search, X } from 'lucide-react'
 import { MessageItem } from './MessageItem'
 import { MessageInput } from './MessageInput'
@@ -64,6 +65,8 @@ export function ChatArea({
 }) {
   const currentUserId = currentUser?.id ?? null
   const [messages, setMessages] = useState<MessageRow[]>(initialMessages)
+  const [blockedIds, setBlockedIds] = useState<Set<string>>(new Set())
+  useEffect(() => { getBlockedIds().then((ids) => setBlockedIds(new Set(ids))) }, [])
   const [activeLightboxImg, setActiveLightboxImg] = useState<string | null>(null)
   const supabase = createSupabaseBrowserClient()
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -449,7 +452,7 @@ export function ChatArea({
           </div>
         ) : (
           <div className="flex flex-col justify-end space-y-5">
-            {messages.map((msg) => (
+            {messages.filter((msg) => !blockedIds.has(msg.sender_id)).map((msg) => (
               <MessageItem
                 key={msg.id}
                 message={msg}
