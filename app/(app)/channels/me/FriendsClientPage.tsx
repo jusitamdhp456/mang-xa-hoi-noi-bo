@@ -33,6 +33,7 @@ import { User as SupabaseUser } from '@supabase/supabase-js';
 import { VoiceRoom } from '@/components/workspace/VoiceRoom';
 import { RichText } from '@/lib/richtext';
 import { getBlockedIds } from '@/app/actions/block';
+import { parseStatus } from '@/lib/status';
 import { EmbedList } from '@/lib/embeds';
 import { VoiceInviteCard } from '@/components/chat/VoiceInviteCard';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
@@ -720,35 +721,23 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
     loadMessages();
   }, [selectedChatId]);
 
-  // Assign mock online status & activities to profiles for high fidelity
-  const mockStatusAndActivity = (id: string, index: number) => {
-    const statuses: Array<'online' | 'idle' | 'offline'> = ['online', 'idle', 'offline', 'online'];
-    const status = statuses[index % statuses.length];
-    
-    let activity = null;
-    if (index === 0) {
-      activity = {
-        game: 'League of Legends',
-        detail: 'Trong trận ARAM - 3 phút',
-        icon: '🎮'
-      };
-    } else if (index === 1) {
-      activity = {
-        game: 'Visual Studio Code',
-        detail: 'Đang sửa file layout.tsx',
-        icon: '💻'
-      };
-    }
-
-    return { status, activity };
+  // Real status from the user's own setting (profiles.status_text encodes it).
+  // No fabricated "playing a game" activity — the app doesn't track that.
+  const realStatus = (statusRaw?: string | null) => {
+    const { state, text } = parseStatus(statusRaw);
+    return {
+      status: state === 'invisible' ? 'offline' : state, // online | idle | dnd
+      statusText: text,
+      activity: null as null,
+    };
   };
 
   // Filter out blocked users
   const friendsProfilesFiltered = friendsProfiles.filter(p => !blockedUserIds.includes(p.id));
 
-  const profilesWithStatus = friendsProfilesFiltered.map((p, idx) => ({
+  const profilesWithStatus = friendsProfilesFiltered.map((p) => ({
     ...p,
-    ...mockStatusAndActivity(p.id, idx)
+    ...realStatus(p.status_text),
   }));
 
   // Filtering lists
@@ -1091,7 +1080,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
               const name = p.display_name || p.username || 'User';
               const isSelected = selectedChatId === p.threadId;
               
-              let statusBg = (p.status === 'online' || p.status === 'idle') ? 'bg-green-500' : 'bg-zinc-500';
+              let statusBg = p.status === 'dnd' ? 'bg-rose-500' : p.status === 'idle' ? 'bg-amber-500' : p.status !== 'offline' ? 'bg-green-500' : 'bg-zinc-500';
 
               return (
                 <button
@@ -1554,8 +1543,8 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                       {(activeTab === 'online' ? friendsList : allList).map(p => {
                         const avatar = p.avatar_key ? `/api/media/${p.avatar_key}` : null;
                         const name = p.display_name || p.username || 'User';
-                        let statusBg = (p.status === 'online' || p.status === 'idle') ? 'bg-green-500' : 'bg-zinc-500';
-                        let statusTextDesc = (p.status === 'online' || p.status === 'idle') ? 'Trực tuyến' : 'Ngoại tuyến';
+                        let statusBg = p.status === 'dnd' ? 'bg-rose-500' : p.status === 'idle' ? 'bg-amber-500' : p.status !== 'offline' ? 'bg-green-500' : 'bg-zinc-500';
+                        let statusTextDesc = p.status !== 'offline' ? 'Trực tuyến' : 'Ngoại tuyến';
 
                         return (
                           <div key={p.id} className="flex items-center justify-between p-2.5 rounded-xl hover:bg-white/5 transition-colors border border-transparent hover:border-white/5">
@@ -1572,7 +1561,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                               </div>
                               <div>
                                 <p className="text-white text-sm font-bold leading-tight">{name}</p>
-                                <p className="text-xs text-zinc-500">{p.activity ? `${p.activity.game} — ${p.activity.detail}` : statusTextDesc}</p>
+                                <p className="text-xs text-zinc-500">{p.statusText || statusTextDesc}</p>
                               </div>
                             </div>
 
@@ -1664,13 +1653,20 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
 
               <div className="w-72 border-l border-white/10 p-6 hidden lg:flex flex-col gap-4 overflow-y-auto shrink-0 select-none">
                 <h3 className="text-xs font-black text-zinc-400 uppercase tracking-wider">Đang Hoạt Động</h3>
-                <div className="space-y-4">
-                  {friendsList.slice(0, 2).map((p) => {
+                {friendsList.length === 0 ? (
+                  <div className="text-center mt-6">
+                    <p className="text-sm font-bold text-white/80">Yên tĩnh quá…</p>
+                    <p className="text-xs text-zinc-500 mt-1">Khi bạn bè trực tuyến, họ sẽ hiện ở đây.</p>
+                  </div>
+                ) : (
+                <div className="space-y-3">
+                  {friendsList.map((p) => {
                     const avatar = p.avatar_key ? `/api/media/${p.avatar_key}` : null;
                     const name = p.display_name || p.username || 'User';
+                    const dot = p.status === 'dnd' ? 'bg-rose-500' : p.status === 'idle' ? 'bg-amber-500' : 'bg-green-500';
 
                     return (
-                      <div key={p.id} className="bg-white/5 border border-white/5 p-3 rounded-xl flex gap-3">
+                      <div key={p.id} className="bg-white/5 border border-white/5 p-3 rounded-xl flex gap-3 items-center">
                         <div className="relative shrink-0">
                           {avatar ? (
                             <img src={avatar} alt="Avatar" className="w-9 h-9 rounded-full object-cover shrink-0" />
@@ -1679,21 +1675,19 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                               {name.charAt(0)}
                             </div>
                           )}
-                          <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-slate-900 bg-green-500"></span>
+                          <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-slate-900 ${dot}`}></span>
                         </div>
                         <div className="min-w-0">
                           <p className="text-white text-xs font-bold truncate leading-tight">{name}</p>
-                          {p.activity && (
-                            <div className="mt-1.5 space-y-1">
-                              <p className="text-[10px] text-zinc-400 truncate font-semibold leading-none">{p.activity.game}</p>
-                              <p className="text-[9px] text-zinc-500 truncate leading-none">{p.activity.detail}</p>
-                            </div>
+                          {p.statusText && (
+                            <p className="text-[10px] text-zinc-400 truncate leading-none mt-1">{p.statusText}</p>
                           )}
                         </div>
                       </div>
                     );
                   })}
                 </div>
+                )}
               </div>
             </div>
           </div>
@@ -1763,7 +1757,7 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                           {activeChatPartner?.display_name?.charAt(0)}
                         </div>
                       )}
-                      <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-slate-900 ${(activeChatPartner?.status === 'online' || activeChatPartner?.status === 'idle') ? 'bg-green-500' : 'bg-zinc-500'}`}></span>
+                      <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-slate-900 ${activeChatPartner?.status === 'dnd' ? 'bg-rose-500' : activeChatPartner?.status === 'idle' ? 'bg-amber-500' : (activeChatPartner && activeChatPartner.status !== 'offline') ? 'bg-green-500' : 'bg-zinc-500'}`}></span>
                     </div>
                     <div>
                       <h4 className="text-white font-bold text-sm leading-none">{activeChatPartner?.display_name}</h4>
