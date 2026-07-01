@@ -76,9 +76,9 @@ export function MessageInput({
   useEffect(() => {
     if (workspaceId) getCustomEmojis(workspaceId).then(setCustomEmojis)
   }, [workspaceId])
-  const insertCustomEmoji = (name: string, objectKey: string) => {
+  const insertCustomEmoji = (name: string, _objectKey: string) => {
     setEmojiOpen(false)
-    setContent((prev) => (prev ? prev + ' ' : '') + `<:${name}:${objectKey}>` + ' ')
+    setContent((prev) => (prev ? prev + ' ' : '') + `:${name}:` + ' ')
     requestAnimationFrame(() => textInputRef.current?.focus())
   }
 

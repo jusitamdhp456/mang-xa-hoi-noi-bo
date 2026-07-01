@@ -38,7 +38,7 @@ export default async function MemberList({ workspaceId }: { channelId?: string, 
   })).filter((g) => g.members.length > 0)
 
   return (
-    <div className="w-64 bg-transparent border-l border-white/50 flex-shrink-0 flex flex-col h-full overflow-y-auto p-4 hidden lg:block z-10">
+    <div className="w-56 bg-transparent border-l border-white/50 flex-shrink-0 flex flex-col h-full overflow-y-auto p-4 hidden lg:block z-10">
       <h3 className="text-xs font-bold text-zinc-400 uppercase mb-4 tracking-wider">Thành viên — {list.length}</h3>
       <div className="flex flex-col gap-4">
         {grouped.map((g) => (

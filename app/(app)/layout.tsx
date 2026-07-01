@@ -5,6 +5,7 @@ import { VoiceSettingsProvider } from '@/components/providers/VoiceSettingsProvi
 import { GlobalVoiceMount } from '@/components/workspace/GlobalVoiceMount';
 import { MessageToasts } from '@/components/providers/MessageToasts';
 import { UnreadProvider } from '@/components/providers/UnreadProvider';
+import { CustomEmojiProvider } from '@/components/providers/CustomEmojiProvider';
 import { AddWorkspaceButton } from '@/components/workspace/AddWorkspaceButton';
 import { QuickSwitcher } from '@/components/ui/QuickSwitcher';
 import { UserSettingsModal } from '@/components/auth/UserSettingsModal';
@@ -100,10 +101,12 @@ export default async function AppLayout({
       <div className="main-content-wrapper flex-1 flex overflow-hidden rounded-3xl shadow-xl bg-black/20 backdrop-blur-xl border border-white/10 z-10 text-white">
         <VoiceSettingsProvider>
           <UnreadProvider>
-            <GlobalVoiceMount username={userProfile?.display_name || user?.email?.split('@')[0] || 'Khách'} />
-            <MessageToasts />
-            <QuickSwitcher />
-            {children}
+            <CustomEmojiProvider>
+              <GlobalVoiceMount username={userProfile?.display_name || user?.email?.split('@')[0] || 'Khách'} />
+              <MessageToasts />
+              <QuickSwitcher />
+              {children}
+            </CustomEmojiProvider>
           </UnreadProvider>
         </VoiceSettingsProvider>
       </div>

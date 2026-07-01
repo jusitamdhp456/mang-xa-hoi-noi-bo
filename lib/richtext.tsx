@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import { useCustomEmojis } from '@/components/providers/CustomEmojiProvider'
 
 // Click-to-reveal spoiler (Discord ||spoiler||).
 function Spoiler({ children }: { children: React.ReactNode }) {
@@ -19,9 +20,9 @@ function Spoiler({ children }: { children: React.ReactNode }) {
 }
 
 // Inline formatting: spoiler, bold, strike, code, italic, @mention, #channel.
-function renderInline(text: string, keyBase: string): React.ReactNode[] {
+function renderInline(text: string, keyBase: string, emojiMap: Record<string, string>): React.ReactNode[] {
   const out: React.ReactNode[] = []
-  const regex = /(<:[a-z0-9_]+:[^>\s]+>)|(https?:\/\/[^\s]+)|(\|\|[^|]+\|\|)|(\*\*[^*]+\*\*)|(~~[^~]+~~)|(`[^`]+`)|(\*[^*\n]+\*)|(_[^_\n]+_)|(@everyone|@here|@[\p{L}\d_.]+)|(#[\p{L}\d_-]+)/gu
+  const regex = /(<:[a-z0-9_]+:[^>\s]+>)|(:[a-z0-9_]+:)|(https?:\/\/[^\s]+)|(\|\|[^|]+\|\|)|(\*\*[^*]+\*\*)|(~~[^~]+~~)|(`[^`]+`)|(\*[^*\n]+\*)|(_[^_\n]+_)|(@everyone|@here|@[\p{L}\d_.]+)|(#[\p{L}\d_-]+)/gu
   let last = 0
   let m: RegExpExecArray | null
   let i = 0
@@ -30,12 +31,23 @@ function renderInline(text: string, keyBase: string): React.ReactNode[] {
     const t = m[0]
     const key = `${keyBase}-${i++}`
     if (t.startsWith('<:')) {
+      // Legacy embedded token <:name:objectKey>
       const inner = t.slice(2, -1)
       const sep = inner.indexOf(':')
       const emName = inner.slice(0, sep)
       const objKey = inner.slice(sep + 1)
       // eslint-disable-next-line @next/next/no-img-element
       out.push(<img key={key} src={`/api/media/${objKey}`} alt={`:${emName}:`} title={`:${emName}:`} className="inline-block w-5 h-5 align-text-bottom object-contain" />)
+    } else if (t.startsWith(':') && t.endsWith(':') && t.length > 2) {
+      // Shortcode :name: resolved against the workspace custom-emoji map.
+      const name = t.slice(1, -1)
+      const objKey = emojiMap[name]
+      if (objKey) {
+        // eslint-disable-next-line @next/next/no-img-element
+        out.push(<img key={key} src={`/api/media/${objKey}`} alt={t} title={t} className="inline-block w-5 h-5 align-text-bottom object-contain" />)
+      } else {
+        out.push(t) // not a known emoji — leave as plain text
+      }
     } else if (t.startsWith('http')) out.push(<a key={key} href={t} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-cyan-300 underline underline-offset-2 hover:text-cyan-200 break-all">{t}</a>)
     else if (t.startsWith('||')) out.push(<Spoiler key={key}>{t.slice(2, -2)}</Spoiler>)
     else if (t.startsWith('**')) out.push(<strong key={key} className="font-extrabold">{t.slice(2, -2)}</strong>)
@@ -58,6 +70,7 @@ function renderInline(text: string, keyBase: string): React.ReactNode[] {
 // Renders a message body with a Discord-like subset of Markdown.
 // Parent should keep `whitespace-pre-wrap` so newlines are preserved.
 export function RichText({ text }: { text: string }) {
+  const emojiMap = useCustomEmojis()
   if (!text) return null
   // Split out fenced code blocks ```...``` (odd segments are code).
   const segments = text.split(/```([\s\S]*?)```/)
@@ -67,7 +80,7 @@ export function RichText({ text }: { text: string }) {
         i % 2 === 1 ? (
           <pre key={i} className="my-1 bg-black/40 border border-white/10 rounded-lg p-2.5 text-[0.85em] font-mono overflow-x-auto whitespace-pre-wrap">{seg.replace(/^\n/, '')}</pre>
         ) : (
-          <React.Fragment key={i}>{renderInline(seg, String(i))}</React.Fragment>
+          <React.Fragment key={i}>{renderInline(seg, String(i), emojiMap)}</React.Fragment>
         )
       )}
     </>

@@ -69,7 +69,10 @@ export async function updateWorkspaceIcon(workspaceId: string, iconUrl: string) 
     return { error: 'Không có quyền cập nhật logo' }
   }
 
-  const { error } = await supabase
+  // Use the service client for the write: the RLS-bound client may silently
+  // update 0 rows if there's no UPDATE policy on workspaces.
+  const service = createSupabaseServiceClient()
+  const { error } = await service
     .from('workspaces')
     .update({ icon_key: iconUrl })
     .eq('id', workspaceId)
