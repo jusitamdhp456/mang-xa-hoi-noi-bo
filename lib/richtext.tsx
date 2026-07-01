@@ -21,7 +21,7 @@ function Spoiler({ children }: { children: React.ReactNode }) {
 // Inline formatting: spoiler, bold, strike, code, italic, @mention, #channel.
 function renderInline(text: string, keyBase: string): React.ReactNode[] {
   const out: React.ReactNode[] = []
-  const regex = /(https?:\/\/[^\s]+)|(\|\|[^|]+\|\|)|(\*\*[^*]+\*\*)|(~~[^~]+~~)|(`[^`]+`)|(\*[^*\n]+\*)|(_[^_\n]+_)|(@everyone|@here|@[\p{L}\d_.]+)|(#[\p{L}\d_-]+)/gu
+  const regex = /(<:[a-z0-9_]+:[^>\s]+>)|(https?:\/\/[^\s]+)|(\|\|[^|]+\|\|)|(\*\*[^*]+\*\*)|(~~[^~]+~~)|(`[^`]+`)|(\*[^*\n]+\*)|(_[^_\n]+_)|(@everyone|@here|@[\p{L}\d_.]+)|(#[\p{L}\d_-]+)/gu
   let last = 0
   let m: RegExpExecArray | null
   let i = 0
@@ -29,7 +29,14 @@ function renderInline(text: string, keyBase: string): React.ReactNode[] {
     if (m.index > last) out.push(text.slice(last, m.index))
     const t = m[0]
     const key = `${keyBase}-${i++}`
-    if (t.startsWith('http')) out.push(<a key={key} href={t} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-cyan-300 underline underline-offset-2 hover:text-cyan-200 break-all">{t}</a>)
+    if (t.startsWith('<:')) {
+      const inner = t.slice(2, -1)
+      const sep = inner.indexOf(':')
+      const emName = inner.slice(0, sep)
+      const objKey = inner.slice(sep + 1)
+      // eslint-disable-next-line @next/next/no-img-element
+      out.push(<img key={key} src={`/api/media/${objKey}`} alt={`:${emName}:`} title={`:${emName}:`} className="inline-block w-5 h-5 align-text-bottom object-contain" />)
+    } else if (t.startsWith('http')) out.push(<a key={key} href={t} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-cyan-300 underline underline-offset-2 hover:text-cyan-200 break-all">{t}</a>)
     else if (t.startsWith('||')) out.push(<Spoiler key={key}>{t.slice(2, -2)}</Spoiler>)
     else if (t.startsWith('**')) out.push(<strong key={key} className="font-extrabold">{t.slice(2, -2)}</strong>)
     else if (t.startsWith('~~')) out.push(<s key={key} className="opacity-70">{t.slice(2, -2)}</s>)

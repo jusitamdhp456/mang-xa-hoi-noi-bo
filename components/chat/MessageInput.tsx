@@ -5,6 +5,7 @@ import { sendMessage } from '@/app/actions/message'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { Send, Smile, File as FileIcon, Mic, Trash2, BarChart3, Plus, X } from 'lucide-react'
 import { POLL_PREFIX } from './PollCard'
+import { getCustomEmojis } from '@/app/actions/emoji'
 
 type MemberHint = { id: string; name: string; avatar: string | null }
 
@@ -52,6 +53,17 @@ export function MessageInput({
   const [gifs, setGifs] = useState<{ id: string; url: string; preview: string }[]>([])
   const [gifLoading, setGifLoading] = useState(false)
   const TENOR_KEY = process.env.NEXT_PUBLIC_TENOR_KEY
+
+  // Server custom emojis
+  const [customEmojis, setCustomEmojis] = useState<{ id: string; name: string; object_key: string }[]>([])
+  useEffect(() => {
+    if (workspaceId) getCustomEmojis(workspaceId).then(setCustomEmojis)
+  }, [workspaceId])
+  const insertCustomEmoji = (name: string, objectKey: string) => {
+    setEmojiOpen(false)
+    setContent((prev) => (prev ? prev + ' ' : '') + `<:${name}:${objectKey}>` + ' ')
+    requestAnimationFrame(() => textInputRef.current?.focus())
+  }
 
   // --- Voice message recording ---
   const [recording, setRecording] = useState(false)
@@ -618,6 +630,19 @@ export function MessageInput({
 
                    {pickerTab === 'emoji' ? (
                      <div className="max-h-64 overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-white/10">
+                       {customEmojis.length > 0 && (
+                         <div className="mb-2">
+                           <p className="text-[9px] font-extrabold uppercase tracking-wider text-zinc-500 px-1 mb-1 select-none">Emoji server</p>
+                           <div className="grid grid-cols-8 gap-0.5">
+                             {customEmojis.map((ce) => (
+                               // eslint-disable-next-line @next/next/no-img-element
+                               <button key={ce.id} type="button" onClick={() => insertCustomEmoji(ce.name, ce.object_key)} title={`:${ce.name}:`} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors cursor-pointer">
+                                 <img src={`/api/media/${ce.object_key}`} alt={ce.name} className="w-6 h-6 object-contain" />
+                               </button>
+                             ))}
+                           </div>
+                         </div>
+                       )}
                        {EMOJI_CATEGORIES.map((cat) => (
                          <div key={cat.name} className="mb-2">
                            <p className="text-[9px] font-extrabold uppercase tracking-wider text-zinc-500 px-1 mb-1 select-none">{cat.name}</p>

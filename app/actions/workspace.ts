@@ -2,6 +2,7 @@
 
 import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { logAudit } from '@/lib/audit'
 
 export async function createWorkspace(formData: FormData) {
   const name = formData.get('name') as string
@@ -247,6 +248,7 @@ export async function updateMemberRole(workspaceId: string, targetUserId: string
     .from('workspace_members').update({ role: newRole })
     .eq('workspace_id', workspaceId).eq('user_id', targetUserId)
   if (error) return { error: 'Lỗi cập nhật vai trò' }
+  await logAudit(workspaceId, user.id, 'role_change', `Đổi vai trò một thành viên thành ${newRole}`)
   return { success: true }
 }
 
@@ -270,6 +272,7 @@ export async function kickMember(workspaceId: string, targetUserId: string) {
     .from('workspace_members').delete()
     .eq('workspace_id', workspaceId).eq('user_id', targetUserId)
   if (error) return { error: 'Lỗi xoá thành viên' }
+  await logAudit(workspaceId, user.id, 'kick_member', 'Xoá một thành viên khỏi không gian')
   return { success: true }
 }
 
@@ -284,6 +287,7 @@ export async function updateWorkspace(workspaceId: string, name: string) {
   if (!m || !['owner', 'admin'].includes(m.role)) return { error: 'Bạn không có quyền' }
   const { error } = await service.from('workspaces').update({ name: name.trim() }).eq('id', workspaceId)
   if (error) return { error: 'Lỗi đổi tên' }
+  await logAudit(workspaceId, user.id, 'rename_workspace', `Đổi tên không gian thành "${name.trim()}"`)
   return { success: true }
 }
 
@@ -313,4 +317,18 @@ export async function joinWorkspaceByCode(code: string) {
   const { error } = await service.from('workspace_members').insert({ workspace_id: ws.id, user_id: user.id, role: 'member' })
   if (error) return { error: 'Lỗi tham gia không gian' }
   return { success: true, workspaceId: ws.id, name: ws.name }
+}
+
+// Audit log for a workspace (owner/admin only; RLS enforces read access).
+export async function getAuditLogs(workspaceId: string) {
+  const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+  const { data } = await supabase
+    .from('audit_logs')
+    .select('id, action, detail, created_at, profiles:actor_id(display_name)')
+    .eq('workspace_id', workspaceId)
+    .order('created_at', { ascending: false })
+    .limit(100)
+  return data || []
 }
