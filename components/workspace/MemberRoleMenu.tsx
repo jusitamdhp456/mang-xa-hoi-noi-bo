@@ -28,7 +28,6 @@ export function MemberRoleMenu({
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
-  const [busy, setBusy] = useState(false)
   const btnRef = useRef<HTMLButtonElement>(null)
   const [pos, setPos] = useState<{ right: number; top: number } | null>(null)
 
@@ -41,28 +40,33 @@ export function MemberRoleMenu({
     setOpen((v) => !v)
   }
 
-  const setRole = async (role: string) => {
-    setBusy(true)
-    const res = await updateMemberRole(workspaceId, targetUserId, role)
-    setBusy(false)
+  // Close the menu immediately for a snappy feel, then run the mutation and
+  // refresh in the background.
+  const setRole = (role: string) => {
+    if (role === currentRole) { setOpen(false); return }
     setOpen(false)
-    if (res?.error) { alert(res.error); return }
-    router.refresh()
+    updateMemberRole(workspaceId, targetUserId, role).then((res) => {
+      if (res?.error) { alert(res.error); return }
+      router.refresh()
+    })
   }
 
-  const kick = async () => {
+  const kick = () => {
     setOpen(false)
     if (!confirm('Xoá thành viên này khỏi không gian?')) return
-    const res = await kickMember(workspaceId, targetUserId)
-    if (res?.error) { alert(res.error); return }
-    router.refresh()
+    kickMember(workspaceId, targetUserId).then((res) => {
+      if (res?.error) { alert(res.error); return }
+      router.refresh()
+    })
   }
 
-  const toggleBlock = async () => {
+  const toggleBlock = () => {
     setOpen(false)
-    const res = isBlocked ? await unblockUser(targetUserId) : await blockUser(targetUserId)
-    if (res?.error) { alert(res.error); return }
-    router.refresh()
+    const p = isBlocked ? unblockUser(targetUserId) : blockUser(targetUserId)
+    p.then((res) => {
+      if (res?.error) { alert(res.error); return }
+      router.refresh()
+    })
   }
 
   return (
@@ -87,7 +91,7 @@ export function MemberRoleMenu({
               {ROLE_OPTIONS.map((r) => (
                 <button
                   key={r.value}
-                  disabled={busy || r.value === currentRole}
+                  disabled={r.value === currentRole}
                   onClick={() => setRole(r.value)}
                   className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
                     r.value === currentRole ? 'text-indigo-300 bg-white/5' : 'text-white hover:bg-white/10'

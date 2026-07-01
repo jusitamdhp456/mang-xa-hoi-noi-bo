@@ -248,7 +248,7 @@ export async function updateMemberRole(workspaceId: string, targetUserId: string
     .from('workspace_members').update({ role: newRole })
     .eq('workspace_id', workspaceId).eq('user_id', targetUserId)
   if (error) return { error: 'Lỗi cập nhật vai trò' }
-  await logAudit(workspaceId, user.id, 'role_change', `Đổi vai trò một thành viên thành ${newRole}`)
+  void logAudit(workspaceId, user.id, 'role_change', `Đổi vai trò một thành viên thành ${newRole}`)
   return { success: true }
 }
 
@@ -272,7 +272,7 @@ export async function kickMember(workspaceId: string, targetUserId: string) {
     .from('workspace_members').delete()
     .eq('workspace_id', workspaceId).eq('user_id', targetUserId)
   if (error) return { error: 'Lỗi xoá thành viên' }
-  await logAudit(workspaceId, user.id, 'kick_member', 'Xoá một thành viên khỏi không gian')
+  void logAudit(workspaceId, user.id, 'kick_member', 'Xoá một thành viên khỏi không gian')
   return { success: true }
 }
 
@@ -287,7 +287,7 @@ export async function updateWorkspace(workspaceId: string, name: string) {
   if (!m || !['owner', 'admin'].includes(m.role)) return { error: 'Bạn không có quyền' }
   const { error } = await service.from('workspaces').update({ name: name.trim() }).eq('id', workspaceId)
   if (error) return { error: 'Lỗi đổi tên' }
-  await logAudit(workspaceId, user.id, 'rename_workspace', `Đổi tên không gian thành "${name.trim()}"`)
+  void logAudit(workspaceId, user.id, 'rename_workspace', `Đổi tên không gian thành "${name.trim()}"`)
   return { success: true }
 }
 
