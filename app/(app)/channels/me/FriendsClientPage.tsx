@@ -34,6 +34,7 @@ import { VoiceRoom } from '@/components/workspace/VoiceRoom';
 import { RichText } from '@/lib/richtext';
 import { getBlockedIds } from '@/app/actions/block';
 import { parseStatus } from '@/lib/status';
+import { PhoneLinkRow } from '@/components/workspace/PhoneLinkRow';
 import { EmbedList } from '@/lib/embeds';
 import { VoiceInviteCard } from '@/components/chat/VoiceInviteCard';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
@@ -1168,6 +1169,8 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                       </p>
                     </div>
                   </div>
+
+                  <PhoneLinkRow initialPhone={user?.phone} />
 
                   <div className="flex items-center justify-between gap-4 py-1 border-t border-white/5 pt-4">
                     <div>
