@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, type ChangeEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { Settings, Pencil, Link2, Trash2, Check, Smile, ScrollText } from 'lucide-react'
-import { updateWorkspace, deleteWorkspace } from '@/app/actions/workspace'
+import { Settings, Pencil, Link2, Trash2, Check, Smile, ScrollText, ImagePlus } from 'lucide-react'
+import { updateWorkspace, deleteWorkspace, updateWorkspaceIcon } from '@/app/actions/workspace'
 import { CustomEmojiModal } from './CustomEmojiModal'
 import { AuditLogModal } from './AuditLogModal'
 
@@ -22,6 +22,23 @@ export function ServerSettingsMenu({
   const [emojiOpen, setEmojiOpen] = useState(false)
   const [auditOpen, setAuditOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const iconInputRef = useRef<HTMLInputElement>(null)
+
+  const onPickIcon = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setOpen(false)
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('folder', 'avatars')
+    const up = await fetch('/api/upload', { method: 'POST', body: fd })
+    if (!up.ok) { alert('Tải ảnh thất bại'); return }
+    const d = await up.json()
+    const res = await updateWorkspaceIcon(workspaceId, d.objectKey)
+    if (res?.error) { alert(res.error); return }
+    router.refresh()
+  }
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -79,6 +96,10 @@ export function ServerSettingsMenu({
             <Pencil size={14} className="text-zinc-300 shrink-0" />
             <span>Đổi tên không gian</span>
           </button>
+          <button onClick={() => iconInputRef.current?.click()} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-white/10 rounded-lg transition-colors cursor-pointer text-left">
+            <ImagePlus size={14} className="text-zinc-300 shrink-0" />
+            <span>Đổi ảnh không gian</span>
+          </button>
           <button onClick={() => { setOpen(false); setEmojiOpen(true) }} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-white/10 rounded-lg transition-colors cursor-pointer text-left">
             <Smile size={14} className="text-zinc-300 shrink-0" />
             <span>Emoji server</span>
@@ -98,6 +119,7 @@ export function ServerSettingsMenu({
           )}
         </div>
       )}
+      <input ref={iconInputRef} type="file" accept="image/*" className="hidden" onChange={onPickIcon} />
       {emojiOpen && <CustomEmojiModal workspaceId={workspaceId} onClose={() => setEmojiOpen(false)} />}
       {auditOpen && <AuditLogModal workspaceId={workspaceId} onClose={() => setAuditOpen(false)} />}
     </div>

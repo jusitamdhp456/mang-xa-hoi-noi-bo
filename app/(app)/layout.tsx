@@ -20,7 +20,7 @@ export default async function AppLayout({
   const { data: { user } } = await supabase.auth.getUser();
   
   // Fetch workspaces mà user này tham gia
-  let userWorkspaces: { workspaces: { id: string, name: string } | null }[] = [];
+  let userWorkspaces: { workspaces: { id: string, name: string, icon_key?: string | null } | null }[] = [];
   let userProfile: any = null;
 
   if (user) {
@@ -35,9 +35,9 @@ export default async function AppLayout({
     // Fetch workspaces
     const { data } = await supabase
       .from('workspace_members')
-      .select('workspaces(id, name)')
+      .select('workspaces(id, name, icon_key)')
       .eq('user_id', user.id);
-    if (data) userWorkspaces = data as unknown as { workspaces: { id: string, name: string } | null }[];
+    if (data) userWorkspaces = data as unknown as { workspaces: { id: string, name: string, icon_key?: string | null } | null }[];
   }
 
   const avatarUrl = userProfile?.avatar_key ? `/api/media/${userProfile.avatar_key}` : null;
@@ -71,11 +71,16 @@ export default async function AppLayout({
            
            return (
              <Link key={ws.id || index} href={`/workspace/${ws.id}`}>
-               <div 
-                 className="w-12 h-12 bg-white/10 backdrop-blur-md shadow-sm border border-white/10 rounded-full flex items-center justify-center text-white font-bold cursor-pointer hover:bg-white/20 hover:shadow-md hover:scale-105 transition-all duration-200"
+               <div
+                 className="w-12 h-12 bg-white/10 backdrop-blur-md shadow-sm border border-white/10 rounded-full hover:rounded-2xl overflow-hidden flex items-center justify-center text-white font-bold cursor-pointer hover:bg-white/20 hover:shadow-md hover:scale-105 transition-all duration-200"
                  title={ws.name}
                >
-                 {initial}
+                 {ws.icon_key ? (
+                   // eslint-disable-next-line @next/next/no-img-element
+                   <img src={`/api/media/${ws.icon_key}`} alt={ws.name} className="w-full h-full object-cover" />
+                 ) : (
+                   initial
+                 )}
                </div>
              </Link>
            );
