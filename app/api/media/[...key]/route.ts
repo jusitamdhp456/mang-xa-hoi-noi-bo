@@ -62,28 +62,32 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // 1. If key is prefixed with supabase-fallback/, serve it from Supabase storage
+    // Serve a Supabase-stored object via a signed URL (works even if the
+    // bucket isn't public — getPublicUrl silently 400s for private buckets).
+    const serveFromSupabase = async (storageKey: string) => {
+      const supabaseAdmin = createSupabaseServiceClient();
+      const { data, error } = await supabaseAdmin.storage
+        .from('chat-attachments')
+        .createSignedUrl(storageKey, 3600);
+      if (error || !data?.signedUrl) {
+        // Last resort: try the public URL (in case the bucket is public).
+        const { data: pub } = supabaseAdmin.storage.from('chat-attachments').getPublicUrl(storageKey);
+        if (pub?.publicUrl) return NextResponse.redirect(pub.publicUrl);
+        return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      }
+      return NextResponse.redirect(data.signedUrl);
+    };
+
+    // 1. Objects stored in Supabase (either explicitly prefixed, or when R2 is
+    //    not configured so everything lives in Supabase storage).
     if (objectKey.startsWith('supabase-fallback/')) {
-      const supabaseAdmin = createSupabaseServiceClient();
-      const { data: { publicUrl } } = supabaseAdmin.storage
-        .from('chat-attachments')
-        .getPublicUrl(objectKey);
-      
-      return NextResponse.redirect(publicUrl);
+      return await serveFromSupabase(objectKey);
     }
-
-    // 2. Otherwise, check if R2 is configured, else fallback to Supabase
     if (!process.env.R2_ENDPOINT || !process.env.R2_ENDPOINT.startsWith('http')) {
-      // In case key didn't get prefix but R2 is missing, default to Supabase search
-      const supabaseAdmin = createSupabaseServiceClient();
-      const { data: { publicUrl } } = supabaseAdmin.storage
-        .from('chat-attachments')
-        .getPublicUrl(objectKey);
-      
-      return NextResponse.redirect(publicUrl);
+      return await serveFromSupabase(objectKey);
     }
 
-    // 3. Serve from Cloudflare R2
+    // 2. Serve from Cloudflare R2
     const downloadUrl = await getPresignedDownloadUrl(objectKey);
     return NextResponse.redirect(downloadUrl);
   } catch (error) {
