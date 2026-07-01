@@ -35,6 +35,7 @@ import { RichText } from '@/lib/richtext';
 import { getBlockedIds } from '@/app/actions/block';
 import { parseStatus } from '@/lib/status';
 import { PhoneLinkRow } from '@/components/workspace/PhoneLinkRow';
+import { InstallAppButton } from '@/components/ui/InstallAppButton';
 import { EmbedList } from '@/lib/embeds';
 import { VoiceInviteCard } from '@/components/chat/VoiceInviteCard';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
@@ -1216,6 +1217,14 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                     </p>
                   </div>
                 </div>
+              </div>
+
+              <div className="bg-[#2b2d31]/80 rounded-2xl border border-white/5 p-5 flex items-center justify-between gap-4">
+                <div>
+                  <h3 className="font-extrabold text-white text-sm">Ứng dụng máy tính</h3>
+                  <p className="text-[11px] text-zinc-400 mt-1">Cài đặt để mở nhanh như một ứng dụng riêng, không cần trình duyệt.</p>
+                </div>
+                <InstallAppButton />
               </div>
 
             </div>
