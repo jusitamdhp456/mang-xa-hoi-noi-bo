@@ -6,6 +6,8 @@ import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { Phone, Lock, Edit3, X, Search, UserPlus, MicOff, Volume2, MoreVertical, Pencil, Trash2, Hash, ArrowUp, ArrowDown, Bell, BellOff } from 'lucide-react'
 import { isChannelMuted, toggleChannelMute } from '@/lib/mute'
+import { ChannelSettingsModal } from './ChannelSettingsModal'
+import { Settings as SettingsIcon } from 'lucide-react'
 import { useVoiceSettings, playVoiceTone } from '@/components/providers/VoiceSettingsProvider'
 import { getFriends, sendDirectMessage } from '@/app/actions/friend'
 import { updateChannel, deleteChannel, updateChannelTopic, moveChannel } from '@/app/actions/channel'
@@ -17,6 +19,9 @@ interface ChannelItem {
   type: string
   is_private: boolean
   category_id?: string | null
+  slowmode_seconds?: number | null
+  is_announcement?: boolean | null
+  is_nsfw?: boolean | null
 }
 
 interface SidebarChannelLinkProps {
@@ -91,6 +96,8 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
     setMenuPosition(null)
     toggleChannelMute(channel.id)
   }
+
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   // Filter participants currently connected to this voice channel
   const participants = isVoice
@@ -371,6 +378,15 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
               <span>Đặt chủ đề</span>
             </button>
           )}
+          {!isVoice && (
+            <button
+              onClick={() => { setMenuPosition(null); setSettingsOpen(true) }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer text-left"
+            >
+              <SettingsIcon size={14} className="text-zinc-300 shrink-0" />
+              <span>Cài đặt kênh</span>
+            </button>
+          )}
           <button
             onClick={() => handleMove('up')}
             className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer text-left"
@@ -401,6 +417,19 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
           </button>
         </div>,
         document.body
+      )}
+
+      {settingsOpen && (
+        <ChannelSettingsModal
+          channelId={channel.id}
+          channelName={channel.name}
+          initial={{
+            slowmodeSeconds: channel.slowmode_seconds || 0,
+            isAnnouncement: !!channel.is_announcement,
+            isNsfw: !!channel.is_nsfw,
+          }}
+          onClose={() => setSettingsOpen(false)}
+        />
       )}
 
       {/* Invite Friends Modal */}

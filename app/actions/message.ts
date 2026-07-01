@@ -27,7 +27,7 @@ export async function sendMessage(
       .maybeSingle(),
     supabase
       .from('channels')
-      .select('is_private')
+      .select('is_private, slowmode_seconds, is_announcement')
       .eq('id', channelId)
       .single(),
   ])
@@ -41,6 +41,30 @@ export async function sendMessage(
   }
 
   const channel = channelRes.data
+  const isStaff = ['owner', 'admin', 'mod'].includes(memberRes.data.role)
+
+  // Announcement channels: only staff may post.
+  if (channel.is_announcement && !isStaff) {
+    return { error: 'Kênh thông báo: chỉ quản trị viên mới được đăng bài' }
+  }
+
+  // Slow mode: non-staff must wait between messages.
+  if (channel.slowmode_seconds > 0 && !isStaff) {
+    const service = createSupabaseServiceClient()
+    const { data: last } = await service
+      .from('messages')
+      .select('created_at')
+      .eq('channel_id', channelId)
+      .eq('sender_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (last) {
+      const elapsed = (Date.now() - new Date(last.created_at).getTime()) / 1000
+      const remain = Math.ceil(channel.slowmode_seconds - elapsed)
+      if (remain > 0) return { error: `Chế độ chờ: vui lòng đợi ${remain}s nữa` }
+    }
+  }
 
   // If private, verify channel membership and write permission
   if (channel.is_private) {

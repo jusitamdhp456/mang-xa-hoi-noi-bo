@@ -3,8 +3,9 @@ import MemberList from '@/components/workspace/MemberList'
 import { ChatArea } from '@/components/chat/ChatArea'
 import { JoinVoiceChannel } from '@/components/workspace/JoinVoiceChannel'
 import { NotificationBell } from '@/components/workspace/NotificationBell'
+import { NsfwGate } from '@/components/chat/NsfwGate'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { Volume2 } from 'lucide-react'
+import { Volume2, Megaphone, ShieldAlert, Clock } from 'lucide-react'
 
 export default async function ChannelPage({ params }: { params: Promise<{ workspaceId: string, channelId: string }> }) {
   const { workspaceId, channelId } = await params;
@@ -69,6 +70,9 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
 
             <span className="text-cyan-400 mr-2 sm:mr-3 flex items-center drop-shadow-sm">{channel?.type === 'voice' ? <Volume2 size={22} /> : <span className="text-2xl">#</span>}</span>
             <span className="truncate">{channel?.name || channelId}</span>
+            {channel?.is_announcement && <span className="ml-2 flex items-center gap-1 text-[10px] font-bold text-amber-300 bg-amber-500/15 rounded-full px-2 py-0.5 shrink-0" title="Kênh thông báo"><Megaphone size={11} /> Thông báo</span>}
+            {channel?.is_nsfw && <span className="ml-2 flex items-center gap-1 text-[10px] font-bold text-rose-300 bg-rose-500/15 rounded-full px-2 py-0.5 shrink-0" title="Nội dung nhạy cảm"><ShieldAlert size={11} /> NSFW</span>}
+            {channel?.slowmode_seconds > 0 && <span className="ml-2 flex items-center gap-1 text-[10px] font-bold text-cyan-300 bg-cyan-500/15 rounded-full px-2 py-0.5 shrink-0" title="Chế độ chờ"><Clock size={11} /> {channel.slowmode_seconds}s</span>}
             {channel?.topic && <span className="ml-4 pl-4 border-l border-white/20 text-sm text-white/70 font-medium hidden md:block truncate">{channel.topic}</span>}
             
             <div className="ml-auto">
@@ -97,14 +101,17 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
               </div>
             </div>
           ) : (
-            <ChatArea
-              channelId={channelId}
-              channelName={channel?.name || ''}
-              channelType={channel?.type || 'text'}
-              workspaceId={workspaceId}
-              initialMessages={initialMessages}
-              currentUser={currentUser}
-            />
+            <div className="relative flex-1 flex flex-col overflow-hidden">
+              {channel?.is_nsfw && <NsfwGate channelId={channelId} channelName={channel?.name || ''} />}
+              <ChatArea
+                channelId={channelId}
+                channelName={channel?.name || ''}
+                channelType={channel?.type || 'text'}
+                workspaceId={workspaceId}
+                initialMessages={initialMessages}
+                currentUser={currentUser}
+              />
+            </div>
           )}
       </div>
       

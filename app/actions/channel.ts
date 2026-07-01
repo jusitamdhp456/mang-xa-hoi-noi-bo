@@ -182,6 +182,23 @@ export async function updateChannelTopic(channelId: string, topic: string) {
   return { success: true }
 }
 
+// Update channel moderation settings: slow mode, announcement, NSFW.
+export async function updateChannelSettings(
+  channelId: string,
+  settings: { slowmodeSeconds?: number; isAnnouncement?: boolean; isNsfw?: boolean }
+) {
+  const ctx = await requireChannelManager(channelId)
+  if ('error' in ctx) return { error: ctx.error }
+  const payload: Record<string, unknown> = {}
+  if (settings.slowmodeSeconds !== undefined) payload.slowmode_seconds = Math.max(0, Math.floor(settings.slowmodeSeconds))
+  if (settings.isAnnouncement !== undefined) payload.is_announcement = settings.isAnnouncement
+  if (settings.isNsfw !== undefined) payload.is_nsfw = settings.isNsfw
+  const { error } = await ctx.service.from('channels').update(payload).eq('id', channelId)
+  if (error) return { error: 'Lỗi cập nhật cài đặt kênh' }
+  revalidatePath(`/workspace/${ctx.channel.workspace_id}`)
+  return { success: true }
+}
+
 // Move a channel up/down by swapping sort_order with its same-type neighbor
 export async function moveChannel(channelId: string, direction: 'up' | 'down') {
   const ctx = await requireChannelManager(channelId)
