@@ -19,6 +19,22 @@ function Spoiler({ children }: { children: React.ReactNode }) {
   )
 }
 
+// Custom emoji image with graceful fallback to its :shortcode: text on error.
+function EmojiImg({ objKey, name }: { objKey: string; name: string }) {
+  const [failed, setFailed] = useState(false)
+  if (failed) return <span>{`:${name}:`}</span>
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`/api/media/${objKey}`}
+      alt={`:${name}:`}
+      title={`:${name}:`}
+      onError={() => setFailed(true)}
+      className="inline-block w-5 h-5 align-text-bottom object-contain"
+    />
+  )
+}
+
 // Inline formatting: spoiler, bold, strike, code, italic, @mention, #channel.
 function renderInline(text: string, keyBase: string, emojiMap: Record<string, string>): React.ReactNode[] {
   const out: React.ReactNode[] = []
@@ -36,15 +52,13 @@ function renderInline(text: string, keyBase: string, emojiMap: Record<string, st
       const sep = inner.indexOf(':')
       const emName = inner.slice(0, sep)
       const objKey = inner.slice(sep + 1)
-      // eslint-disable-next-line @next/next/no-img-element
-      out.push(<img key={key} src={`/api/media/${objKey}`} alt={`:${emName}:`} title={`:${emName}:`} className="inline-block w-5 h-5 align-text-bottom object-contain" />)
+      out.push(<EmojiImg key={key} objKey={objKey} name={emName} />)
     } else if (t.startsWith(':') && t.endsWith(':') && t.length > 2) {
       // Shortcode :name: resolved against the workspace custom-emoji map.
       const name = t.slice(1, -1)
       const objKey = emojiMap[name]
       if (objKey) {
-        // eslint-disable-next-line @next/next/no-img-element
-        out.push(<img key={key} src={`/api/media/${objKey}`} alt={t} title={t} className="inline-block w-5 h-5 align-text-bottom object-contain" />)
+        out.push(<EmojiImg key={key} objKey={objKey} name={name} />)
       } else {
         out.push(t) // not a known emoji — leave as plain text
       }
