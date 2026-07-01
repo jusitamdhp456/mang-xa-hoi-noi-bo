@@ -213,7 +213,6 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
   const [callType, setCallType] = useState<'voice' | 'video'>('voice');
 
   const [showEmail, setShowEmail] = useState(false);
-  const [showPhone, setShowPhone] = useState(false);
 
   const [voiceRooms, setVoiceRooms] = useState([
     { id: 'general-lobby', name: 'Phòng thoại chung' },
@@ -958,15 +957,25 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
     return '*'.repeat(name.length) + '@' + domain;
   };
 
-  const getObfuscatedPhone = () => {
-    if (showPhone) return '0987658842';
-    return '********8842';
-  };
-
   const currentUsername = profile?.username || user?.email?.split('@')[0] || 'username';
   const displayName = profile?.display_name || user?.email?.split('@')[0] || 'User';
   const avatarUrl = profile?.avatar_key ? `/api/media/${profile.avatar_key}` : null;
   const user10DigitId = getTenDigitId(user?.id);
+
+  const handleCopyId = async () => {
+    try { await navigator.clipboard.writeText(user10DigitId); alert('Đã sao chép ID người dùng'); }
+    catch { /* ignore */ }
+  };
+
+  const handleResetPassword = async () => {
+    if (!user?.email) return;
+    if (!confirm(`Gửi email đặt lại mật khẩu tới ${user.email}?`)) return;
+    const supabase = createSupabaseBrowserClient();
+    const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+      redirectTo: `${window.location.origin}/login`,
+    });
+    alert(error ? 'Lỗi gửi email đặt lại mật khẩu' : 'Đã gửi email đặt lại mật khẩu. Kiểm tra hộp thư nhé!');
+  };
 
   return (
     <div className="flex-1 flex h-full overflow-hidden bg-transparent">
@@ -1143,9 +1152,6 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                       <p className="text-[10px] text-zinc-400 uppercase font-black tracking-wider leading-none">Tên đăng nhập</p>
                       <p className="text-xs text-white font-semibold mt-1.5">{currentUsername}</p>
                     </div>
-                    <button className="px-4 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-[11px] font-bold text-white rounded-lg transition-colors cursor-pointer">
-                      Chỉnh sửa
-                    </button>
                   </div>
 
                   <div className="flex items-center justify-between gap-4 py-1 border-t border-white/5 pt-4">
@@ -1153,45 +1159,24 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                       <p className="text-[10px] text-zinc-400 uppercase font-black tracking-wider leading-none">Email</p>
                       <p className="text-xs text-white font-semibold mt-1.5 flex items-center gap-2">
                         {getObfuscatedEmail()}
-                        <button 
-                          onClick={() => setShowEmail(!showEmail)} 
+                        <button
+                          onClick={() => setShowEmail(!showEmail)}
                           className="text-[10px] text-indigo-400 hover:underline font-bold cursor-pointer"
                         >
                           {showEmail ? 'Ẩn' : 'Hiển thị'}
                         </button>
                       </p>
                     </div>
-                    <button className="px-4 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-[11px] font-bold text-white rounded-lg transition-colors cursor-pointer">
-                      Chỉnh sửa
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-4 py-1 border-t border-white/5 pt-4">
-                    <div>
-                      <p className="text-[10px] text-zinc-400 uppercase font-black tracking-wider leading-none">Số Điện Thoại</p>
-                      <p className="text-xs text-white font-semibold mt-1.5 flex items-center gap-2">
-                        {getObfuscatedPhone()}
-                        <button 
-                          onClick={() => setShowPhone(!showPhone)} 
-                          className="text-[10px] text-indigo-400 hover:underline font-bold cursor-pointer"
-                        >
-                          {showPhone ? 'Ẩn' : 'Hiển thị'}
-                        </button>
-                      </p>
-                    </div>
-                    <button className="px-4 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-[11px] font-bold text-white rounded-lg transition-colors cursor-pointer">
-                      Chỉnh sửa
-                    </button>
                   </div>
 
                   <div className="flex items-center justify-between gap-4 py-1 border-t border-white/5 pt-4">
                     <div>
                       <p className="text-[10px] text-zinc-400 uppercase font-black tracking-wider leading-none">Mã ID Người Dùng</p>
-                      <code className="text-xs text-cyan-400 font-mono font-bold mt-1.5 block bg-cyan-500/10 border border-cyan-500/10 px-2 py-0.5 rounded w-max select-all cursor-pointer" title="Double click to copy">
+                      <code className="text-xs text-cyan-400 font-mono font-bold mt-1.5 block bg-cyan-500/10 border border-cyan-500/10 px-2 py-0.5 rounded w-max select-all cursor-pointer">
                         {user10DigitId}
                       </code>
                     </div>
-                    <button className="px-4 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-[11px] font-bold text-white rounded-lg transition-colors cursor-pointer">
+                    <button onClick={handleCopyId} className="px-4 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-[11px] font-bold text-white rounded-lg transition-colors cursor-pointer">
                       Sao chép ID
                     </button>
                   </div>
@@ -1205,30 +1190,10 @@ export default function FriendsClientPage({ user, profile, otherProfiles }: Frie
                   <div className="flex items-center justify-between gap-4">
                     <div>
                       <p className="text-xs text-zinc-300 font-bold">Mật khẩu</p>
-                      <p className="text-[11px] text-zinc-500 mt-1">Thay đổi mật khẩu đăng nhập của bạn thường xuyên để giữ an toàn.</p>
+                      <p className="text-[11px] text-zinc-500 mt-1">Gửi email đặt lại mật khẩu tới địa chỉ email của bạn.</p>
                     </div>
-                    <button className="px-4 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-[11px] font-bold text-white rounded-lg transition-colors cursor-pointer">
-                      Chỉnh sửa
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-4 border-t border-white/5 pt-4">
-                    <div>
-                      <p className="text-xs text-zinc-300 font-bold">Xác Thực Đa Nhân Tố (2FA)</p>
-                      <p className="text-[11px] text-zinc-500 mt-1">Bảo vệ tài khoản bằng lớp bảo mật mã xác minh điện thoại.</p>
-                    </div>
-                    <button className="text-xs font-bold text-zinc-400 hover:text-white flex items-center gap-0.5 cursor-pointer">
-                      Thiết lập <ChevronRight size={14} />
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-4 border-t border-white/5 pt-4">
-                    <div>
-                      <p className="text-xs text-zinc-300 font-bold">Thiết Bị Đã Đăng Nhập</p>
-                      <p className="text-[11px] text-zinc-500 mt-1">Hiện có 50 thiết bị đang duy trì phiên hoạt động.</p>
-                    </div>
-                    <button className="text-xs font-bold text-zinc-400 hover:text-white flex items-center gap-0.5 cursor-pointer">
-                      Chi tiết <ChevronRight size={14} />
+                    <button onClick={handleResetPassword} className="px-4 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-[11px] font-bold text-white rounded-lg transition-colors cursor-pointer">
+                      Đặt lại
                     </button>
                   </div>
                 </div>
