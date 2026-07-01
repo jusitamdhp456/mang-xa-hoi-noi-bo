@@ -5,6 +5,8 @@ import { useVoiceSettings, playVoiceTone } from '@/components/providers/VoiceSet
 import { Mic, MicOff, Headphones, PhoneOff, ChevronDown, Volume2 } from 'lucide-react';
 import { User } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
+import { parseStatus, formatStatus, STATUS_META, STATUS_ORDER, type PresenceState } from '@/lib/status';
+import { updateProfile } from '@/app/actions/user';
 
 interface UserPanelProps {
   user: User | null;
@@ -62,7 +64,19 @@ export function UserPanel({ user, profile, channels, workspaceName }: UserPanelP
   };
 
   const displayName = profile?.display_name || user?.email?.split('@')[0] || 'Khách';
-  const statusColor = 'bg-green-500';
+
+  // Presence status (stored encoded in profiles.status_text)
+  const [status, setStatus] = useState(() => parseStatus(profile?.status_text));
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [draftText, setDraftText] = useState(status.text);
+  const statusColor = STATUS_META[status.state].dot;
+
+  const applyStatus = async (state: PresenceState, text: string) => {
+    setStatus({ state, text });
+    setStatusOpen(false);
+    await updateProfile({ status_text: formatStatus(state, text) });
+    router.refresh();
+  };
 
   return (
     <div className="flex flex-col shrink-0 mt-auto relative">
@@ -110,8 +124,47 @@ export function UserPanel({ user, profile, channels, workspaceName }: UserPanelP
 
       {/* Main Profile Control Bar */}
       <div className="bg-[#232428] h-[60px] flex items-center px-2 py-1 border-t border-white/10 relative z-20">
+        {/* Status menu */}
+        {statusOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setStatusOpen(false)} />
+            <div className="absolute bottom-[64px] left-2 w-60 bg-[#1e1f22] border border-white/10 rounded-xl shadow-2xl p-2 z-50 animate-scale-in" onClick={(e) => e.stopPropagation()}>
+              <p className="text-[9px] font-extrabold uppercase tracking-wider text-zinc-500 px-2 py-1 select-none">Trạng thái</p>
+              {STATUS_ORDER.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => applyStatus(s, draftText)}
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer text-left ${status.state === s ? 'bg-white/10 text-white' : 'text-zinc-300 hover:bg-white/5'}`}
+                >
+                  <span className={`w-2.5 h-2.5 rounded-full ${STATUS_META[s].dot}`} />
+                  {STATUS_META[s].label}
+                  {status.state === s && <span className="ml-auto text-indigo-300">✓</span>}
+                </button>
+              ))}
+              <div className="h-px bg-white/10 my-1.5" />
+              <input
+                value={draftText}
+                onChange={(e) => setDraftText(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') applyStatus(status.state, draftText); }}
+                placeholder="Trạng thái tùy chỉnh…"
+                maxLength={80}
+                className="w-full bg-black/30 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-indigo-500"
+              />
+              <button
+                onClick={() => applyStatus(status.state, draftText)}
+                className="w-full mt-1.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-colors cursor-pointer"
+              >
+                Lưu trạng thái
+              </button>
+            </div>
+          </>
+        )}
+
         {/* User Info */}
-        <div className="flex items-center gap-2 flex-1 min-w-0 hover:bg-white/5 p-1 rounded-md cursor-pointer transition-colors mr-1">
+        <div
+          onClick={() => setStatusOpen((v) => !v)}
+          className="flex items-center gap-2 flex-1 min-w-0 hover:bg-white/5 p-1 rounded-md cursor-pointer transition-colors mr-1"
+        >
           <div className="relative flex-shrink-0">
             {getAvatarUrl() ? (
               <img src={getAvatarUrl() as string} alt="avatar" className="w-8 h-8 rounded-full object-cover" />

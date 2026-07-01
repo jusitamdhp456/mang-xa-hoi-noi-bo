@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { isChannelMuted } from '@/lib/mute';
 
 type Toast = {
   id: string;
@@ -111,6 +112,7 @@ export function MessageToasts() {
               const { channelId, channelName, message } = payload?.payload || {};
               if (!message || message.sender_id === user.id) return;
               if (pathRef.current?.includes(`/channel/${channelId}`)) return;
+              if (isChannelMuted(channelId)) return; // muted: no toast, sound, or unread
               // Mark the channel unread in the sidebar.
               window.dispatchEvent(new CustomEvent('app:channel-activity', { detail: { channelId } }));
               const content = (message.content || '').startsWith('[VOICE_INVITE]:')

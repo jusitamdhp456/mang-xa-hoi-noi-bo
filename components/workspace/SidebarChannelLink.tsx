@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { Phone, Lock, Edit3, X, Search, UserPlus, MicOff, Volume2, MoreVertical, Pencil, Trash2, Hash, ArrowUp, ArrowDown } from 'lucide-react'
+import { Phone, Lock, Edit3, X, Search, UserPlus, MicOff, Volume2, MoreVertical, Pencil, Trash2, Hash, ArrowUp, ArrowDown, Bell, BellOff } from 'lucide-react'
+import { isChannelMuted, toggleChannelMute } from '@/lib/mute'
 import { useVoiceSettings, playVoiceTone } from '@/components/providers/VoiceSettingsProvider'
 import { getFriends, sendDirectMessage } from '@/app/actions/friend'
 import { updateChannel, deleteChannel, updateChannelTopic, moveChannel } from '@/app/actions/channel'
@@ -74,7 +75,22 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
   const isActive = pathname === channelUrl
 
   const { isUnread, markRead } = useUnread()
-  const unread = !isActive && isUnread(channel.id)
+  const [muted, setMuted] = useState(false)
+  useEffect(() => {
+    setMuted(isChannelMuted(channel.id))
+    const onChange = (e: Event) => {
+      const d = (e as CustomEvent).detail
+      if (d?.channelId === channel.id) setMuted(!!d.muted)
+    }
+    window.addEventListener('app:mute-changed', onChange)
+    return () => window.removeEventListener('app:mute-changed', onChange)
+  }, [channel.id])
+  const unread = !isActive && !muted && isUnread(channel.id)
+
+  const handleToggleMute = () => {
+    setMenuPosition(null)
+    toggleChannelMute(channel.id)
+  }
 
   // Filter participants currently connected to this voice channel
   const participants = isVoice
@@ -85,7 +101,7 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
   // near the bottom/right edges).
   const openMenuAt = (clientX: number, clientY: number) => {
     const menuW = 200
-    const menuH = isVoice ? 240 : 210
+    const menuH = isVoice ? 290 : 270
     let x = clientX
     let y = clientY
     if (x + menuW > window.innerWidth - 8) x = window.innerWidth - menuW - 8
@@ -185,7 +201,8 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
       <span className="mr-2.5 leading-none shrink-0 text-cyan-400 flex items-center">
         {isVoice ? <Volume2 size={16} /> : <span className="text-lg">#</span>}
       </span>
-      <span className={`truncate flex-1 ${unread ? 'text-white font-bold' : ''}`}>{channel.name}</span>
+      <span className={`truncate flex-1 ${unread ? 'text-white font-bold' : ''} ${muted ? 'opacity-50' : ''}`}>{channel.name}</span>
+      {muted && <BellOff size={12} className="text-zinc-500 ml-1.5 shrink-0" />}
       {channel.is_private && <Lock size={12} className="text-zinc-500 ml-2 shrink-0" />}
 
       {/* Channel options menu trigger */}
@@ -367,6 +384,13 @@ export function SidebarChannelLink({ workspaceId, channel }: SidebarChannelLinkP
           >
             <ArrowDown size={14} className="text-zinc-300 shrink-0" />
             <span>Di chuyển xuống</span>
+          </button>
+          <button
+            onClick={handleToggleMute}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer text-left"
+          >
+            {muted ? <Bell size={14} className="text-zinc-300 shrink-0" /> : <BellOff size={14} className="text-zinc-300 shrink-0" />}
+            <span>{muted ? 'Bật thông báo' : 'Tắt thông báo'}</span>
           </button>
           <button
             onClick={handleDeleteChannel}
