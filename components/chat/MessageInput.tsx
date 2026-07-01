@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { sendMessage } from '@/app/actions/message'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { Send, Smile, File as FileIcon, Mic, Trash2, BarChart3, Plus, X } from 'lucide-react'
@@ -89,6 +90,30 @@ export function MessageInput({
   const recStream = useRef<MediaStream | null>(null)
   const recTimer = useRef<ReturnType<typeof setInterval> | null>(null)
   const recCancelled = useRef(false)
+
+  // Anchored popovers (portaled to body so a narrow/overflow-hidden chat column
+  // can't clip them). Position is fixed relative to the trigger button.
+  const emojiBtnRef = useRef<HTMLButtonElement>(null)
+  const pollBtnRef = useRef<HTMLButtonElement>(null)
+  const [emojiAnchor, setEmojiAnchor] = useState<{ right: number; bottom: number } | null>(null)
+  const [pollAnchor, setPollAnchor] = useState<{ right: number; bottom: number } | null>(null)
+  const anchorFor = (el: HTMLElement | null) => {
+    if (!el) return { right: 8, bottom: 60 }
+    const r = el.getBoundingClientRect()
+    return { right: Math.max(8, window.innerWidth - r.right), bottom: window.innerHeight - r.top + 8 }
+  }
+  const toggleEmoji = () => {
+    setEmojiOpen((v) => {
+      if (!v) setEmojiAnchor(anchorFor(emojiBtnRef.current))
+      return !v
+    })
+  }
+  const togglePoll = () => {
+    setPollOpen((v) => {
+      if (!v) setPollAnchor(anchorFor(pollBtnRef.current))
+      return !v
+    })
+  }
 
   // --- Poll composer ---
   const [pollOpen, setPollOpen] = useState(false)
@@ -645,18 +670,19 @@ export function MessageInput({
            {/* Emoji picker */}
            <div className="relative shrink-0 mr-1">
              <button
+               ref={emojiBtnRef}
                type="button"
-               onClick={() => setEmojiOpen((v) => !v)}
+               onClick={toggleEmoji}
                disabled={isSending}
                className="text-zinc-400 hover:text-white transition-colors cursor-pointer p-1 hover:bg-white/5 rounded-lg flex items-center justify-center disabled:opacity-30"
                title="Chèn emoji"
              >
                <Smile size={16} />
              </button>
-             {emojiOpen && (
+             {emojiOpen && createPortal(
                <>
-                 <div className="fixed inset-0 z-10" onClick={() => setEmojiOpen(false)} />
-                 <div className="absolute z-20 bottom-10 right-0 bg-[#2b2d31] border border-white/10 rounded-2xl shadow-2xl w-80 animate-scale-in overflow-hidden">
+                 <div className="fixed inset-0 z-[80]" onClick={() => setEmojiOpen(false)} />
+                 <div style={{ position: 'fixed', right: emojiAnchor?.right ?? 8, bottom: emojiAnchor?.bottom ?? 60 }} className="z-[81] bg-[#2b2d31] border border-white/10 rounded-2xl shadow-2xl w-80 max-w-[calc(100vw-1rem)] animate-scale-in overflow-hidden">
                    {/* Tabs */}
                    <div className="flex items-center gap-1 p-1.5 border-b border-white/10">
                      <button type="button" onClick={() => setPickerTab('emoji')} className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${pickerTab === 'emoji' ? 'bg-white/10 text-white' : 'text-zinc-400 hover:text-white'}`}>Emoji</button>
@@ -718,24 +744,26 @@ export function MessageInput({
                      </div>
                    )}
                  </div>
-               </>
+               </>,
+               document.body
              )}
            </div>
            {/* Poll */}
            <div className="relative shrink-0 mr-1">
              <button
+               ref={pollBtnRef}
                type="button"
-               onClick={() => setPollOpen((v) => !v)}
+               onClick={togglePoll}
                disabled={isSending}
                className="text-zinc-400 hover:text-white transition-colors cursor-pointer disabled:opacity-30 p-1 hover:bg-white/5 rounded-lg flex items-center justify-center"
                title="Tạo bình chọn"
              >
                <BarChart3 size={16} />
              </button>
-             {pollOpen && (
+             {pollOpen && createPortal(
                <>
-                 <div className="fixed inset-0 z-10" onClick={() => setPollOpen(false)} />
-                 <div className="absolute z-20 bottom-10 right-0 w-72 bg-[#2b2d31] border border-white/10 rounded-2xl shadow-2xl p-3 animate-scale-in">
+                 <div className="fixed inset-0 z-[80]" onClick={() => setPollOpen(false)} />
+                 <div style={{ position: 'fixed', right: pollAnchor?.right ?? 8, bottom: pollAnchor?.bottom ?? 60 }} className="z-[81] w-72 max-w-[calc(100vw-1rem)] bg-[#2b2d31] border border-white/10 rounded-2xl shadow-2xl p-3 animate-scale-in">
                    <p className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-400 mb-2">Tạo bình chọn</p>
                    <input
                      value={pollQuestion}
@@ -767,7 +795,8 @@ export function MessageInput({
                      Gửi bình chọn
                    </button>
                  </div>
-               </>
+               </>,
+               document.body
              )}
            </div>
            <button
