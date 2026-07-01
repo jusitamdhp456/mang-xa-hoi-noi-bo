@@ -5,6 +5,7 @@ import { VoiceSettingsProvider } from '@/components/providers/VoiceSettingsProvi
 import { GlobalVoiceMount } from '@/components/workspace/GlobalVoiceMount';
 import { MessageToasts } from '@/components/providers/MessageToasts';
 import { UnreadProvider } from '@/components/providers/UnreadProvider';
+import { AddWorkspaceButton } from '@/components/workspace/AddWorkspaceButton';
 import { QuickSwitcher } from '@/components/ui/QuickSwitcher';
 import { UserSettingsModal } from '@/components/auth/UserSettingsModal';
 import { Settings } from 'lucide-react';
@@ -82,11 +83,7 @@ export default async function AppLayout({
          
          <div className="w-8 h-[2px] bg-white/20 my-1 rounded-full flex-shrink-0"></div>
          
-         <Link href="/onboarding" className="flex-shrink-0">
-            <div className="w-12 h-12 bg-white/5 border border-white/10 text-white/70 rounded-full flex items-center justify-center text-2xl cursor-pointer hover:bg-white/20 hover:text-white hover:scale-105 transition-all duration-200 shadow-sm" title="Thêm Không gian làm việc">
-               +
-            </div>
-          </Link>
+         <AddWorkspaceButton />
 
           {/* Settings button pushed to the bottom of the sidebar */}
           <div className="mt-auto w-12 h-12 flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white/70 cursor-pointer hover:bg-[#5865F2] hover:text-white hover:border-[#5865F2] hover:scale-105 transition-all duration-200 shadow-sm flex-shrink-0" title="Cài đặt tài khoản">
