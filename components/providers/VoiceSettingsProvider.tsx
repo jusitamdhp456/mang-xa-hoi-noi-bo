@@ -175,6 +175,27 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
     setIsLoaded(true);
   }, []);
 
+  // Keyboard shortcuts: Ctrl/Cmd+Shift+M toggle mic, +D toggle deafen.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || !e.shiftKey) return;
+      const k = e.key.toLowerCase();
+      if (k === 'm') {
+        e.preventDefault();
+        setIsMuted((p) => !p);
+      } else if (k === 'd') {
+        e.preventDefault();
+        setIsDeafened((p) => {
+          const n = !p;
+          if (n) setIsMuted(true);
+          return n;
+        });
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   // Push-to-talk key handlers (Space). Hold to talk, release to mute.
   useEffect(() => {
     const isTyping = () => {

@@ -5,6 +5,7 @@ import { VoiceSettingsProvider } from '@/components/providers/VoiceSettingsProvi
 import { GlobalVoiceMount } from '@/components/workspace/GlobalVoiceMount';
 import { MessageToasts } from '@/components/providers/MessageToasts';
 import { UnreadProvider } from '@/components/providers/UnreadProvider';
+import { QuickSwitcher } from '@/components/ui/QuickSwitcher';
 import { UserSettingsModal } from '@/components/auth/UserSettingsModal';
 import { Settings } from 'lucide-react';
 
@@ -99,6 +100,7 @@ export default async function AppLayout({
           <UnreadProvider>
             <GlobalVoiceMount username={userProfile?.display_name || user?.email?.split('@')[0] || 'Khách'} />
             <MessageToasts />
+            <QuickSwitcher />
             {children}
           </UnreadProvider>
         </VoiceSettingsProvider>
