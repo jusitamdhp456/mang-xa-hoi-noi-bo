@@ -481,7 +481,7 @@ function VoiceExtraControls() {
         {fpsMenu && !screenOn && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setFpsMenu(false)} />
-            <div className="absolute z-20 bottom-9 right-0 w-44 bg-[#1e1f22] border border-white/10 rounded-xl shadow-2xl p-1.5 animate-scale-in">
+            <div className="absolute z-20 bottom-9 left-1/2 -translate-x-1/2 w-44 bg-[#1e1f22] border border-white/10 rounded-xl shadow-2xl p-1.5 animate-scale-in">
               <p className="text-[9px] font-extrabold uppercase tracking-wider text-zinc-500 px-2 py-1 select-none">Chia sẻ màn hình</p>
               <button onClick={() => startScreen(30)} className="w-full text-left px-2 py-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer">
                 <p className="text-xs font-bold text-white">30 FPS</p>
