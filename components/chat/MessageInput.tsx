@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { sendMessage } from '@/app/actions/message'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
-import { Send, Smile, File as FileIcon, Mic, Trash2, BarChart3, Plus, X } from 'lucide-react'
+import { Send, Smile, File as FileIcon, Mic, Trash2, BarChart3, Plus, X, Gamepad2 } from 'lucide-react'
 import { POLL_PREFIX } from './PollCard'
 import { getCustomEmojis } from '@/app/actions/emoji'
 
@@ -113,6 +113,38 @@ export function MessageInput({
       if (!v) setPollAnchor(anchorFor(pollBtnRef.current))
       return !v
     })
+  }
+  const gameBtnRef = useRef<HTMLButtonElement>(null)
+  const [gameOpen, setGameOpen] = useState(false)
+  const [gameAnchor, setGameAnchor] = useState<{ right: number; bottom: number } | null>(null)
+  const toggleGame = () => {
+    setGameOpen((v) => {
+      if (!v) setGameAnchor(anchorFor(gameBtnRef.current))
+      return !v
+    })
+  }
+
+  const createGame = async (type: 'ROULETTE' | 'GIVEAWAY' | 'DICE') => {
+    setGameOpen(false)
+    setIsSending(true)
+    try {
+      let state: any = {}
+      if (type === 'ROULETTE') {
+        state = { hostId: currentUser?.id, bulletPos: Math.floor(Math.random() * 6) + 1, currentTurn: 0, survivors: [], dead: null, status: 'PLAYING' }
+      } else if (type === 'GIVEAWAY') {
+        state = { hostId: currentUser?.id, item: '', participants: [], winner: null, status: 'WAITING' }
+      } else if (type === 'DICE') {
+        state = { hostId: currentUser?.id, dice: [1,1,1], players: [], status: 'BETTING', rolledAt: null }
+      }
+      const content = `[MINIGAME:${type}]:${JSON.stringify(state)}`
+      const res = await sendMessage(channelId, workspaceId, content)
+      if (res?.error) throw new Error(res.error)
+      if (res?.message) onSent?.(res.message)
+    } catch (e) {
+      alert((e as Error).message || 'Lỗi tạo game')
+    } finally {
+      setIsSending(false)
+    }
   }
 
   // --- Poll composer ---
@@ -812,6 +844,39 @@ export function MessageInput({
                    <button type="button" onClick={createPoll} className="w-full mt-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-colors cursor-pointer">
                      Gửi bình chọn
                    </button>
+                 </div>
+               </>,
+               document.body
+             )}
+           </div>
+           {/* Game Menu */}
+           <div className="relative shrink-0 mr-1">
+             <button
+               ref={gameBtnRef}
+               type="button"
+               onClick={toggleGame}
+               disabled={isSending}
+               className="text-zinc-400 hover:text-indigo-400 transition-colors cursor-pointer disabled:opacity-30 p-1 hover:bg-white/5 rounded-lg flex items-center justify-center"
+               title="Chơi Mini-game"
+             >
+               <Gamepad2 size={16} />
+             </button>
+             {gameOpen && createPortal(
+               <>
+                 <div className="fixed inset-0 z-[80]" onClick={() => setGameOpen(false)} />
+                 <div style={{ position: 'fixed', right: gameAnchor?.right ?? 8, bottom: gameAnchor?.bottom ?? 60 }} className="z-[81] w-48 max-w-[calc(100vw-1rem)] bg-[#2b2d31] border border-white/10 rounded-2xl shadow-2xl p-2 animate-scale-in">
+                   <p className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-400 mb-2 px-2">Mini-games</p>
+                   <div className="flex flex-col gap-1">
+                     <button type="button" onClick={() => createGame('ROULETTE')} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer text-left">
+                       <span>🔫</span> <span className="text-xs font-bold text-zinc-200">Cò quay Nga</span>
+                     </button>
+                     <button type="button" onClick={() => createGame('GIVEAWAY')} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer text-left">
+                       <span>🎁</span> <span className="text-xs font-bold text-zinc-200">Rút thăm</span>
+                     </button>
+                     <button type="button" onClick={() => createGame('DICE')} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer text-left">
+                       <span>🎲</span> <span className="text-xs font-bold text-zinc-200">Lắc Tài Xỉu</span>
+                     </button>
+                   </div>
                  </div>
                </>,
                document.body

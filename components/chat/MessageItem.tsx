@@ -7,6 +7,9 @@ import { VoiceInviteCard } from './VoiceInviteCard'
 import { RichText } from '@/lib/richtext'
 import { EmbedList } from '@/lib/embeds'
 import { PollCard, parsePoll } from './PollCard'
+import { RouletteCard } from './games/RouletteCard'
+import { GiveawayCard } from './games/GiveawayCard'
+import { DiceCard } from './games/DiceCard'
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '🎉', '😮', '😢', '🔥', '👀']
 
@@ -40,6 +43,14 @@ export function MessageItem({
   const isMe = currentUserId && message.sender_id === currentUserId
   const isVoiceInvite = !!message.content?.startsWith('[VOICE_INVITE]:')
   const poll = message.content ? parsePoll(message.content) : null
+  const minigameMatch = message.content?.match(/^\[MINIGAME:(ROULETTE|GIVEAWAY|DICE)\]:(.*)$/)
+  const minigameType = minigameMatch ? minigameMatch[1] : null
+  let minigamePayload = null
+  if (minigameMatch) {
+    try {
+      minigamePayload = JSON.parse(minigameMatch[2])
+    } catch {}
+  }
 
   const [pickerOpen, setPickerOpen] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -127,6 +138,14 @@ export function MessageItem({
                   currentUserId={currentUserId}
                   onVote={onToggleReaction}
                 />
+              ) : minigameType && minigamePayload ? (
+                minigameType === 'ROULETTE' ? (
+                  <RouletteCard messageId={message.id} payload={minigamePayload} />
+                ) : minigameType === 'GIVEAWAY' ? (
+                  <GiveawayCard messageId={message.id} payload={minigamePayload} currentUserId={currentUserId} />
+                ) : minigameType === 'DICE' ? (
+                  <DiceCard messageId={message.id} payload={minigamePayload} currentUserId={currentUserId} />
+                ) : null
               ) : (
                 <div className="flex items-end gap-1.5">
                   <div
@@ -139,7 +158,7 @@ export function MessageItem({
                     <RichText text={message.content} />
                   </div>
                   {/* Hover actions */}
-                  {!isVoiceInvite && (
+                  {!isVoiceInvite && !minigameType && (
                     <div className={`flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity self-center ${isMe ? 'order-first' : ''}`}>
                       {onReply && <button onClick={onReply} title="Trả lời" className="w-6 h-6 flex items-center justify-center rounded-md text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"><Reply size={13} /></button>}
                       {onTogglePin && <button onClick={onTogglePin} title={isPinned ? 'Bỏ ghim' : 'Ghim'} className={`w-6 h-6 flex items-center justify-center rounded-md hover:bg-white/10 cursor-pointer ${isPinned ? 'text-amber-400' : 'text-zinc-400 hover:text-white'}`}><Pin size={13} /></button>}
@@ -152,7 +171,7 @@ export function MessageItem({
             )
           )}
 
-          {!isVoiceInvite && message.content && <EmbedList text={message.content} />}
+          {!isVoiceInvite && !minigameType && message.content && <EmbedList text={message.content} />}
 
           {attachment && (() => {
             const getAttachmentUrl = (key: string) => key.startsWith('blob:') || key.startsWith('data:') ? key : `/api/media/${key}`
