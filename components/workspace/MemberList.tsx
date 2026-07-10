@@ -16,7 +16,7 @@ type MemberRow = {
   profiles: { id: string; display_name: string; status_text: string | null; avatar_key: string | null } | null
 }
 
-export default async function MemberList({ workspaceId }: { channelId?: string, workspaceId: string }) {
+export default async function MemberList({ channelId, workspaceId }: { channelId?: string, workspaceId: string }) {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -26,7 +26,25 @@ export default async function MemberList({ workspaceId }: { channelId?: string, 
     .eq('workspace_id', workspaceId)
 
   const blockedSet = new Set(await getBlockedIds())
-  const list = (members as unknown as MemberRow[])?.filter((m) => m.profiles) || []
+  let list = (members as unknown as MemberRow[])?.filter((m) => m.profiles) || []
+
+  if (channelId) {
+    const { data: channel } = await supabase
+      .from('channels')
+      .select('is_private')
+      .eq('id', channelId)
+      .single()
+
+    if (channel?.is_private) {
+      const { data: channelMembers } = await supabase
+        .from('channel_members')
+        .select('user_id')
+        .eq('channel_id', channelId)
+      
+      const allowedUserIds = new Set(channelMembers?.map((m) => m.user_id) || [])
+      list = list.filter((m) => allowedUserIds.has(m.profiles!.id))
+    }
+  }
   const myRole = list.find((m) => m.profiles?.id === user?.id)?.role || 'member'
   const myRank = ROLE_META[myRole]?.rank ?? 0
   const canManage = myRole === 'owner' || myRole === 'admin'
