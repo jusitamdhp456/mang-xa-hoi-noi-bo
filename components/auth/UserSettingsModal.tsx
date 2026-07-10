@@ -167,8 +167,12 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
     '#111214'  // Midnight
   ];
 
+  const modalBgClass = theme === 'pink'
+    ? 'bg-gradient-to-br from-[#fdf2f8] via-[#fce7f3] to-[#fbcfe8] text-[#831843]'
+    : 'bg-gradient-to-br from-[#0f172a] via-[#1e1b4b] to-[#0891b2] text-zinc-300';
+
   const modalContent = isOpen && (
-        <div className="fixed inset-0 z-50 bg-gradient-to-br from-[#0f172a] via-[#1e1b4b] to-[#0891b2] flex text-zinc-300 font-sans animate-in fade-in duration-200">
+        <div className={`fixed inset-0 z-50 flex font-sans animate-in fade-in duration-200 ${modalBgClass}`}>
           
           {/* LEFT SIDEBAR NAVIGATION */}
           <div className="w-[280px] bg-black/20 backdrop-blur-xl flex-shrink-0 flex justify-end py-12 pr-6 border-r border-white/10 overflow-y-auto">
