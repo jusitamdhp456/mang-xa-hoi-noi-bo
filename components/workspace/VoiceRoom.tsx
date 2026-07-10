@@ -12,7 +12,7 @@ import {
   useRoomContext,
   VideoTrack
 } from '@livekit/components-react';
-import { Track } from 'livekit-client';
+import { Track, VideoPresets } from 'livekit-client';
 import { Monitor, MonitorOff, AlertTriangle, Maximize, Minimize } from 'lucide-react';
 import { useVoiceSettings, playVoiceTone } from '@/components/providers/VoiceSettingsProvider';
 import { useRouter } from 'next/navigation';
@@ -432,7 +432,7 @@ function VoiceExtraControls() {
   const toggleCamera = async () => {
     try {
       const next = !cameraOn;
-      await localParticipant.setCameraEnabled(next);
+      await localParticipant.setCameraEnabled(next, { resolution: VideoPresets.h720.resolution });
       setCameraOn(next);
     } catch (e) {
       console.warn('Camera toggle failed:', e);
@@ -574,7 +574,7 @@ function MobileVoiceControls() {
   const [fpsMenu, setFpsMenu] = useState(false);
 
   const toggleCamera = async () => {
-    try { const n = !cameraOn; await localParticipant.setCameraEnabled(n); setCameraOn(n); }
+    try { const n = !cameraOn; await localParticipant.setCameraEnabled(n, { resolution: VideoPresets.h720.resolution }); setCameraOn(n); }
     catch (e) { console.warn('Camera toggle failed:', e); }
   };
   const startScreen = async (fps: number) => {
@@ -1194,6 +1194,10 @@ export function VoiceRoom({
           token={token}
           serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL}
           connect={true}
+          options={{
+            videoCaptureDefaults: { resolution: VideoPresets.h720.resolution },
+            publishDefaults: { videoEncoding: VideoPresets.h720.encoding }
+          }}
           onDisconnected={() => setDisconnected(true)}
           style={{ display: 'contents' }}
         >
@@ -1525,6 +1529,10 @@ export function VoiceRoom({
         token={token}
         serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL}
         connect={true}
+        options={{
+          videoCaptureDefaults: { resolution: VideoPresets.h720.resolution },
+          publishDefaults: { videoEncoding: VideoPresets.h720.encoding }
+        }}
         onDisconnected={() => setDisconnected(true)}
         className="h-full w-full flex flex-col flex-1 !bg-transparent"
       >

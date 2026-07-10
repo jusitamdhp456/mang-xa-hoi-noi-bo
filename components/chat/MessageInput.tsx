@@ -404,28 +404,46 @@ export function MessageInput({
       }
     }
 
-    // Optimistic render for text-only messages so they appear instantly,
+    // Optimistic render for text and file messages so they appear instantly,
     // without waiting for the server round-trip. Reconciled by onSent.
     let tempId: string | undefined
     let messageId: string | undefined
     
-    if (!currentFile && currentContent.trim() && currentUser) {
+    if ((currentContent.trim() || currentFile) && currentUser) {
       messageId = crypto.randomUUID()
       tempId = messageId // Use the real UUID as tempId so UI doesn't flicker
+      
+      const optimisticAttachments = []
+      if (currentFile) {
+        optimisticAttachments.push({
+          id: 'temp-attachment',
+          message_id: tempId,
+          object_key: URL.createObjectURL(currentFile),
+          file_name: currentFile.name,
+          mime_type: currentFile.type,
+          size_bytes: currentFile.size
+        })
+      }
+
       const optimisticMsg = {
         id: tempId,
         content: currentContent.trim(),
         created_at: new Date().toISOString(),
         sender_id: currentUser.id,
         profiles: { display_name: currentUser.display_name, avatar_key: currentUser.avatar_key },
-        message_attachments: [],
+        message_attachments: optimisticAttachments,
         message_reactions: [],
         reply_to_id: replyId || null,
         reply_to: replyPreview,
       }
+      
       onOptimistic?.(optimisticMsg)
-      // Broadcast to other clients immediately before DB insert for zero-latency feel
-      onBroadcastInstantly?.(optimisticMsg)
+      
+      if (!currentFile) {
+        // Broadcast to other clients immediately before DB insert for zero-latency feel
+        // We skip instant broadcast for files because other clients can't load our local blob URL
+        onBroadcastInstantly?.(optimisticMsg)
+      }
     }
 
     try {

@@ -154,34 +154,37 @@ export function MessageItem({
 
           {!isVoiceInvite && message.content && <EmbedList text={message.content} />}
 
-          {attachment && (
+          {attachment && (() => {
+            const getAttachmentUrl = (key: string) => key.startsWith('blob:') || key.startsWith('data:') ? key : `/api/media/${key}`
+            const attachmentUrl = getAttachmentUrl(attachment.object_key)
+            return (
             <div className="mt-2">
               {attachment.mime_type?.startsWith('image/') ? (
                 onImageClick ? (
                   <button 
                     type="button" 
-                    onClick={() => onImageClick(`/api/media/${attachment.object_key}`)}
+                    onClick={() => onImageClick(attachmentUrl)}
                     className="inline-block relative group/img cursor-pointer text-left"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img 
-                      src={`/api/media/${attachment.object_key}`} 
+                      src={attachmentUrl} 
                       alt={attachment.file_name} 
                       className={`max-w-[150px] sm:max-w-[180px] max-h-72 object-cover rounded-xl border border-white/10 shadow-md transition-all hover:scale-[1.02] duration-200 ${isMe ? 'rounded-br-none' : 'rounded-bl-none'}`}
                     />
                   </button>
                 ) : (
-                  <a href={`/api/media/${attachment.object_key}`} target="_blank" rel="noopener noreferrer" className="inline-block relative group/img">
+                  <a href={attachmentUrl} target="_blank" rel="noopener noreferrer" className="inline-block relative group/img">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img 
-                      src={`/api/media/${attachment.object_key}`} 
+                      src={attachmentUrl} 
                       alt={attachment.file_name} 
                       className={`max-w-[150px] sm:max-w-[180px] max-h-72 object-cover rounded-xl border border-white/10 shadow-md transition-all hover:scale-[1.02] duration-200 ${isMe ? 'rounded-br-none' : 'rounded-bl-none'}`}
                     />
                   </a>
                 )
               ) : attachment.mime_type?.startsWith('audio/') ? (
-                 <audio controls src={`/api/media/${attachment.object_key}`} className="mt-1 max-w-[240px] h-10" />
+                 <audio controls src={attachmentUrl} className="mt-1 max-w-[240px] h-10" />
               ) : (
                  <div className="flex items-center gap-3 bg-black/25 p-3 rounded-xl border border-white/5 max-w-sm mt-1">
                    <span className="text-2xl shrink-0">📎</span>
@@ -190,7 +193,7 @@ export function MessageItem({
                      <p className="text-[10px] text-zinc-400 mt-0.5">{(attachment.size_bytes / 1024).toFixed(1)} KB</p>
                    </div>
                    <a 
-                     href={`/api/media/${attachment.object_key}`} 
+                     href={attachmentUrl} 
                      download={attachment.file_name}
                      className="p-1.5 bg-white/5 hover:bg-white/15 rounded-lg text-xs font-bold text-white transition-all select-none shrink-0"
                    >
@@ -199,7 +202,8 @@ export function MessageItem({
                  </div>
               )}
             </div>
-          )}
+            )
+          })()}
 
           {/* Reactions */}
           {onToggleReaction && (
