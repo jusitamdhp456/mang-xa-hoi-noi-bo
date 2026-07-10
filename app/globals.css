@@ -248,3 +248,23 @@ html.theme-pink ::-webkit-scrollbar-thumb {
 html.theme-pink ::-webkit-scrollbar-thumb:hover {
   background: rgba(244, 114, 182, 0.6) !important;
 }
+
+/* Additional black shapes overrides */
+html.theme-pink .bg-zinc-800\/90,
+html.theme-pink .bg-\[\#232428\],
+html.theme-pink .bg-\[\#2b2d31\]\/80,
+html.theme-pink .bg-black\/25,
+html.theme-pink .bg-\[\#35363c\] {
+  background-color: rgba(255, 255, 255, 0.45) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+/* Sidebar texts with opacity */
+html.theme-pink .text-white\/40,
+html.theme-pink .text-white\/50,
+html.theme-pink .text-white\/60,
+html.theme-pink .text-white\/70,
+html.theme-pink .text-white\/80,
+html.theme-pink .text-white\/90 {
+  color: #831843 !important; 
+}
