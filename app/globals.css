@@ -311,3 +311,138 @@ html.theme-pink .text-indigo-300,
 html.theme-pink .text-cyan-400 {
   color: #be185d !important;
 }
+
+/* ========================================================
+   GENSHIN YAE MIKO THEME OVERRIDES
+   ======================================================== */
+html.theme-genshin body {
+  background-color: #3b0764 !important;
+  color: #fce7f3 !important; /* pink-100 */
+}
+
+html.theme-genshin body::before {
+  background: url("https://images.unsplash.com/photo-1522383225653-ed111181a951?q=80&w=2076") center/cover fixed !important;
+  filter: brightness(0.7) contrast(1.1) saturate(1.2);
+}
+
+/* Base dark elements -> Purple Glassmorphism with Gold borders */
+html.theme-genshin .bg-\[\#1e1f22\],
+html.theme-genshin .bg-\[\#2b2d31\],
+html.theme-genshin .bg-\[\#313338\],
+html.theme-genshin .bg-\[\#383a40\],
+html.theme-genshin .bg-\[\#111214\],
+html.theme-genshin .bg-\[\#0c0d0e\] {
+  background-color: rgba(76, 29, 149, 0.45) !important; /* purple-900 with opacity */
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border-color: rgba(253, 224, 71, 0.3) !important; /* Gold border */
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+}
+
+/* Semi-transparent black overrides */
+html.theme-genshin .bg-black\/10,
+html.theme-genshin .bg-black\/20,
+html.theme-genshin .bg-black\/30,
+html.theme-genshin .bg-black\/40,
+html.theme-genshin .bg-black\/55,
+html.theme-genshin .bg-black\/60,
+html.theme-genshin .bg-black\/70,
+html.theme-genshin .bg-black\/75,
+html.theme-genshin .bg-black\/90,
+html.theme-genshin .from-indigo-900\/30 {
+  background-image: none !important;
+  background-color: rgba(107, 33, 168, 0.35) !important; /* purple-800 with opacity */
+}
+
+html.theme-genshin .bg-zinc-800,
+html.theme-genshin .bg-zinc-900 {
+  background-color: rgba(88, 28, 135, 0.6) !important;
+  border-color: rgba(253, 224, 71, 0.25) !important;
+}
+
+/* Additional black shapes overrides */
+html.theme-genshin .bg-zinc-800\/90,
+html.theme-genshin .bg-zinc-800\/40,
+html.theme-genshin .bg-zinc-900\/40,
+html.theme-genshin .bg-\[\#232428\],
+html.theme-genshin .bg-\[\#2b2d31\]\/80,
+html.theme-genshin .bg-\[\#383a40\]\/60,
+html.theme-genshin .bg-\[\#383a40\]\/80,
+html.theme-genshin .bg-\[\#1e1f22\]\/70,
+html.theme-genshin .bg-\[\#1e1f22\]\/50,
+html.theme-genshin .bg-\[\#1e1f22\]\/95,
+html.theme-genshin .bg-\[\#313338\]\/15,
+html.theme-genshin .bg-black\/25,
+html.theme-genshin .bg-\[\#35363c\] {
+  background-color: rgba(126, 34, 206, 0.3) !important; /* purple-700 opacity */
+  backdrop-filter: blur(12px) !important;
+}
+
+/* Primary buttons & Avatars -> Magenta/Purple */
+html.theme-genshin .bg-indigo-600,
+html.theme-genshin .bg-indigo-900,
+html.theme-genshin .bg-\[\#5865F2\],
+html.theme-genshin .bg-green-600,
+html.theme-genshin .bg-emerald-600 {
+  background-color: rgba(190, 24, 93, 0.75) !important; /* rose-700 opacity */
+  border: 1px solid rgba(253, 224, 71, 0.5) !important; /* Gold border for buttons */
+  color: #fff !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+html.theme-genshin .hover\:bg-indigo-700:hover,
+html.theme-genshin .hover\:bg-green-700:hover,
+html.theme-genshin .hover\:bg-\[\#4752C4\]:hover,
+html.theme-genshin .bg-indigo-700,
+html.theme-genshin .bg-green-700 {
+  background-color: rgba(157, 23, 77, 0.85) !important; /* pink-900 */
+}
+
+/* Texts and borders */
+html.theme-genshin .text-white,
+html.theme-genshin .text-zinc-200,
+html.theme-genshin .text-zinc-300 {
+  color: #fae8ff !important; /* fuchsia-50 */
+}
+
+html.theme-genshin .text-zinc-400,
+html.theme-genshin .text-zinc-500 {
+  color: #f5d0fe !important; /* fuchsia-200 */
+}
+
+html.theme-genshin .border-white\/10,
+html.theme-genshin .border-white\/5,
+html.theme-genshin .border-black\/30 {
+  border-color: rgba(253, 224, 71, 0.2) !important; /* subtle gold borders */
+}
+
+html.theme-genshin .hover\:bg-white\/5:hover,
+html.theme-genshin .hover\:bg-white\/10:hover {
+  background-color: rgba(216, 180, 254, 0.15) !important; /* purple-300 opacity */
+}
+
+html.theme-genshin .bg-white\/5,
+html.theme-genshin .bg-white\/10 {
+  background-color: rgba(216, 180, 254, 0.1) !important;
+}
+
+html.theme-genshin .hover\:text-white:hover {
+  color: #fde047 !important; /* yellow-300 (gold) */
+}
+
+html.theme-genshin ::placeholder {
+  color: rgba(245, 208, 254, 0.5) !important;
+}
+
+html.theme-genshin ::-webkit-scrollbar-thumb {
+  background: rgba(192, 132, 252, 0.4) !important; /* purple-400 */
+}
+html.theme-genshin ::-webkit-scrollbar-thumb:hover {
+  background: rgba(192, 132, 252, 0.6) !important;
+}
+
+html.theme-genshin .text-indigo-400,
+html.theme-genshin .text-indigo-300,
+html.theme-genshin .text-cyan-400 {
+  color: #fde047 !important; /* gold */
+}

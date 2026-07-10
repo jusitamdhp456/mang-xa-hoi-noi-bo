@@ -43,7 +43,7 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   // Appearance state
-  const [theme, setTheme] = useState<'dark' | 'light' | 'midnight' | 'pink'>('dark');
+  const [theme, setTheme] = useState<'dark' | 'light' | 'midnight' | 'pink' | 'genshin'>('dark');
   const [layoutMode, setLayoutMode] = useState<'cozy' | 'compact'>('cozy');
 
   useEffect(() => {
@@ -51,13 +51,18 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
     if (savedTheme) setTheme(savedTheme);
   }, []);
 
-  const handleThemeChange = (newTheme: 'dark' | 'light' | 'midnight' | 'pink') => {
+  const handleThemeChange = (newTheme: 'dark' | 'light' | 'midnight' | 'pink' | 'genshin') => {
     setTheme(newTheme);
     localStorage.setItem('app-theme', newTheme);
+    
+    // Clear all special themes first
+    document.documentElement.classList.remove('theme-pink', 'theme-genshin');
+    
+    // Add the selected special theme
     if (newTheme === 'pink') {
       document.documentElement.classList.add('theme-pink');
-    } else {
-      document.documentElement.classList.remove('theme-pink');
+    } else if (newTheme === 'genshin') {
+      document.documentElement.classList.add('theme-genshin');
     }
   };
 
@@ -169,6 +174,8 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
 
   const modalBgClass = theme === 'pink'
     ? 'bg-gradient-to-br from-[#fdf2f8] via-[#fce7f3] to-[#fbcfe8] text-[#831843]'
+    : theme === 'genshin'
+    ? 'bg-[url("https://images.unsplash.com/photo-1522383225653-ed111181a951?q=80&w=2076")] bg-cover bg-center text-purple-100 before:absolute before:inset-0 before:bg-[#4c1d95]/40 before:backdrop-blur-sm'
     : 'bg-gradient-to-br from-[#0f172a] via-[#1e1b4b] to-[#0891b2] text-zinc-300';
 
   const modalContent = isOpen && (
@@ -561,6 +568,17 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
                       >
                         <div className="w-full h-10 bg-gradient-to-br from-pink-300 to-pink-500 rounded-md border border-white/10 mb-1"></div>
                         <span className="text-sm font-semibold text-pink-400">Hồng pha lê</span>
+                      </div>
+
+                      {/* Genshin (Yae Miko) */}
+                      <div 
+                        onClick={() => handleThemeChange('genshin')}
+                        className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col gap-2 ${theme === 'genshin' ? 'bg-[#c084fc]/20 border-[#c084fc] text-white' : 'bg-black/20 backdrop-blur-xl border-white/5 text-zinc-400 hover:bg-white/5'}`}
+                      >
+                        <div className="w-full h-10 bg-gradient-to-br from-[#7e22ce] via-[#be185d] to-[#f472b6] rounded-md border border-yellow-300/50 mb-1 relative overflow-hidden">
+                          <span className="absolute right-1 top-1 text-[10px]">🌸</span>
+                        </div>
+                        <span className="text-sm font-semibold text-purple-300">Genshin (Yae)</span>
                       </div>
                     </div>
                   </div>
