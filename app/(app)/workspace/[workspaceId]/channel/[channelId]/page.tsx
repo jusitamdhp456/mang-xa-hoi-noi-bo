@@ -4,7 +4,7 @@ import { ChatArea } from '@/components/chat/ChatArea'
 import { JoinVoiceChannel } from '@/components/workspace/JoinVoiceChannel'
 import { NotificationBell } from '@/components/workspace/NotificationBell'
 import { NsfwGate } from '@/components/chat/NsfwGate'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase/server'
 import { Volume2, Megaphone, ShieldAlert, Clock } from 'lucide-react'
 
 export default async function ChannelPage({ params }: { params: Promise<{ workspaceId: string, channelId: string }> }) {
@@ -35,6 +35,22 @@ export default async function ChannelPage({ params }: { params: Promise<{ worksp
   ])
 
   const initialMessages = msgs || []
+
+  // Bù đắp lỗi RLS missing policy trên bảng message_attachments
+  if (initialMessages.length > 0) {
+    const serviceClient = createSupabaseServiceClient()
+    const msgIds = initialMessages.map(m => m.id)
+    const { data: attachments } = await serviceClient
+      .from('message_attachments')
+      .select('*')
+      .in('message_id', msgIds)
+    
+    if (attachments && attachments.length > 0) {
+      initialMessages.forEach(m => {
+        m.message_attachments = attachments.filter(a => a.message_id === m.id)
+      })
+    }
+  }
 
   // Current user profile for VoiceRoom username + optimistic chat rendering
   let currentUsername = 'Khách'

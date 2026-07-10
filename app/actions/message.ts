@@ -271,7 +271,23 @@ export async function searchMessages(channelId: string, query: string) {
     .ilike('content', `%${q}%`)
     .order('created_at', { ascending: false })
     .limit(30)
-  return data || []
+
+  if (!data || data.length === 0) return []
+
+  // Bù đắp lỗi thiếu RLS trên bảng message_attachments
+  const msgIds = data.map((m: any) => m.id)
+  const { data: attachments } = await service
+    .from('message_attachments')
+    .select('*')
+    .in('message_id', msgIds)
+
+  if (attachments && attachments.length > 0) {
+    data.forEach((m: any) => {
+      m.message_attachments = attachments.filter((a: any) => a.message_id === m.id)
+    })
+  }
+
+  return data
 }
 
 // Get pinned messages for a channel
@@ -285,5 +301,45 @@ export async function getPinnedMessages(channelId: string) {
     .select('message_id, pinned_at, messages!message_id(id, content, created_at, sender_id, profiles!messages_sender_id_fkey(display_name, avatar_key))')
     .eq('channel_id', channelId)
     .order('pinned_at', { ascending: false })
-  return (data || []).map((p: any) => p.messages).filter(Boolean)
+
+  const msgs = (data || []).map((p: any) => p.messages).filter(Boolean)
+
+  if (msgs.length > 0) {
+    const msgIds = msgs.map((m: any) => m.id)
+    const { data: attachments } = await service
+      .from('message_attachments')
+      .select('*')
+      .in('message_id', msgIds)
+
+    if (attachments && attachments.length > 0) {
+      msgs.forEach((m: any) => {
+        m.message_attachments = attachments.filter((a: any) => a.message_id === m.id)
+      })
+    }
+  }
+
+  return msgs
+}
+
+// Fetch a single message with its attachments and reactions (bypassing RLS missing policy on attachments)
+export async function getMessageById(messageId: string) {
+  const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data: msg } = await supabase
+    .from('messages')
+    .select('*, profiles!messages_sender_id_fkey(display_name, avatar_key), message_reactions(emoji, user_id), reply_to:reply_to_id(id, content, profiles!messages_sender_id_fkey(display_name))')
+    .eq('id', messageId)
+    .single()
+
+  if (!msg) return null
+
+  const service = createSupabaseServiceClient()
+  const { data: attachments } = await service
+    .from('message_attachments')
+    .select('*')
+    .eq('message_id', messageId)
+
+  return { ...msg, message_attachments: attachments || [] }
 }

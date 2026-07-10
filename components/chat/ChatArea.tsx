@@ -78,14 +78,11 @@ export function ChatArea({
   // if not already present. Used by realtime, by the new-message broadcast, and
   // by the local send so the chat works even if postgres realtime is disabled.
   const appendMessageById = useCallback(async (messageId: string) => {
-    const { data: msg } = await supabase
-      .from('messages')
-      .select(MSG_SELECT)
-      .eq('id', messageId)
-      .single()
+    const { getMessageById } = await import('@/app/actions/message')
+    const msg = await getMessageById(messageId)
     if (!msg) return
     setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg as MessageRow]))
-  }, [supabase])
+  }, [])
 
   // Re-fetch the reactions for a single message and merge into state.
   const refreshReactions = useCallback(async (messageId: string) => {
