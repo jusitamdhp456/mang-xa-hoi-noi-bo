@@ -259,8 +259,16 @@ html.theme-pink ::-webkit-scrollbar-thumb:hover {
 
 /* Additional black shapes overrides */
 html.theme-pink .bg-zinc-800\/90,
+html.theme-pink .bg-zinc-800\/40,
+html.theme-pink .bg-zinc-900\/40,
 html.theme-pink .bg-\[\#232428\],
 html.theme-pink .bg-\[\#2b2d31\]\/80,
+html.theme-pink .bg-\[\#383a40\]\/60,
+html.theme-pink .bg-\[\#383a40\]\/80,
+html.theme-pink .bg-\[\#1e1f22\]\/70,
+html.theme-pink .bg-\[\#1e1f22\]\/50,
+html.theme-pink .bg-\[\#1e1f22\]\/95,
+html.theme-pink .bg-\[\#313338\]\/15,
 html.theme-pink .bg-black\/25,
 html.theme-pink .bg-\[\#35363c\] {
   background-color: rgba(255, 255, 255, 0.45) !important;
