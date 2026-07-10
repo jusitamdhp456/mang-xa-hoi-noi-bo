@@ -70,14 +70,44 @@ function noiseHit(c: AudioContext, t: number, dur: number, vol = 0.4) {
   src.start(t)
 }
 
-// Play an uploaded sound file (custom soundboard entry) from a URL.
-export function playUrl(url: string) {
+const customSoundCache = new Map<string, AudioBuffer>()
+
+// Play an uploaded sound file (custom soundboard entry) from a URL using AudioContext for zero latency.
+export async function playUrl(url: string) {
+  const c = ac()
+  if (!c) {
+    // Fallback to HTML Audio if AudioContext is unsupported or fails
+    try {
+      const a = new Audio(url)
+      a.volume = 0.9
+      a.play().catch(() => {})
+    } catch {}
+    return
+  }
+
   try {
-    const a = new Audio(url)
-    a.volume = 0.9
-    a.play().catch(() => {})
-  } catch {
-    /* ignore */
+    let buffer = customSoundCache.get(url)
+    if (!buffer) {
+      const res = await fetch(url)
+      const arrayBuffer = await res.arrayBuffer()
+      buffer = await c.decodeAudioData(arrayBuffer)
+      customSoundCache.set(url, buffer)
+    }
+
+    const src = c.createBufferSource()
+    src.buffer = buffer
+    const gain = c.createGain()
+    gain.gain.value = 0.9
+    src.connect(gain)
+    gain.connect(c.destination)
+    src.start(0)
+  } catch (err) {
+    // Fallback if fetch or decode fails
+    try {
+      const a = new Audio(url)
+      a.volume = 0.9
+      a.play().catch(() => {})
+    } catch {}
   }
 }
 
