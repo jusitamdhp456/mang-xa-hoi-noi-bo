@@ -20,6 +20,8 @@ interface VoiceSettingsContextType {
   isDeafened: boolean;
   toggleMute: () => void;
   toggleDeafen: () => void;
+  noiseCancellationEnabled: boolean;
+  toggleNoiseCancellation: () => void;
   
   // Voice connection presence states
   activeChannelId: string | null;
@@ -107,6 +109,7 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
   const router = useRouter();
   const [isMuted, setIsMuted] = useState(false);
   const [isDeafened, setIsDeafened] = useState(false);
+  const [noiseCancellationEnabled, setNoiseCancellationEnabled] = useState(true); // Default to ON for good DX
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Presence and voice room tracking
@@ -169,9 +172,11 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
   useEffect(() => {
     const savedMuted = localStorage.getItem('voice_muted');
     const savedDeafened = localStorage.getItem('voice_deafened');
+    const savedNoiseCancel = localStorage.getItem('voice_noise_cancel');
     
     if (savedMuted === 'true') setIsMuted(true);
     if (savedDeafened === 'true') setIsDeafened(true);
+    if (savedNoiseCancel === 'false') setNoiseCancellationEnabled(false);
     if (localStorage.getItem('voice_ptt') === 'true') { setPttEnabled(true); setIsMuted(true); }
     setIsLoaded(true);
   }, []);
@@ -472,15 +477,22 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
     setKickedUsers(prev => new Set(prev).add(userId));
   }, []);
 
-  const togglePtt = () => {
-    setPttEnabled(prev => {
-      const next = !prev;
-      try { localStorage.setItem('voice_ptt', String(next)); } catch { /* ignore */ }
-      setPttActive(false);
-      if (next) setIsMuted(true); // mic stays closed until you hold Space
+  const togglePtt = useCallback(() => {
+    setPttEnabled((p) => {
+      const next = !p;
+      localStorage.setItem('voice_ptt', next.toString());
+      if (next) setIsMuted(true); // Force mute when enabling PTT
       return next;
     });
-  };
+  }, []);
+
+  const toggleNoiseCancellation = useCallback(() => {
+    setNoiseCancellationEnabled((p) => {
+      const next = !p;
+      localStorage.setItem('voice_noise_cancel', next.toString());
+      return next;
+    });
+  }, []);
 
   const playSoundboard = (id: SoundId) => {
     playSound(id);
@@ -528,6 +540,8 @@ export function VoiceSettingsProvider({ children }: { children: React.ReactNode 
         pttEnabled,
         togglePtt,
         pttActive,
+        noiseCancellationEnabled,
+        toggleNoiseCancellation,
         playSoundboard,
         playCustomSound
       }}

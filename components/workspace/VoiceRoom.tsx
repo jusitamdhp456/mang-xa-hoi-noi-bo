@@ -16,7 +16,7 @@ import { Track, VideoPresets } from 'livekit-client';
 import { Monitor, MonitorOff, AlertTriangle, Maximize, Minimize } from 'lucide-react';
 import { useVoiceSettings, playVoiceTone } from '@/components/providers/VoiceSettingsProvider';
 import { useRouter } from 'next/navigation';
-import { Edit3, Check, X, Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Volume2, VolumeX, Settings, UserMinus, MoreVertical, Music, Hand, Upload, Pencil, Trash2 } from 'lucide-react';
+import { Edit3, Check, X, Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Volume2, VolumeX, Settings, UserMinus, MoreVertical, Music, Hand, Upload, Pencil, Trash2, Wand2 } from 'lucide-react';
 import { SOUNDBOARD } from '@/lib/soundboard';
 import { getCustomSounds, addCustomSound, renameCustomSound, deleteCustomSound } from '@/app/actions/sound';
 import { kickParticipant } from '@/app/actions/livekit';
@@ -43,6 +43,55 @@ function LiveKitSync({ isMuted, isDeafened }: { isMuted: boolean; isDeafened: bo
       });
     }
   }, [isMuted, isDeafened, localParticipant]);
+
+  return null;
+}
+
+function NoiseCancellationSync({ enabled }: { enabled: boolean }) {
+  const { localParticipant } = useLocalParticipant();
+  const krispRef = useRef<any>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    const applyFilter = async () => {
+      try {
+        const publication = localParticipant.getTrackPublication(Track.Source.Microphone);
+        const audioTrack = publication?.audioTrack;
+        
+        if (enabled) {
+          if (!krispRef.current) {
+            const { KrispNoiseFilter } = await import('@livekit/krisp-noise-filter');
+            krispRef.current = KrispNoiseFilter();
+          }
+          if (audioTrack && active) {
+            await (audioTrack as any).setProcessor(krispRef.current);
+          }
+        } else {
+          if (audioTrack && active && audioTrack.getProcessor()) {
+            await (audioTrack as any).setProcessor(undefined);
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to toggle Krisp noise cancellation:', e);
+      }
+    };
+
+    applyFilter();
+    
+    const handleLocalTrackPublished = (pub: any) => {
+      if (pub.source === Track.Source.Microphone) {
+        applyFilter();
+      }
+    };
+
+    localParticipant.on('localTrackPublished', handleLocalTrackPublished);
+
+    return () => {
+      active = false;
+      localParticipant.off('localTrackPublished', handleLocalTrackPublished);
+    };
+  }, [enabled, localParticipant]);
 
   return null;
 }
@@ -349,7 +398,7 @@ function VoiceStage({ channelId, workspaceId }: { channelId: string; workspaceId
 // the bottom-left. Mic/deafen/leave already live in UserPanel via VoiceSettings.
 function VoiceExtraControls() {
   const { localParticipant } = useLocalParticipant();
-  const { pttEnabled, togglePtt, playSoundboard, playCustomSound, workspaceId } = useVoiceSettings();
+  const { pttEnabled, togglePtt, playSoundboard, playCustomSound, workspaceId, noiseCancellationEnabled, toggleNoiseCancellation } = useVoiceSettings();
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   const [cameraOn, setCameraOn] = useState(false);
   const [screenOn, setScreenOn] = useState(false);
@@ -550,6 +599,15 @@ function VoiceExtraControls() {
         )}
       </div>
 
+      {/* Noise Cancellation toggle */}
+      <button
+        onClick={toggleNoiseCancellation}
+        className={`${btn} ${noiseCancellationEnabled ? active : idle}`}
+        title={noiseCancellationEnabled ? 'Tắt Khử tiếng ồn' : 'Bật Khử tiếng ồn'}
+      >
+        <Wand2 size={15} />
+      </button>
+
       {/* Push-to-talk toggle */}
       <button
         onClick={togglePtt}
@@ -568,7 +626,7 @@ function VoiceExtraControls() {
 function MobileVoiceControls() {
   const router = useRouter();
   const { localParticipant } = useLocalParticipant();
-  const { isMuted, toggleMute, isDeafened, toggleDeafen, setActiveChannelId, setWorkspaceId } = useVoiceSettings();
+  const { isMuted, toggleMute, isDeafened, toggleDeafen, setActiveChannelId, setWorkspaceId, noiseCancellationEnabled, toggleNoiseCancellation } = useVoiceSettings();
   const [cameraOn, setCameraOn] = useState(false);
   const [screenOn, setScreenOn] = useState(false);
   const [fpsMenu, setFpsMenu] = useState(false);
@@ -722,7 +780,8 @@ export function VoiceRoom({
     setSpeakingUserIds,
     activeParticipants,
     currentUser,
-    speakingUserIds
+    speakingUserIds,
+    noiseCancellationEnabled
   } = useVoiceSettings();
 
   const myUserId = currentUser?.id || userId;
@@ -1195,6 +1254,7 @@ export function VoiceRoom({
           serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL}
           connect={true}
           options={{
+            audioCaptureDefaults: { noiseSuppression: noiseCancellationEnabled, echoCancellation: true, autoGainControl: true },
             videoCaptureDefaults: { resolution: VideoPresets.h720.resolution },
             publishDefaults: { videoEncoding: VideoPresets.h720.encoding }
           }}
@@ -1202,6 +1262,7 @@ export function VoiceRoom({
           style={{ display: 'contents' }}
         >
           <LiveKitSync isMuted={isMuted} isDeafened={isDeafened} />
+          <NoiseCancellationSync enabled={noiseCancellationEnabled} />
           <LiveKitActiveSpeakersSync setSpeakingUserIds={setSpeakingUserIds} />
           <VoiceExtraControls />
           {!isDeafened && <RoomAudioRenderer />}
