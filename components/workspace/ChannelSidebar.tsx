@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { CreateChannelModal } from './CreateChannelModal'
 import { SidebarCategoryGroup } from './SidebarCategoryGroup'
@@ -8,37 +8,32 @@ import { Compass } from 'lucide-react'
 
 export default async function ChannelSidebar({ workspaceId }: { workspaceId: string }) {
   const supabase = await createSupabaseServerClient()
-
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Run database fetches in parallel to optimize rendering speed
-  const [profileResult, workspaceResult, categoriesResult, channelsResult, memberResult] = await Promise.all([
-    user ? supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single() : Promise.resolve({ data: null }),
-    supabase
+  // 1. Fetch user profile and member role first
+  const [profileResult, memberResult] = await Promise.all([
+    user ? supabase.from('profiles').select('*').eq('id', user.id).single() : Promise.resolve({ data: null }),
+    user ? supabase.from('workspace_members').select('role').eq('workspace_id', workspaceId).eq('user_id', user.id).maybeSingle() : Promise.resolve({ data: null }),
+  ]);
+
+  // 2. Fetch workspace data using serviceClient to avoid RLS false-negatives
+  const serviceClient = createSupabaseServiceClient();
+  const [workspaceResult, categoriesResult, channelsResult] = await Promise.all([
+    serviceClient
       .from('workspaces')
       .select('name')
       .eq('id', workspaceId)
       .single(),
-    supabase
+    serviceClient
       .from('channel_categories')
       .select('id, name')
       .eq('workspace_id', workspaceId)
       .order('sort_order', { ascending: true }),
-    supabase
+    serviceClient
       .from('channels')
       .select('*')
       .eq('workspace_id', workspaceId)
       .order('sort_order', { ascending: true }),
-    user ? supabase
-      .from('workspace_members')
-      .select('role')
-      .eq('workspace_id', workspaceId)
-      .eq('user_id', user.id)
-      .maybeSingle() : Promise.resolve({ data: null }),
   ]);
 
   const profile = profileResult.data;
