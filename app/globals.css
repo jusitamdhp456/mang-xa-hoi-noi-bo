@@ -284,3 +284,30 @@ html.theme-pink .text-white\/80,
 html.theme-pink .text-white\/90 {
   color: #831843 !important; 
 }
+
+/* Override intense primary colors (buttons, avatars, chat bubbles) for Pink theme */
+html.theme-pink .bg-indigo-600,
+html.theme-pink .bg-indigo-900,
+html.theme-pink .bg-\[\#5865F2\],
+html.theme-pink .bg-green-600,
+html.theme-pink .bg-emerald-600 {
+  background-color: rgba(225, 29, 72, 0.75) !important;
+  border-color: rgba(225, 29, 72, 0.4) !important;
+  color: #fff !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+html.theme-pink .hover\:bg-indigo-700:hover,
+html.theme-pink .hover\:bg-green-700:hover,
+html.theme-pink .hover\:bg-\[\#4752C4\]:hover,
+html.theme-pink .bg-indigo-700,
+html.theme-pink .bg-green-700 {
+  background-color: rgba(190, 24, 93, 0.85) !important;
+}
+
+/* Fix text colors matching those primary backgrounds */
+html.theme-pink .text-indigo-400,
+html.theme-pink .text-indigo-300,
+html.theme-pink .text-cyan-400 {
+  color: #be185d !important;
+}
