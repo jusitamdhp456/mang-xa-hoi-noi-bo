@@ -21,7 +21,7 @@ export function RouletteCard({ messageId, payload }: { messageId: string, payloa
   const isDead = payload.dead !== null
 
   return (
-    <div className="bg-[#1e1f22] border border-white/5 rounded-2xl p-4 min-w-[280px] max-w-sm shadow-xl">
+    <div className="bg-[#1e1f22] border border-white/5 rounded-2xl p-4 w-[280px] sm:w-[320px] max-w-full shadow-xl">
       <div className="flex justify-between items-start mb-4">
         <div>
           <h3 className="font-extrabold text-red-400 text-sm flex items-center gap-1.5 uppercase tracking-wide">

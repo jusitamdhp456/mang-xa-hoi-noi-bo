@@ -51,7 +51,7 @@ export function DiceCard({ messageId, payload, currentUserId }: { messageId: str
   }
 
   return (
-    <div className="bg-[#1e1f22] border border-white/5 rounded-2xl p-4 min-w-[300px] max-w-md shadow-xl">
+    <div className="bg-[#1e1f22] border border-white/5 rounded-2xl p-4 w-[300px] sm:w-[360px] max-w-full shadow-xl">
       <div className="flex justify-between items-start mb-4">
         <div>
           <h3 className="font-extrabold text-cyan-400 text-sm flex items-center gap-1.5 uppercase tracking-wide">
