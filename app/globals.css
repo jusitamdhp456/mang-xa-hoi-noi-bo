@@ -187,11 +187,19 @@ html.theme-pink .bg-\[\#0c0d0e\] {
   border-color: rgba(255, 255, 255, 0.8) !important;
 }
 
-/* Semi-transparent black overrides */
+/* Semi-transparent black overrides for Frosted Glass */
+html.theme-pink .bg-black\/10,
 html.theme-pink .bg-black\/20,
 html.theme-pink .bg-black\/30,
-html.theme-pink .bg-black\/40 {
-  background-color: rgba(255, 255, 255, 0.45) !important;
+html.theme-pink .bg-black\/40,
+html.theme-pink .bg-black\/55,
+html.theme-pink .bg-black\/60,
+html.theme-pink .bg-black\/70,
+html.theme-pink .bg-black\/75,
+html.theme-pink .bg-black\/90,
+html.theme-pink .from-indigo-900\/30 {
+  background-image: none !important;
+  background-color: rgba(255, 255, 255, 0.35) !important;
 }
 
 html.theme-pink .bg-zinc-800 {
