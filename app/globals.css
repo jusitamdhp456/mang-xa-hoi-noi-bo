@@ -161,3 +161,90 @@ body::before {
     border: none !important;
   }
 }
+
+/* ========================================================
+   PINK THEME (GLASSMORPHISM) OVERRIDES
+   ======================================================== */
+html.theme-pink body {
+  background-color: #fdf2f8 !important;
+  color: #831843 !important;
+}
+
+html.theme-pink body::before {
+  background: linear-gradient(145deg, #fce7f3 0%, #fbcfe8 30%, #f9a8d4 70%, #f472b6 100%) !important;
+}
+
+/* Override background colors */
+html.theme-pink .bg-\[\#1e1f22\],
+html.theme-pink .bg-\[\#2b2d31\],
+html.theme-pink .bg-\[\#313338\],
+html.theme-pink .bg-\[\#383a40\],
+html.theme-pink .bg-\[\#111214\],
+html.theme-pink .bg-\[\#0c0d0e\] {
+  background-color: rgba(255, 255, 255, 0.55) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border-color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Semi-transparent black overrides */
+html.theme-pink .bg-black\/20,
+html.theme-pink .bg-black\/30,
+html.theme-pink .bg-black\/40 {
+  background-color: rgba(255, 255, 255, 0.45) !important;
+}
+
+html.theme-pink .bg-zinc-800 {
+  background-color: rgba(255, 255, 255, 0.7) !important;
+}
+
+html.theme-pink .bg-zinc-900 {
+  background-color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Specific text overrides */
+html.theme-pink .text-white,
+html.theme-pink .text-zinc-200,
+html.theme-pink .text-zinc-300 {
+  color: #831843 !important;
+}
+
+html.theme-pink .text-zinc-400,
+html.theme-pink .text-zinc-500 {
+  color: #be185d !important;
+}
+
+/* Specific border overrides */
+html.theme-pink .border-white\/10,
+html.theme-pink .border-white\/5,
+html.theme-pink .border-black\/30 {
+  border-color: rgba(244, 114, 182, 0.25) !important;
+}
+
+/* Inputs and hover states */
+html.theme-pink .hover\:bg-white\/5:hover,
+html.theme-pink .hover\:bg-white\/10:hover {
+  background-color: rgba(244, 114, 182, 0.15) !important;
+}
+
+html.theme-pink .bg-white\/5,
+html.theme-pink .bg-white\/10 {
+  background-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+html.theme-pink .hover\:text-white:hover {
+  color: #e11d48 !important; /* rose-600 */
+}
+
+/* Placeholder text */
+html.theme-pink ::placeholder {
+  color: rgba(190, 24, 93, 0.5) !important;
+}
+
+/* Scrollbars for pink theme */
+html.theme-pink ::-webkit-scrollbar-thumb {
+  background: rgba(244, 114, 182, 0.4) !important;
+}
+html.theme-pink ::-webkit-scrollbar-thumb:hover {
+  background: rgba(244, 114, 182, 0.6) !important;
+}

@@ -43,8 +43,23 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   // Appearance state
-  const [theme, setTheme] = useState<'dark' | 'light' | 'midnight'>('dark');
+  const [theme, setTheme] = useState<'dark' | 'light' | 'midnight' | 'pink'>('dark');
   const [layoutMode, setLayoutMode] = useState<'cozy' | 'compact'>('cozy');
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('app-theme') as any;
+    if (savedTheme) setTheme(savedTheme);
+  }, []);
+
+  const handleThemeChange = (newTheme: 'dark' | 'light' | 'midnight' | 'pink') => {
+    setTheme(newTheme);
+    localStorage.setItem('app-theme', newTheme);
+    if (newTheme === 'pink') {
+      document.documentElement.classList.add('theme-pink');
+    } else {
+      document.documentElement.classList.remove('theme-pink');
+    }
+  };
 
   // Notifications state
   const [pushEnabled, setPushEnabled] = useState(true);
@@ -506,11 +521,11 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
                   {/* Themes Select */}
                   <div className="space-y-3">
                     <label className="text-xs text-zinc-400 font-bold uppercase block">Chủ đề (Theme)</label>
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                       
                       {/* Dark */}
                       <div 
-                        onClick={() => setTheme('dark')}
+                        onClick={() => handleThemeChange('dark')}
                         className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col gap-2 ${theme === 'dark' ? 'bg-[#5865f2]/10 border-[#5865f2] text-white' : 'bg-black/20 backdrop-blur-xl border-white/5 text-zinc-400 hover:bg-white/5'}`}
                       >
                         <div className="w-full h-10 bg-[#313338] rounded-md border border-white/10 mb-1"></div>
@@ -519,7 +534,7 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
 
                       {/* Light */}
                       <div 
-                        onClick={() => setTheme('light')}
+                        onClick={() => handleThemeChange('light')}
                         className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col gap-2 ${theme === 'light' ? 'bg-[#5865f2]/10 border-[#5865f2] text-white' : 'bg-black/20 backdrop-blur-xl border-white/5 text-zinc-400 hover:bg-white/5'}`}
                       >
                         <div className="w-full h-10 bg-[#f2f3f5] rounded-md border border-white/10 mb-1"></div>
@@ -528,11 +543,20 @@ export function UserSettingsModal({ user, profile, customTrigger }: UserSettings
 
                       {/* Midnight */}
                       <div 
-                        onClick={() => setTheme('midnight')}
+                        onClick={() => handleThemeChange('midnight')}
                         className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col gap-2 ${theme === 'midnight' ? 'bg-[#5865f2]/10 border-[#5865f2] text-white' : 'bg-black/20 backdrop-blur-xl border-white/5 text-zinc-400 hover:bg-white/5'}`}
                       >
                         <div className="w-full h-10 bg-[#0c0d0e] rounded-md border border-white/10 mb-1"></div>
-                        <span className="text-sm font-semibold">Cực tối (Midnight)</span>
+                        <span className="text-sm font-semibold">Cực tối</span>
+                      </div>
+
+                      {/* Pink */}
+                      <div 
+                        onClick={() => handleThemeChange('pink')}
+                        className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col gap-2 ${theme === 'pink' ? 'bg-[#5865f2]/10 border-[#5865f2] text-white' : 'bg-black/20 backdrop-blur-xl border-white/5 text-zinc-400 hover:bg-white/5'}`}
+                      >
+                        <div className="w-full h-10 bg-gradient-to-br from-pink-300 to-pink-500 rounded-md border border-white/10 mb-1"></div>
+                        <span className="text-sm font-semibold text-pink-400">Hồng pha lê</span>
                       </div>
                     </div>
                   </div>
