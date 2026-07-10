@@ -61,6 +61,17 @@ export default async function WorkspacePage({
   ])
 
   const workspace = workspaceResult.data
+  
+  if (!workspace) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center bg-black/20 text-white p-8 h-full rounded-2xl border border-white/5 shadow-xl m-4">
+        <h1 className="text-2xl font-bold mb-4 text-center">Không tìm thấy không gian làm việc</h1>
+        <Link href="/channels/me" className="px-6 py-3 bg-[#5865F2] hover:bg-[#4752C4] rounded-xl font-bold transition-all shadow-md hover:shadow-lg">
+          Trở về Trang chủ
+        </Link>
+      </div>
+    )
+  }
 
   const categories = categoriesResult.data || []
   const channels = channelsResult.data || []
