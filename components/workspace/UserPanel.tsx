@@ -82,7 +82,7 @@ export function UserPanel({ user, profile, channels, workspaceName }: UserPanelP
     <div className="flex flex-col shrink-0 mt-auto relative">
       {/* Voice Connection Status Widget (Discord style) */}
       {activeChannelId && (
-        <div className="bg-[#232428] border-t border-b border-white/10 px-3 py-2.5 flex items-center justify-between z-10 shadow-lg select-none">
+        <div className="bg-black/10 border-t border-b border-white/10 px-3 py-2.5 flex items-center justify-between z-10 shadow-lg select-none">
           <div className="flex items-center gap-2 min-w-0">
             <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shrink-0 shadow-[0_0_6px_rgba(34,197,94,0.8)]" />
             <div className="min-w-0 flex flex-col">
@@ -123,7 +123,7 @@ export function UserPanel({ user, profile, channels, workspaceName }: UserPanelP
       )}
 
       {/* Main Profile Control Bar */}
-      <div className="bg-[#232428] h-[60px] flex items-center px-2 py-1 border-t border-white/10 relative z-20">
+      <div className="bg-black/10 h-[60px] flex items-center px-2 py-1 border-t border-white/10 relative z-20">
         {/* Status menu */}
         {statusOpen && (
           <>
