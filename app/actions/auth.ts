@@ -15,7 +15,7 @@ export async function login(formData: FormData) {
   })
 
   if (error) {
-    return redirect('/login?error=Lỗi đăng nhập. Vui lòng kiểm tra lại.')
+    return redirect(`/login?error=${encodeURIComponent('Lỗi đăng nhập. Vui lòng kiểm tra lại.')}`)
   }
 
   return redirect('/onboarding')
@@ -34,7 +34,7 @@ export async function signup(formData: FormData) {
   })
 
   if (error) {
-    return redirect('/register?error=Không thể tạo tài khoản.')
+    return redirect(`/register?error=${encodeURIComponent('Không thể tạo tài khoản.')}`)
   }
 
   if (data.user) {
